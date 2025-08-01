@@ -10,7 +10,8 @@ authors:
 affiliations:
     - index: 1
       name: German Research Center for Artificial Intelligence
-date: 31 July 2025
+date: 1 August 2025
+bibliography: paper.bib
 ---
 
 # Summary
