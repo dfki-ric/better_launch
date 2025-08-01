@@ -9,7 +9,7 @@ authors:
       affiliation: "1"
 affiliations:
     - index: 1
-      name: German Research Center for Artificial Intelligence
+      name: German Research Center for Artificial Intelligence, Germany
 date: 1 August 2025
 bibliography: paper.bib
 ---
@@ -29,11 +29,11 @@ On one hand, being able to write launch files in python is a nice feature which 
 - convoluted and obscure internals
 - etc.
 
-There are of course good reasons for the way the launch system has been implemented, at least on a superficial level. According to the design document, the intent is to treat launch files as "a description of what will happen" without executing anything. This is so that tools can "visualize and modify the launch description". The recently released @launchmap is able to do just that. However, given that users may define their own launch actions without a common way of inspecting them, it could be argued that even this use case is not well supported right now. There is also no good argument why the same couldn't be achieved using e.g. python's inspect module and/or a non-declarative syntax.
+There are of course good reasons for the way the launch system has been implemented, at least on a superficial level. According to the design document, the intent is to treat launch files as "a description of what will happen" without executing anything. This is so that tools can "visualize and modify the launch description". The recently released LauncMmap [@launchmap] is able to do just that. However, given that users may define their own launch actions without a common way of inspecting them, it could be argued that even this use case is not well supported right now. There is also no good argument why the same couldn't be achieved using e.g. python's inspect module and/or a non-declarative syntax.
 
 # Existing Remedies
 
-The issues in user friendliness have led to the emergence of several packages that simplify writing launch files, e.g. @simple_launch and @launch_generator, while other packages like the popular @generate_parameter_library are dedicated to particular aspects of the launch process. However, in the end they all face the same issues mentioned above, as they just represent different ways of generating the launch descriptions.
+The issues in user friendliness have led to the emergence of several packages that simplify writing launch files, e.g. Simple_launch [@simple_launch] and Launch-generator [@launch_generator], while other packages like the popular Generate_parameter_library [@generate_parameter_library] are dedicated to particular aspects of the launch process. However, in the end they all face the same issues mentioned above, as they just represent different ways of generating the launch descriptions.
 
 # better_launch
 
@@ -46,7 +46,7 @@ In order to actually resolve these issues I have written *better_launch*, a comp
 - *better_launch* comes with a replacement for `ros2 launch` called `bl`, which is both faster than its counterpart and provides additional features. For example, `bl` enables auto completion for launch parameters and uses the launch function's docstring to generate a `--help` text.
 - To improve usability, *better_launch* reformats and colors terminal output by default. 
 - Unless killed with SIGKILL, *better_launch* will not leave zombie processes behind. 
-- *better_launch* provides an optional and unobtrusive **terminal UI** reminiscent of @rosmon, which can be used for stopping and restarting nodes, triggering life cycle transitions, list a node's subscribed topics, dynamically adjust the logging level, and more.
+- *better_launch* provides an optional and unobtrusive **terminal UI** reminiscent of Rosmon [@rosmon], which can be used for stopping and restarting nodes, triggering life cycle transitions, list a node's subscribed topics, dynamically adjust the logging level, and more.
 
 ![Screenshot of the TUI](../media/tui.png){height="60%"}
 
