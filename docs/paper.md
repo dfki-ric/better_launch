@@ -90,4 +90,6 @@ def great_atuin(
         turtle_node.set_live_params({"background_r": new_background_r})
 ```
 
+\newpage
+
 # References
