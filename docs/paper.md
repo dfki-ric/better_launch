@@ -48,7 +48,7 @@ In order to actually resolve these issues I have written *better_launch*, a comp
 - Unless killed with SIGKILL, *better_launch* will not leave zombie processes behind. 
 - *better_launch* provides an optional and unobtrusive **terminal UI** reminiscent of @rosmon, which can be used for stopping and restarting nodes, triggering life cycle transitions, list a node's subscribed topics, dynamically adjust the logging level, and more.
 
-![Screenshot of the TUI](../media/tui.png){height="90%"}
+![Screenshot of the TUI](../media/tui.png){height="75%"}
 
 We consider *better_launch* mature enough for general use in research applications. It is under active development and can be downloaded for free from https://github.com/dfki-ric/better_launch. We hope that *better_launch* will advance the state of ROS2 in a meaningful way.
 
