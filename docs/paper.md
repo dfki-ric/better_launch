@@ -44,17 +44,17 @@ In order to actually resolve these issues I have written *better_launch*, a comp
 - *better_launch* launch files are fully compatible with the ROS2 launch system. This means they can be started through `ros2 launch`, include regular ROS2 launch files, and even get included from regular ROS2 launch files.
 - The entire launch logic is contained within a single, fully documented package, examples included. Convenience functions exist for various common tasks like starting a `joint_state_publisher` or bridging Gazebo topics.
 - *better_launch* comes with a replacement for `ros2 launch` called `bl`, which is both faster than its counterpart and provides additional features. For example, `bl` enables auto completion for launch parameters and uses the launch function's docstring to generate a `--help` text.
-- To further improve usability, *better_launch* reformats and colors terminal output by default. 
+- To improve usability, *better_launch* reformats and colors terminal output by default. 
 - Unless killed with SIGKILL, *better_launch* will not leave zombie processes behind. 
 - *better_launch* provides an optional and unobtrusive **terminal UI** reminiscent of @rosmon, which can be used for stopping and restarting nodes, triggering life cycle transitions, list a node's subscribed topics, dynamically adjust the logging level, and more.
 
-![Screenshot of the TUI](../media/tui.png)
+![Screenshot of the TUI](../media/tui.png){width=".7\textwidth"}
 
 We consider *better_launch* mature enough for general use in research applications. It is under active development and can be downloaded for free from https://github.com/dfki-ric/better_launch. We hope that *better_launch* will advance the state of ROS2 in a meaningful way.
 
 # Example
 
-The ROS2 tutorials provide an [example launch file](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Launch/Using-Substitutions.html) for running a turtlebot simulation. This launch file creates a node, then calls one of its services and updates a parameter. Ironically, due to the asynchronous execution, the parameter update usually fails because the node has not come up yet. *better_launch* does not have this issue, and can in addition express the same launch file with only 27 instead of 73 lines - including documentation!
+The ROS2 tutorials provide an [example launch file](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Launch/Using-Substitutions.html) for running a turtlebot simulation. This launch file creates a node, then calls one of its services and updates a parameter. Ironically, due to the asynchronous execution, the parameter update usually fails because the node has not come up yet. *better_launch* does not have this issue, and can in addition express the same launch file with only 28 instead of 73 lines - including documentation!
 
 ```python
 #!/usr/bin/env python3
@@ -66,10 +66,7 @@ def great_atuin(
     use_provided_red: bool = True, 
     new_background_r: int = 200,
 ):
-    """
-    This docstring will also be used when running the launch file with --help 
-    and provide documentation for the launch arguments above!
-    """
+    """ This docstring will also be used to create text for --help!"""
     bl = BetterLaunch()
 
     with bl.group(turtlesim_ns):
