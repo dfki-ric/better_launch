@@ -1604,7 +1604,7 @@ Takeoff in 3... 2... 1...
             else:
                 raise ValueError(f"Unknown container mode '{variant}")
 
-            node_ref = Node(package, executable, name, namespace, output=output)
+            node_ref = Node(package, executable, name, namespace, remaps=component_remaps, output=output)
 
         if isinstance(node_ref, Composer):
             comp = node_ref
