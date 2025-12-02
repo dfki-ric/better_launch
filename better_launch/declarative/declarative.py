@@ -17,7 +17,7 @@ current_toml_format_version = 1
 
 def _execute_toml(
     toml: dict[str, Any],
-    eval_mode: Literal["full", "literal", "none"],
+    eval_mode: Literal["full", "literal", "none"] = "literal",
 ) -> dict[str, Any]:
     """Execute each call table and apply substitutions."""
     if BetterLaunch.instance():
@@ -25,7 +25,8 @@ def _execute_toml(
 
     # Initialize the launcher instance
     bl = BetterLaunch()
-    valid_funcs = set(f for f in BetterLaunch.__dict__ if not f.startswith("_"))
+
+    valid_funcs = {f: getattr(bl, f) for f in dir(bl) if not f.startswith("_")}
     results = dict(bl.launch_args)
 
     def substitute_all(value: Any):
@@ -52,17 +53,13 @@ def _execute_toml(
         if req.pop("unless", False):
             return
 
-        # If not specified assume we're creating a node
+        # Get the function to execute
         func_name = req.pop("func")
         if func_name not in valid_funcs:
             raise KeyError(f"func='{func_name}' is not a valid request")
 
-        func = getattr(bl, func_name)
+        func = valid_funcs[func_name]
         func_sig = inspect.signature(func)
-
-        # Where accepted the table key can be used as the name (e.g. of a node)
-        if "name" in func_sig.parameters and "name" not in req:
-            req["name"] = key
 
         # Call the function and store the result
         children = None
@@ -190,7 +187,7 @@ def launch_toml(
         package = "composition"
         plugin = "composition::Talker"
 
-    In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions). These will be evaluated according to 
+    In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions). These will be evaluated according to
     python truthiness.
     - if     -> execute only if condition is true
     - unless -> execute only if condition is false
@@ -248,7 +245,7 @@ def launch_toml(
 
     if toml_format == current_toml_format_version:
         pass
-    #elif toml_format == some_previous_version: ...
+    # elif toml_format == some_previous_version: ...
 
     if eval_mode is None:
         eval_mode = toml.get("bl_eval_mode", "literal")

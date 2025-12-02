@@ -77,8 +77,8 @@ class LifecycleManager:
             services = node.get_published_services()
             for srv_name, srv_types in services.items():
                 if (
-                    srv_name == f"{node.fullname}/get_state"
-                    and "lifecycle_msgs/srv/GetState" in srv_types
+                    srv_name == f"{node.fullname}/get_available_transitions"
+                    and "lifecycle_msgs/srv/GetAvailableTransitions" in srv_types
                 ):
                     return True
 
