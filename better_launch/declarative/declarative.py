@@ -37,7 +37,8 @@ def _execute_toml(
             for i, item in enumerate(value):
                 value[i] = substitute_all(item)
         elif isinstance(value, str):
-            return apply_substitutions(value, None, results, eval_type=eval_mode)
+            new_val = apply_substitutions(value, None, results, eval_type=eval_mode)
+            return new_val
 
         return value
 
@@ -46,11 +47,12 @@ def _execute_toml(
             return
 
         substitute_all(req)
-
         if not req.pop("if", True):
+            results[key] = None
             return
 
         if req.pop("unless", False):
+            results[key] = None
             return
 
         # Get the function to execute
@@ -299,6 +301,7 @@ def launch_toml(
                 argv.extend([f"--{key}", arg])
 
     def launch_func(*args, **kwargs):
+        # TODO prevent using names of call tables
         toml.update(kwargs)
         _execute_toml(toml, eval_mode=eval_mode)
 

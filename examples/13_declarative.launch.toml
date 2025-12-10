@@ -96,6 +96,7 @@ pkg = "better_launch"
 
 # This block will call BetterLaunch.find with the provided arguments. The result will 
 # be stored in a variable called "a_simple_cube" and can be used later in substituions.
+# Skipped call tables will store a None result.
 [a_simple_cube]
 # Only run if pkg was defined (based on python truthiness). You can also use "unless".
 if = "${enable}"
@@ -107,4 +108,4 @@ filename = "cube.sdf"
 [print_me_baby]
 func = "log"
 severity = "info"
-message = "SUCCESS! This simple cube can be found at ${a_simple_cube}"
+message = "SUCCESS! A simple cube can be found at ${a_simple_cube}"

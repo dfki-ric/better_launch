@@ -41,37 +41,46 @@ def _parse_substitutions(s: str) -> list[list | str]:
         n = len(s)
         while i < n:
             if s[i].isspace():
-                i += 1
-                continue
+                # Preserve whitespace as a token for spacing in output later
+                start = i
+                while i < n and s[i].isspace():
+                    i += 1
+                yield s[start:i]
             elif s[i] == "$":
+                # Check if it's the start of a substitution
                 if i + 1 < n and s[i + 1] == "{":
                     yield "${"
                     i += 2
                 else:
-                    # Just a dollar sign, not a substitution - treat as regular text
+                    # Just a regular dollar sign, not part of a substitution
                     start = i
                     i += 1
                     while i < n and not s[i].isspace() and s[i] not in "${}":
                         i += 1
                     yield s[start:i]
             elif s[i] == "}":
+                # Closing brace: end of a substitution
                 yield "}"
                 i += 1
             elif s[i] in "\"'":
+                # Quoted strings: extract content between quotes (excluding the quotes)
                 quote = s[i]
-                i += 1
+                i += 1  # skip opening quote
                 start = i
                 escaped = False
                 while i < n:
                     if escaped:
+                        # Previous char was backslash, so this char is escaped
                         escaped = False
                         i += 1
                         continue
                     if s[i] == "\\":
+                        # Start escape sequence
                         escaped = True
                         i += 1
                         continue
                     if s[i] == quote:
+                        # Found matching closing quote
                         break
                     i += 1
                 else:
@@ -79,6 +88,8 @@ def _parse_substitutions(s: str) -> list[list | str]:
                 yield s[start:i]
                 i += 1  # skip closing quote
             else:
+                # Handle regular text: collect characters until we hit a delimiter
+                # Delimiters are: whitespace, $, {, }
                 start = i
                 while i < n and not s[i].isspace() and s[i] not in "${}":
                     i += 1
@@ -88,25 +99,36 @@ def _parse_substitutions(s: str) -> list[list | str]:
         stack = []
         current = []
         is_key = False
+        in_substitution = False
         
         for tok in tokens:
             if tok == "${":
-                stack.append(current)
+                # Start of a substitution: push current context onto stack and start fresh
+                stack.append((current, in_substitution))
                 current = []
-                is_key = True
+                is_key = True  # Next token will be the substitution key
+                in_substitution = True
             elif tok == "}":
+                # End of a substitution: pop context from stack and add completed substitution
                 if not stack:
                     raise ValueError("Unbalanced '}' - no matching '${'")
                 completed = current
-                current = stack.pop()
+                current, in_substitution = stack.pop()
+                # Add the completed substitution as a nested list
                 current.append(completed)
             else:
+                # Regular token (text, whitespace, or substitution argument)
+                # Skip whitespace tokens inside substitutions
+                if in_substitution and tok.isspace():
+                    continue
                 if is_key:
+                    # This is the substitution key - prefix it with $ to mark it
                     tok = "$" + tok
                     is_key = False
                 current.append(tok)
         
         if stack:
+            # Unclosed substitution
             raise ValueError("Unbalanced '${' - missing closing '}'")
 
         return current
@@ -190,7 +212,7 @@ def apply_substitutions(
     context: dict[str, Any] = None,
     *,
     eval_type: Literal["full", "literal", "none"] = "full",
-) -> str:
+) -> Any:
     """Applies substitutions to a string.
 
     Substitution strings are expected to follow the pattern: `${key *args}`, where `key` is a 
@@ -257,7 +279,6 @@ def apply_substitutions(
             
             # Evaluate nested elements first
             evaluated = [delve(token) for token in node]
-            
             sub_key, *sub_args = evaluated
 
             # Substitution keys will start with a $ (see parse() above)
@@ -265,29 +286,32 @@ def apply_substitutions(
                 sub_key = sub_key[1:]
 
                 if sub_key in substitutions:
-                    return str(substitutions[sub_key](*sub_args))
+                    return substitutions[sub_key](*sub_args)
 
                 # If the key is not a substitution key, assume it's the name of a launch
                 # arg or call result
                 if sub_key in context:
-                    return str(context[sub_key])
+                    return context[sub_key]
                 else:
                     raise SubstitutionError(f"Unknown substitution key: {sub_key} (substitutions: {list(substitutions.keys())}, context: {list(context.keys())})")
             else:
                 return " ".join(str(e) for e in evaluated)
         else:
-            return str(node)
+            return node
 
-    # Handle the case where the entire input is just plain text (no substitutions)
     if isinstance(parsed, list):
         if not parsed:
             return ""
         elif len(parsed) == 1 and isinstance(parsed[0], str):
+            # The entire input is just plain text (no substitutions)
             return parsed[0]
+        elif len(parsed) == 1 and isinstance(parsed[0], list):
+            # For "pure" substitutions like "${abc}" return the actual value instead of its string
+            return delve(parsed[0])
         else:
-            return " ".join(str(delve(item)) for item in parsed)
+            return "".join(str(delve(item)) for item in parsed)
     
-    return str(delve(parsed))
+    return delve(parsed)
 
 
 if __name__ == "__main__":
