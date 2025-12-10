@@ -17,6 +17,9 @@ def first_steps():
     """
     bl = BetterLaunch()
 
+    if not bl.is_included():
+        print("I am a strong, independent launchfile!")
+
     with bl.group("basic"):
         bl.node(
             "examples_rclpy_minimal_publisher",

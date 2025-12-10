@@ -5,7 +5,7 @@ import logging
 
 from better_launch import BetterLaunch
 from better_launch.wrapper import _exec_launch_func
-from better_launch.utils.better_logging import Colormode
+from better_launch.utils.settings import Colormode, SETTINGS
 from better_launch.utils.click import DeclaredArg
 
 from .toml_parser import load as load_toml
@@ -137,20 +137,24 @@ def _get_toml_args(toml: dict) -> list[DeclaredArg]:
 def launch_toml(
     path: str,
     launch_args: dict[str, str] = None,
-    eval_mode: Literal["full", "literal", "none"] = None,
     *,
-    ui: bool = None,
-    join: bool = None,
-    screen_log_format: str = None,
-    file_log_format: str = None,
-    colormode: Colormode = None,
-    manage_foreign_nodes: bool = None,
-    keep_alive: bool = None,
+    # These should largely mirror the launch_this decorator
+    eval_mode: Literal["full", "literal", "none"] = "literal",
     allow_kwargs: bool = None,
+    ui: bool = False,
+    colormode: Colormode = Colormode.DEFAULT,
+    print_limit: int = 0,
+    screen_log_level: str | int = None,
+    screen_log_format: str = None,
+    file_log_level: str | int = None,
+    file_log_format: str = None,
+    manage_foreign_nodes: bool = None,
+    join: bool = None,
+    keep_alive: bool = None,
 ) -> None:
     """Execute a TOML better_launch launchfile.
 
-    In better_launch TOML launch files, most tables will be `call tables`. A call table is a dict that has a `func` key referring to one of the public :py:class:`BetterLaunch` member functions. All other attributes will be treated as keyword arguments to that function. Call tables are executed in the order they appear in the launch file, and the result of calling their associated function will be stored under the call table's name.
+    In better_launch TOML launchfiles, most tables will be `call tables`. A call table is a dict that has a `func` key referring to one of the public :py:class:`BetterLaunch` member functions. All other attributes will be treated as keyword arguments to that function. Call tables are executed in the order they appear in the launch file, and the result of calling their associated function will be stored under the call table's name.
 
     For example:
 
@@ -192,18 +196,11 @@ def launch_toml(
     - if     -> execute only if condition is true
     - unless -> execute only if condition is false
 
+    Similar to :py:meth:`launch_this`, a TOML launchfile may specify various settings to configure the launch process. In particular, all of the *keyword-only* arguments to this function can be specified with a `bl_` prefix as global args. For example, to set the `screen_log_level` from your launchfile you could add `bl_screen_log_level = "warning"` in the global scope.
+
     Lastly, there are a couple of special keys that may be declared in the TOML:
     - `bl_toml_format`: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don't want to update your launch file. The current version is :py:data:`toml_format_version`.
-    - `bl_eval_mode`: if and how `$(eval ...)` substitutions should be supported.
-    - `bl_ui`: default value for starting the UI
-    - `bl_join`: whether to join the processes better_launch starts
-    - `bl_colormode`: default colormode
-    - `bl_screen_log_format`: default terminal output format
-    - `bl_file_log_format`: default file log format
-    - `bl_manage_foreign_nodes`: whether to show foreign nodes in the UI
-    - `bl_keep_alive`: whether to keep running after the last node exits
-    - `bl_allow_kwargs`: whether additional launch arguments are allowed
-
+    
     Parameters
     ----------
     path : str
@@ -214,12 +211,8 @@ def launch_toml(
         How to treat `eval` substitutions.
     ui : bool, optional
         Whether to start the better_launch TUI. Superseded by the `BL_UI_OVERRIDE` environment variable and the `--bl_ui_override` argument.
-    join : bool, optional
-        If True, join the better_launch process. Has no effect when ui == True.
-    screen_log_format : str, optional
-        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
-    file_log_format : str, optional
-        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
+    allow_kwargs : bool, optional
+        Whether additional launch arguments are allowed.
     colormode : Colormode, optional
         Decides what colors will be used for:
         * default: one color per log severity level and a single color for all message sources
@@ -228,12 +221,22 @@ def launch_toml(
         * none: don't colorize anything
         * rainbow: colorize log severity and give each message source its own color
         Superseded by the `BL_COLORMODE_OVERRIDE` environment variable and the `--bl_colormode_override` argument.
+    print_limit : int, optional
+        Limit the length of messages printed to the screen.
+    screen_log_level : str | int, optional
+        The minimum level for log messages to be printed to the terminal/screen. Can be either  "info", "warning", "error", "critical", or an arbitrary integer (e.g. logging.WARNING).
+    screen_log_format : str, optional
+        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
+    file_log_level : str | int, optional
+        The minimum level for log messages to be written to the lot file. Can be either  "info", "warning", "error", "critical", or an arbitrary integer (e.g. logging.WARNING).
+    file_log_format : str, optional
+        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
     manage_foreign_nodes : bool, optional
         If True, the TUI will also include node processes not started by this process. Has no effect if the TUI is not started.
+    join : bool, optional
+        If True, join the better_launch process. Has no effect when ui == True.
     keep_alive : bool, optional
         If True, keep the process alive even when all nodes have stopped.
-    allow_kwargs : bool, optional
-        Whether additional launch arguments are allowed.
     """
     toml: dict = load_toml(path)
     declared_args = _get_toml_args(toml)
@@ -247,32 +250,46 @@ def launch_toml(
         pass
     # elif toml_format == some_previous_version: ...
 
-    if eval_mode is None:
-        eval_mode = toml.get("bl_eval_mode", "literal")
+    if not BetterLaunch.is_included():
+        if ui is None:
+            ui = bool(toml.get("bl_ui", "false").lower() in ("true", "enable", "1"))
 
-    if ui is None:
-        ui = toml.get("bl_ui", "false") in ("true", "enable", "1")
+        if colormode is None:
+            colormode = Colormode[toml.get("bl_colormode", Colormode.DEFAULT.name)]
+
+        if print_limit is None:
+            print_limit = int(toml.get("bl_print_limit", True))
+
+        if screen_log_level is None:
+            screen_log_level = int(toml.get("bl_screen_log_level", True))
+
+        if screen_log_format is None:
+            screen_log_format = toml.get("bl_screen_log_format", None)
+
+        if file_log_level is None:
+            file_log_level = int(toml.get("bl_file_log_level", True))
+
+        if file_log_format is None:
+            file_log_format = toml.get("bl_file_log_format", None)
+
+        SETTINGS._initialize(
+            ui,
+            colormode,
+            print_limit,
+            screen_log_level,
+            screen_log_format,
+            file_log_level,
+            file_log_format,
+        )
 
     if join is None:
         join = toml.get("bl_join", True)
-
-    if colormode is None:
-        colormode = Colormode[toml.get("bl_colormode", Colormode.DEFAULT.name)]
-
-    if screen_log_format is None:
-        screen_log_format = toml.get("bl_screen_log_format", None)
-
-    if file_log_format is None:
-        file_log_format = toml.get("bl_file_log_format", None)
 
     if manage_foreign_nodes is None:
         manage_foreign_nodes = toml.get("bl_manage_foreign_nodes", False)
 
     if keep_alive is None:
         keep_alive = toml.get("bl_keep_alive", False)
-
-    if allow_kwargs is None:
-        allow_kwargs = toml.get("bl_allow_kwargs", True)
 
     argv = None
     if launch_args:
@@ -289,12 +306,8 @@ def launch_toml(
         launch_func,
         declared_args,
         docstring,
-        ui=ui,
-        join=join,
-        colormode=colormode,
-        screen_log_format=screen_log_format,
-        file_log_format=file_log_format,
         manage_foreign_nodes=manage_foreign_nodes,
+        join=join,
         keep_alive=keep_alive,
         # Not useful for the launchfile, but some node may consume the extra args
         allow_kwargs=allow_kwargs,

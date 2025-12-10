@@ -1,4 +1,6 @@
 from typing import Callable, Any
+import sys
+import threading
 import ast
 import inspect
 
@@ -30,16 +32,44 @@ def find_function_frame(func: Callable) -> inspect.FrameInfo:
     raise ValueError(f"Could not find frame of function {func}")
 
 
-def find_calling_frame(func: Callable) -> inspect.FrameInfo:
-    """Find the most recent stack frame the specified function is called in that is NOT in the same file as the
-    function. This is useful to e.g. identify the python file a function is imported from and called in.
+def get_stack(thread_id: int = -1) -> list[inspect.FrameInfo]:
+    """Returns a stack of frame info for the specified thread_id.
 
-    Note that the function **must** be part of the current stack frame that led to the invocation of this function.
+    Parameters
+    ----------
+    thread_id : int, optional
+        ID of the thread to get the frame info for. -1 will return for the caller's frame, -2 for the caller's caller, and so on. Return for the main thread if 0.
+
+    Returns
+    -------
+    list
+        A list of :py:class:`inspect.FrameInfo` objects.
+
+    Raises
+    ------
+    IndexError
+        If the specified thread_id does not identify a valid frame.
+    """
+    if thread_id < 0:
+        frame = sys._getframe(-thread_id)
+        return inspect.getouterframes(frame, 1)
+
+    if thread_id == 0:
+        thread_id = threading.main_thread().ident
+
+    frames = sys._current_frames()
+    return inspect.getouterframes(frames[thread_id], 1)
+
+
+def find_calling_frame(func: Callable, thread_id: int = -1) -> inspect.FrameInfo:
+    """Find the most recent stack frame the specified function is called in that is NOT in the same file as the function. This is useful to e.g. identify the python file a function is imported from and called in.
 
     Parameters
     ----------
     func : Callable
         A defined function.
+    thread_id : int, optional
+        The ID of the thread to search in. Search the main thread if 0, or the current thread if -1.
 
     Returns
     -------
@@ -51,9 +81,10 @@ def find_calling_frame(func: Callable) -> inspect.FrameInfo:
     ValueError
         If no such frame could be found.
     """
+    stack = get_stack(thread_id)
     func_frame = None
 
-    for frame_info in inspect.stack():
+    for frame_info in stack:
         if frame_info.frame.f_code is func.__code__:
             func_frame = frame_info
 
@@ -202,8 +233,14 @@ def get_launchfunc_signature_from_file(
         arg_index = func_node.args.args.index(arg)
         if arg_index >= defaults_offset:
             default_node = func_node.args.defaults[arg_index - defaults_offset]
-            default = ast.unparse(default_node)
-        
+            
+            if isinstance(default_node, ast.Constant):
+                # For constants get the actual value (strings, numbers, etc.)
+                default = default_node.value
+            else:
+                # More complex stuff (expressions, names, etc.) needs unparse
+                default = ast.unparse(default_node)
+
         params.append(
             inspect.Parameter(
                 arg_name,

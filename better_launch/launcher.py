@@ -51,6 +51,7 @@ from better_launch.utils.introspection import (
     find_calling_frame,
     find_launchthis_function,
 )
+from better_launch.utils.settings import severity_to_loglevel
 from better_launch.utils.better_logging import LogSink
 from better_launch.utils.random_names import get_unique_word
 from better_launch.ros.ros_adapter import ROSAdapter
@@ -143,7 +144,7 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
         """
         if not name:
             if not BetterLaunch._launchfile:
-                frame = find_calling_frame(self.__init__)
+                frame = find_calling_frame(self.__init__, -1)
                 BetterLaunch._launchfile = frame.filename
             name = os.path.basename(BetterLaunch._launchfile)
 
@@ -212,7 +213,6 @@ Takeoff in 3... 2... 1...
 """
         # We don't want to log this
         print(msg)
-        self.logger.critical(f"Log files at {roslog.launch_config.log_dir}")
 
     def spin(self, exit_with_last_node: bool = True) -> None:
         """Join the BetterLaunch thread until it terminates. You do **not** need to call this if you're using the :py:meth:`launch_this` wrapper or the TUI.
@@ -243,7 +243,9 @@ Takeoff in 3... 2... 1...
             except (CancelledError, TimeoutError):
                 pass
 
-        self.logger.critical(f"Reminder: log files are at {roslog.launch_config.log_dir}")
+        self.logger.critical(
+            f"Reminder: log files are at {roslog.launch_config.log_dir}"
+        )
 
     def get_unique_name(self, name: str = "", check_running_nodes: bool = True) -> str:
         """Returns a unique name. If a name is provided it will be prepended with an underscore.
@@ -336,10 +338,10 @@ Takeoff in 3... 2... 1...
             nodes.append(self._ros2_launcher)
 
         if include_foreign:
-            # Note that self.shared_node.get_node_names_and_namespaces() will only give us the 
+            # Note that self.shared_node.get_node_names_and_namespaces() will only give us the
             # names and namespaces, but no handle on the actual processes, not even a package
 
-            # TODO should check if it's a composer and has subnodes, but we won't know the 
+            # TODO should check if it's a composer and has subnodes, but we won't know the
             # components' handles or plugins...
             # if include_components:
             #     for f in foreign:
@@ -347,7 +349,7 @@ Takeoff in 3... 2... 1...
             #             composer = Composer(f)
             #             for cid, component in composer.get_live_components().items():
             #                 nodes.append(Component(...))
-            
+
             foreign = self.get_foreign_nodes()
             nodes.extend(foreign)
 
@@ -667,9 +669,7 @@ Takeoff in 3... 2... 1...
             If `package` contains path separators, or if a `filename` is provided but could not be found within base path.
         """
         if filename and os.path.isabs(filename):
-            self.logger.info(
-                f"find({package}, {filename}, {subdir}):1 -> {filename}"
-            )
+            self.logger.info(f"find({package}, {filename}, {subdir}):1 -> {filename}")
             return filename
 
         if not package:
@@ -717,7 +717,6 @@ Takeoff in 3... 2... 1...
         raise ValueError(
             f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
         )
-
 
     def load_params(
         self,
@@ -1638,7 +1637,14 @@ Takeoff in 3... 2... 1...
             else:
                 raise ValueError(f"Unknown container mode '{variant}")
 
-            node_ref = Node(package, executable, name, namespace, remaps=component_remaps, output=output)
+            node_ref = Node(
+                package,
+                executable,
+                name,
+                namespace,
+                remaps=component_remaps,
+                output=output,
+            )
 
         if isinstance(node_ref, Composer):
             comp = node_ref
@@ -1757,6 +1763,42 @@ Takeoff in 3... 2... 1...
                 comp.lifecycle.transition(lifecycle_target)
 
         return comp
+
+    @classmethod
+    def is_included(cls) -> bool:
+        """Check if this is run from an included launchfile.
+
+        NOTE: this will only work when (indirectly) invoked from :py:meth:`launch_this`.
+
+        More specifically, this checks if a :py:class:`BetterLaunch` instance has been stored in the calling frame's globals, which happens on the first instantiation. This mechanism is an implementation detail and should not be relied on.
+
+        Returns
+        -------
+        bool
+            True if a launch_this function has already run.
+
+        Raises
+        ------
+        ValueError
+            When launch_this is not part of the current stack frame.
+        """
+        bl = BetterLaunch.instance()
+
+        if not bl:
+            return False
+
+        from .wrapper import _expose_ros2_launch_function
+
+        # Check various ways how we could have been included
+        # TODO verify this works
+        for func in (cls.include, _expose_ros2_launch_function):
+            try:
+                find_calling_frame(func, 0)
+                return True
+            except ValueError:
+                pass
+
+        return False
 
     def include(
         self,
@@ -1933,3 +1975,45 @@ Takeoff in 3... 2... 1...
         # TODO this is a good candidate for running on an asyncio loop
         threading.Thread(target=run, daemon=True).start()
         return future
+
+    def wait(self, seconds: float) -> None:
+        """Wait for the specified amount of time.
+
+        This mostly exists to provide this functionality for TOML launchfiles.
+
+        Parameters
+        ----------
+        seconds : float
+            How many seconds to wait.
+        """
+        time.sleep(seconds)
+
+    def log(
+        self,
+        severity: str | int,
+        message: str,
+        *args: list[Any],
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """Pass the specified message to the logger.
+
+        This mostly exists to provide this functionality for TOML launchfiles.
+
+        Parameters
+        ----------
+        severity : str | int
+            A logging severity or level. Standard severities are debug, info, warning, error, critical, and fatal. Integers can be used for more fine grained control and custom 
+            log levels, as per the python logging module.
+        message : str
+            The message to log.
+        args : list[Any], optional
+            A sequence of additional arguments to format the message.
+        kwargs : dict[str, Any], optional
+            A dict of additional arguments to format the message.
+        """
+        if isinstance(severity, str):
+            level = severity_to_loglevel(severity)
+        else:
+            level = severity
+
+        self.logger.log(level, message.format(*args, **kwargs))

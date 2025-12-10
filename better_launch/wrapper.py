@@ -1,9 +1,11 @@
 from typing import Callable
 import os
+import builtins
 import platform
 from ast import literal_eval
 import signal
 import inspect
+import logging
 import click
 import threading
 import docstring_parser as doc
@@ -13,16 +15,13 @@ from better_launch.launcher import (
     _bl_singleton_instance,
     _bl_include_args,
 )
-from better_launch.utils.better_logging import (
-    Colormode,
-    init_logging,
-)
+from better_launch.utils.settings import Colormode, SETTINGS, default_screen_format, default_file_format
+from better_launch.utils.better_logging import init_logging
 from better_launch.utils.introspection import find_calling_frame
 from better_launch.utils.click import (
     DeclaredArg,
-    Overrides,
     get_click_options,
-    get_click_overrides,
+    get_click_bl_options,
     get_click_launch_command,
 )
 from better_launch.ros import logging as roslog
@@ -35,11 +34,14 @@ def launch_this(
     launch_func: Callable = None,
     *,
     ui: bool = False,
-    join: bool = True,
-    screen_log_format: str = None,
-    file_log_format: str = None,
     colormode: Colormode = Colormode.DEFAULT,
+    print_limit: int = 0,
+    screen_log_level: str | int = logging.INFO,
+    screen_log_format: str = default_screen_format,
+    file_log_level: str | int = logging.INFO,
+    file_log_format: str = default_file_format,
     manage_foreign_nodes: bool = False,
+    join: bool = True,
     keep_alive: bool = False,
 ):
     """Use this to decorate your launch function. The function will be run automatically. The function is allowed to block even when using the UI.
@@ -52,12 +54,6 @@ def launch_this(
         Your launch function, typically using BetterLaunch to start ROS2 nodes.
     ui : bool, optional
         Whether to start the better_launch TUI. Superseded by the `BL_UI_OVERRIDE` environment variable and the `--bl_ui_override` argument.
-    join : bool, optional
-        If True, join the better_launch process. Has no effect when ui == True.
-    screen_log_format : str, optional
-        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
-    file_log_format : str, optional
-        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
     colormode : Colormode, optional
         Decides what colors will be used for:
         * default: one color per log severity level and a single color for all message sources
@@ -66,11 +62,36 @@ def launch_this(
         * none: don't colorize anything
         * rainbow: colorize log severity and give each message source its own color
         Superseded by the `BL_COLORMODE_OVERRIDE` environment variable and the `--bl_colormode_override` argument.
+    print_limit : int, optional
+        Limit the length of messages printed to the screen.
+    screen_log_level : str | int, optional
+        The minimum level for log messages to be printed to the terminal/screen. Can be either  "info", "warning", "error", "critical", or an arbitrary integer (e.g. logging.WARNING).
+    screen_log_format : str, optional
+        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
+    file_log_level : str | int, optional
+        The minimum level for log messages to be written to the lot file. Can be either  "info", "warning", "error", "critical", or an arbitrary integer (e.g. logging.WARNING).
+    file_log_format : str, optional
+        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
     manage_foreign_nodes : bool, optional
         If True, the TUI will also include node processes not started by this process. Has no effect if the TUI is not started.
+    join : bool, optional
+        If True, join the better_launch process. Has no effect when ui == True.
     keep_alive : bool, optional
         If True, keep the process alive even when all nodes have stopped.
     """
+
+    # Settings of included launchfiles will be ignored
+    # NOTE be careful not to instantiate BetterLaunch before the launch function has run
+    if not BetterLaunch.is_included():
+        SETTINGS._initialize(
+            ui,
+            colormode,
+            print_limit,
+            screen_log_level,
+            screen_log_format,
+            file_log_level,
+            file_log_format,
+        )
 
     def decoration_helper(func):
         sig = inspect.signature(func)
@@ -85,11 +106,7 @@ def launch_this(
             func,
             declared_args,
             func_doc,
-            ui=ui,
             join=join,
-            screen_log_format=screen_log_format,
-            file_log_format=file_log_format,
-            colormode=colormode,
             manage_foreign_nodes=manage_foreign_nodes,
             keep_alive=keep_alive,
             allow_kwargs=allow_kwargs,
@@ -140,19 +157,20 @@ def _get_declared_args(signature: inspect.Signature, docstring: str = None) -> l
     for param in signature.parameters.values():
         ptype = None
         default = DeclaredArg._undefined
+        
+        if param.annotation is not param.empty:
+            ptype = param.annotation
+            if ptype and isinstance(ptype, str):
+                # If it's a primitive type we can parse it, otherwise ignore it
+                # NOTE use the proper builtins module here, __builtins__ is unreliable
+                ptype = getattr(builtins, ptype, None)
 
-        if param.default is not param.empty:
+        if param.default is not inspect.Parameter.empty:
             default = param.default
 
-            if default is not None:
+            if ptype is None and default is not None:
                 ptype = type(default)
-            elif param.annotation is not param.empty:
-                ptype = param.annotation
-                if isinstance(ptype, str):
-                    # If it's a primitive type we can parse it, otherwise ignore it
-                    ptype = getattr(__builtins__, ptype, None)
 
-        # type, default, docstring
         declared_args.append(
             DeclaredArg(param.name, ptype, default, param_docstrings.get(param.name))
         )
@@ -165,12 +183,8 @@ def _exec_launch_func(
     declared_args: list[DeclaredArg],
     func_doc: str = None,
     *,
-    ui: bool = False,
-    join: bool = True,
-    screen_log_format: str = None,
-    file_log_format: str = None,
-    colormode: Colormode = Colormode.DEFAULT,
     manage_foreign_nodes: bool = False,
+    join: bool = True,
     keep_alive: bool = False,
     allow_kwargs: bool = False,
     # NOTE for internal use only, we don't want launchfiles that ignore their CLI args
@@ -179,7 +193,8 @@ def _exec_launch_func(
     # NOTE this function should not make any assumptions about the launch_func
 
     # Globals of the calling module
-    glob = find_calling_frame(_exec_launch_func).frame.f_globals
+    launch_frame = find_calling_frame(_exec_launch_func, 0)
+    glob = launch_frame.frame.f_globals
 
     if glob.get(_is_launcher_defined, False) and _bl_singleton_instance not in glob:
         # Allow using launch_this only once unless we got included from another file
@@ -187,19 +202,13 @@ def _exec_launch_func(
 
     glob[_is_launcher_defined] = True
 
-    # Get the filename of the original launchfile
-    # NOTE be careful not to instantiate BetterLaunch before launch_func has run
-    if _bl_singleton_instance not in glob:
-        BetterLaunch._launchfile = find_calling_frame(_exec_launch_func).filename
-        print(f"Starting launch file:\n{BetterLaunch._launchfile}\n")
-        print(f"Log files will be saved at\n{roslog.launch_config.log_dir}\n")
-        print("==================================================")
-    else:
+    # NOTE be careful not to instantiate BetterLaunch before the launch function has run
+    if BetterLaunch.is_included():
         # We have been included from another file, run the launch function and skip the remaining
         # initialization as its already been taken care of
         bl: BetterLaunch = glob[_bl_singleton_instance]
 
-        includefile = find_calling_frame(_exec_launch_func).filename
+        includefile = launch_frame.filename
         include_args: dict = glob[_bl_include_args]
         bl.logger.info(f"Including launch file: {includefile} (args={include_args})")
 
@@ -212,17 +221,16 @@ def _exec_launch_func(
         launch_func(**call_kw)
 
         return
-
+    
+    # Get the filename of the original launchfile
     # At this point we know that we are the main launch file
+    BetterLaunch._launchfile = launch_frame.filename
+    print(f"Starting launch file:\n{BetterLaunch._launchfile}\n")
+    print(f"Log files will be saved at\n{roslog.launch_config.log_dir}\n")
+    print("==================================================")
+
 
     _init_signal_handlers()
-
-    overrides = Overrides(
-        ui=ui,
-        colormode=colormode,
-        screen_log_format=screen_log_format,
-        file_log_format=file_log_format,
-    )
 
     # If we were started by ros launch (e.g. through 'ros2 launch <some-bl-launch-file>') we need
     # to expose a "generate_launch_description" method instead of running by ourselves.
@@ -254,12 +262,7 @@ def _exec_launch_func(
             )
 
             # TODO Maybe we shouldn't?
-            init_logging(
-                roslog.launch_config,
-                overrides.screen_log_format,
-                overrides.file_log_format,
-                overrides.colormode,
-            )
+            init_logging(roslog.launch_config)
 
             _expose_ros2_launch_function(launch_func, declared_args)
             return
@@ -268,12 +271,7 @@ def _exec_launch_func(
 
     @click.pass_context
     def run(ctx: click.Context, *args, **kwargs):
-        init_logging(
-            roslog.launch_config,
-            overrides.screen_log_format,
-            overrides.file_log_format,
-            overrides.colormode,
-        )
+        init_logging(roslog.launch_config)
 
         if allow_kwargs is not None:
             # If the launch func defines a **kwarg we can pass all extra arguments to it, with
@@ -315,10 +313,10 @@ def _exec_launch_func(
             bl = BetterLaunch()
 
             # The UI will manage spinning itself
-            if join and not overrides.ui:
+            if join and not SETTINGS.ui:
                 bl.spin(exit_with_last_node=not keep_alive)
 
-        if overrides.ui:
+        if SETTINGS.ui:
             from better_launch.tui.better_tui import BetterTui
 
             app = BetterTui(
@@ -331,7 +329,7 @@ def _exec_launch_func(
             launch_func_wrapper()
 
     options = get_click_options(declared_args)
-    options.extend(get_click_overrides(overrides))
+    options.extend(get_click_bl_options())
 
     click_cmd = get_click_launch_command(
         BetterLaunch._launchfile,
@@ -404,6 +402,6 @@ def _expose_ros2_launch_function(launch_func: Callable, declared_args: list[Decl
         return ld
 
     # Add our generate_launch_description function to the module launch_this was called from
-    launch_frame = find_calling_frame(_exec_launch_func)
+    launch_frame = find_calling_frame(_exec_launch_func, -1)
     caller_globals = launch_frame.frame.f_globals
     caller_globals["generate_launch_description"] = generate_launch_description

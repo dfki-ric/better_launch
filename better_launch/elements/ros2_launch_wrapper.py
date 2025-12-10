@@ -18,6 +18,7 @@ from better_launch.utils.better_logging import (
     RecordForwarder,
     StubbornHandler,
 )
+from better_launch.utils import settings
 from better_launch.utils.colors import get_contrast_color
 from .abstract_node import AbstractNode
 
@@ -27,6 +28,7 @@ def _launchservice_worker(
     launchservice_args: list[Any],
     launch_action_queue: Queue,
     log_queue: Queue,
+    settings: settings._Settings,
 ) -> None:
     """This function will run in a child process and will not have access to any objects already in memory UNLESS they are passed to it as arguments. See the comments for further details."""
     # Makes it easier to tell what's going on in the process table
@@ -60,6 +62,9 @@ def _launchservice_worker(
     # Late import to avoid adding ROS2 launch as a dependency - we are committed here!
     import launch
 
+    # Synchronize the settings from the host process
+    settings.SETTINGS = settings
+
     # LaunchService is a little stubborn about log formatting and always prepends the node's
     # name and then appends the output format, but this also allows us to capture the actual
     # source of the message
@@ -80,6 +85,7 @@ def _launchservice_worker(
     std_handler = RecordForwarder(
         # TODO should always mimic the main process formatter configuration regarding colors etc.
         PrettyLogFormatter(
+            settings.SETTINGS.screen_log_format,
             roslog_pattern=r"\[(?P<name>.+)] *" + ROSLOG_PATTERN_BL,
         )
     )
@@ -261,6 +267,7 @@ class Ros2LaunchWrapper(AbstractNode):
                 self.launchservice_args,
                 self._launch_action_queue,
                 self._process_log_queue,
+                settings.SETTINGS,
             ),
             name=self.name,
             daemon=True,

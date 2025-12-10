@@ -205,12 +205,12 @@ class Node(AbstractNode, LiveParamsMixin):
             else:
                 final_env = dict(os.environ) | self.env
 
-            env_str = indent(pformat(self.env), "")
             # All args must be strings
             final_cmd = [str(s) for s in final_cmd]
 
+            env_str = pformat(self.env, compact=True)
             self.logger.info(
-                f"Starting process '{' '.join(final_cmd)}'\n-> env ={env_str}"
+                f"Starting process '{' '.join(final_cmd)}', env={env_str}"
             )
 
             # Start the node process

@@ -98,12 +98,13 @@ pkg = "better_launch"
 # be stored in a variable called "a_simple_cube" and can be used later in substituions.
 [a_simple_cube]
 # Only run if pkg was defined (based on python truthiness). You can also use "unless".
-if = "${pkg}"
+if = "${enable}"
 func = "find"
 package = "${pkg}"
 filename = "cube.sdf"
 
 # Blocks are executed in sequence, so we can now use the result of the previous one.
 [print_me_baby]
-func = "exec"
-cmd = ["echo", "SUCCESS! A simple cube can be found at ${a_simple_cube}"]
+func = "log"
+severity = "info"
+message = "SUCCESS! This simple cube can be found at ${a_simple_cube}"

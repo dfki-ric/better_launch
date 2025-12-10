@@ -1,4 +1,4 @@
-from typing import Any, Callable, Literal, Iterable
+from typing import Any, Callable, Iterable
 import os
 import re
 import logging
@@ -7,13 +7,14 @@ import enum
 
 import better_launch.ros.logging as roslog
 from .colors import get_contrast_color
+from .settings import Colormode, SETTINGS
 
 
 # Log format string for ROS so that we can identify and reformat its log messages.
 ROSLOG_PATTERN_ROS = "%%{severity}%%{time}%%{message}"
 
-# Regular expression matching ROSLOG_PATTERN_ROS. The named groups will be matched to log
-# Record attributes via their group names.
+# Regular expression matching ROSLOG_PATTERN_ROS. The named groups will be matched to 
+# logging.LogRecord attributes via their group names.
 ROSLOG_PATTERN_BL = r"%%(?P<levelname>\w+)%%(?P<created>[\d.]+)%%(?P<msg>[\s\S]*)"
 
 
@@ -24,23 +25,17 @@ class LogSink(enum.IntEnum):
     NONE = 3
 
 
-class Colormode(enum.IntEnum):
-    DEFAULT = 0
-    SEVERITY = 1
-    SOURCE = 2
-    NONE = 3
-    RAINBOW = 4
-
-
 default_log_colormap = {
     #  0m: resets all colors and attributes.
     # 20m: resets only attributes (underline, etc.), leaving colors unchanged.
     # 39m: resets only foreground color, leaving attributes unchanged.
     # 49m: resets only background color, leaving attributes unchanged.
     "INFO": "\x1b[92;20m",
+    "WARN": "\x1b[93;20m",
     "WARNING": "\x1b[93;20m",
     "ERROR": "\x1b[91;20m",
-    "CRITICAL": "\x1b[95;20m",
+    "CRITICAL": "\x1b[20;1;95m",
+    "FATAL": "\x1b[20;1;91m",
     "DEBUG": "\x1b[36;20m",
 }
 
@@ -84,12 +79,9 @@ def _with_per_logger_formatting(cls):
 
 
 class PrettyLogFormatter(logging.Formatter):
-    default_screen_format = "[{levelcolor_start}{levelname}{levelcolor_end}] [{sourcecolor_start}{name}{sourcecolor_end}] [{asctime}]\n{message}"
-    default_file_format = "[{levelname}] [{asctime}] {message}"
-
     def __init__(
         self,
-        format: str = default_screen_format,
+        format: str,
         timestamp_format: str = "%Y-%m-%d %H:%M:%S.%f",
         *,
         defaults: dict[str, Any] = None,
@@ -99,6 +91,7 @@ class PrettyLogFormatter(logging.Formatter):
         ) = default_source_color,
         log_colors: str | int | Iterable[int] | dict[str, Any] = None,
         no_colors: bool = False,
+        max_message_length: int = 0,
     ):
         """A specialized formatter that will try to extract various details from messages logged by ROS2 nodes and reformat them.
 
@@ -127,6 +120,8 @@ class PrettyLogFormatter(logging.Formatter):
             Colors to use when formatting `levelcolor_start` tags based on the log report's severity. If a string, integer or iterable, use this as the color for all sources. If None, use the default log colors from `default_log_colormap`. Pass a dict to override the colors for select log levels identified by name.
         no_colors: bool, optional
             If True, all colors will be disabled.
+        max_message_length : int, optional
+            Limit the length of the message content formatted by this logger. No limits are imposed if <= 0.
         """
         super().__init__(format, timestamp_format, "{", True, defaults=defaults)
 
@@ -151,6 +146,8 @@ class PrettyLogFormatter(logging.Formatter):
         if no_colors:
             self.source_colors["*"] = ""
             self.log_colors["*"] = ""
+
+        self.max_message_length = max_message_length
 
     def get_source_color(self, source: str) -> str:
         """Return the color associated with the provided source."""
@@ -224,6 +221,11 @@ class PrettyLogFormatter(logging.Formatter):
             record.levelno
         )
 
+        if self.max_message_length > 0:
+            msg = record.getMessage()
+            if msg > self.max_message_length:
+                record.msg = msg[: self.max_message_length] + "…"
+
         return super().format(record)
 
 
@@ -281,11 +283,20 @@ class StubbornHandler(logging.Handler):
         return self.actual_handler.format(record)
 
 
+class LevelFilter(logging.Filter):
+    def __init__(self, level: int):
+        super().__init__()
+        self.level = level
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.levelno >= self.level
+
+
 def configure_logger(
     logger: logging.Logger,
     output: LogSink | Iterable[LogSink] | Iterable[str] | str = None,
     screen_formatter: logging.Formatter = None,
-    log_formatter: logging.Formatter = None,
+    file_formatter: logging.Formatter = None,
 ) -> None:
     if output:
         if isinstance(output, Iterable) and not isinstance(output, str):
@@ -294,10 +305,13 @@ def configure_logger(
         for idx, sink in output:
             if isinstance(sink, str):
                 output[idx] = LogSink[output.upper()]
-        
+
         output = set(output)
     else:
         output = {LogSink.SCREEN}
+
+    screen_filter = LevelFilter(SETTINGS.screen_log_level)
+    file_filter = LevelFilter(SETTINGS.file_log_level)
 
     for sink in output:
         if sink == LogSink.SCREEN:
@@ -307,15 +321,17 @@ def configure_logger(
                     screen_formatter = roslog.launch_config.screen_formatter
 
                 screen_handler.setFormatterFor(logger, screen_formatter)
+                screen_handler.addFilter(screen_filter)
                 logger.addHandler(screen_handler)
 
         elif sink == LogSink.LOG:
             common_log_handler = roslog.launch_config.get_log_file_handler()
             if common_log_handler not in logger.handlers:
-                if not log_formatter:
-                    log_formatter = roslog.launch_config.file_formatter
+                if not file_formatter:
+                    file_formatter = roslog.launch_config.file_formatter
 
-                common_log_handler.setFormatterFor(logger, log_formatter)
+                common_log_handler.setFormatterFor(logger, file_formatter)
+                common_log_handler.addFilter(file_filter)
                 logger.addHandler(common_log_handler)
 
         elif sink == LogSink.OWN_LOG:
@@ -329,50 +345,46 @@ def configure_logger(
             )
 
             own_log_handler = roslog.launch_config.get_log_file_handler(logfile)
+            own_log_handler.addFilter(file_filter)
             if own_log_handler not in logger.handlers:
-                if not log_formatter:
-                    log_formatter = roslog.launch_config.file_formatter
+                if not file_formatter:
+                    file_formatter = roslog.launch_config.file_formatter
 
-                own_log_handler.setFormatterFor(logger, log_formatter)
+                own_log_handler.setFormatterFor(logger, file_formatter)
                 logger.addHandler(own_log_handler)
 
 
 def init_logging(
     log_config: roslog.LaunchConfig,
-    screen_log_format: str = None,
-    file_log_format: str = None,
-    colormode: Colormode = Colormode.DEFAULT,
 ) -> None:
-    if not screen_log_format:
-        screen_log_format = PrettyLogFormatter.default_screen_format
-
-    if not file_log_format:
-        file_log_format = PrettyLogFormatter.default_file_format
-
-    if colormode == Colormode.DEFAULT:
+    if SETTINGS.colormode == Colormode.DEFAULT:
         src_color = default_source_color
         log_color = None
-    elif colormode == Colormode.SEVERITY:
+    elif SETTINGS.colormode == Colormode.SEVERITY:
         src_color = ""
         log_color = None
-    elif colormode == Colormode.SOURCE:
+    elif SETTINGS.colormode == Colormode.SOURCE:
         src_color = None
         log_color = ""
-    elif colormode == Colormode.NONE:
+    elif SETTINGS.colormode == Colormode.NONE:
         src_color = ""
         log_color = ""
-    elif colormode == Colormode.RAINBOW:
+    elif SETTINGS.colormode == Colormode.RAINBOW:
         src_color = None
         log_color = None
     else:
-        raise ValueError(f"Invalid colormode {colormode}")
+        raise ValueError(f"Invalid colormode {SETTINGS.colormode}")
 
     # We'll handle formatting and color ourselves, just get the nodes to comply
     os.environ["RCUTILS_CONSOLE_OUTPUT_FORMAT"] = ROSLOG_PATTERN_ROS
     os.environ["RCUTILS_COLORIZED_OUTPUT"] = "0"
 
     log_config.level = logging.INFO
+
     log_config.screen_formatter = PrettyLogFormatter(
-        format=screen_log_format, source_colors=src_color, log_colors=log_color
+        format=SETTINGS.screen_log_format,
+        source_colors=src_color,
+        log_colors=log_color,
+        max_message_length=SETTINGS.print_limit,
     )
-    log_config.file_formatter = PrettyLogFormatter(format=file_log_format)
+    log_config.file_formatter = PrettyLogFormatter(format=SETTINGS.file_log_format)
