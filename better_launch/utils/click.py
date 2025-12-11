@@ -2,7 +2,7 @@ from typing import Any, Type, Iterable, Callable
 from dataclasses import dataclass
 import click
 
-from better_launch.utils.settings import Colormode, SETTINGS
+from better_launch.utils.settings import Colormode, _update_settings
 
 
 @dataclass
@@ -54,14 +54,13 @@ def get_click_bl_options(expose: bool = False) -> list[click.Option]:
         _description_
     """
     def update_value(ctx: click.Context, param: click.Parameter, value: Any):
-        if value is not None:
-            key = param.name[3:].replace("-", "_")
-            # Note: also works with properties <3
-            setattr(SETTINGS, key, value)
+        key = param.name[3:].replace("-", "_")
+        _update_settings(**{key: value})
 
+    # XXX always keep these synchronized with our Settings class
     options = [
         click.Option(
-            ["--bl-tui"],
+            ["--bl-ui"],
             type=bool,
             default=None,
             help="Enforce or prevent starting the TUI",

@@ -5,7 +5,7 @@ import logging
 
 from better_launch import BetterLaunch
 from better_launch.wrapper import _exec_launch_func
-from better_launch.utils.settings import Colormode, SETTINGS
+from better_launch.utils.settings import Colormode, _update_settings
 from better_launch.utils.click import DeclaredArg
 
 from .toml_parser import load as load_toml
@@ -143,8 +143,8 @@ def launch_toml(
     # These should largely mirror the launch_this decorator
     eval_mode: Literal["full", "literal", "none"] = "literal",
     allow_kwargs: bool = None,
-    ui: bool = False,
-    colormode: Colormode = Colormode.DEFAULT,
+    ui: bool = None,
+    colormode: Colormode = None,
     print_limit: int = 0,
     screen_log_level: str | int = None,
     screen_log_format: str = None,
@@ -253,45 +253,45 @@ def launch_toml(
     # elif toml_format == some_previous_version: ...
 
     if not BetterLaunch.is_included():
-        if ui is None:
+        if ui is None and "bl_ui" in toml:
             ui = bool(toml.get("bl_ui", "false").lower() in ("true", "enable", "1"))
 
-        if colormode is None:
-            colormode = Colormode[toml.get("bl_colormode", Colormode.DEFAULT.name)]
+        if colormode is None and "bl_colormode" in toml:
+            colormode = Colormode[toml["bl_colormode"]]
 
-        if print_limit is None:
-            print_limit = int(toml.get("bl_print_limit", True))
+        if print_limit is None and "bl_print_limit" in toml:
+            print_limit = int(toml["bl_print_limit"])
 
-        if screen_log_level is None:
-            screen_log_level = int(toml.get("bl_screen_log_level", True))
+        if screen_log_level is None and "bl_screen_log_level" in toml:
+            screen_log_level = int(toml["bl_screen_log_level"])
 
-        if screen_log_format is None:
-            screen_log_format = toml.get("bl_screen_log_format", None)
+        if screen_log_format is None and "bl_screen_log_format" in toml:
+            screen_log_format = toml["bl_screen_log_format"]
 
-        if file_log_level is None:
-            file_log_level = int(toml.get("bl_file_log_level", True))
+        if file_log_level is None and "bl_file_log_level" in toml:
+            file_log_level = int(toml["bl_file_log_level"])
 
-        if file_log_format is None:
-            file_log_format = toml.get("bl_file_log_format", None)
+        if file_log_format is None and "bl_file_log_format" in toml:
+            file_log_format = toml["bl_file_log_format"]
 
-        SETTINGS._initialize(
-            ui,
-            colormode,
-            print_limit,
-            screen_log_level,
-            screen_log_format,
-            file_log_level,
-            file_log_format,
+        _update_settings(
+            ui=ui,
+            colormode=colormode,
+            print_limit=print_limit,
+            screen_log_level=screen_log_level,
+            screen_log_format=screen_log_format,
+            file_log_level=file_log_level,
+            file_log_format=file_log_format,
         )
 
-    if join is None:
-        join = toml.get("bl_join", True)
+    if join is None and "bl_join" in toml:
+        join = toml["bl_join"]
 
-    if manage_foreign_nodes is None:
-        manage_foreign_nodes = toml.get("bl_manage_foreign_nodes", False)
+    if manage_foreign_nodes is None and "bl_manage_foreign_nodes" in toml:
+        manage_foreign_nodes = toml["bl_manage_foreign_nodes"]
 
-    if keep_alive is None:
-        keep_alive = toml.get("bl_keep_alive", False)
+    if keep_alive is None and "bl_keep_alive" in toml:
+        keep_alive = toml["bl_keep_alive"]
 
     argv = None
     if launch_args:
@@ -309,6 +309,7 @@ def launch_toml(
         launch_func,
         declared_args,
         docstring,
+        launchfile=path,
         manage_foreign_nodes=manage_foreign_nodes,
         join=join,
         keep_alive=keep_alive,

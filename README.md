@@ -157,7 +157,7 @@ def generate_launch_description():
 </details>
 
 <details>
-  <summary>better_launch</summary>
+  <summary>better_launch (python)</summary>
 
 ```python
 from better_launch import BetterLaunch, launch_this
@@ -193,6 +193,49 @@ def my_start(
         if new_background_r == 200 and use_provided_red:
             turtle_node.is_ros2_connected(timeout=None)
             turtle_node.set_live_params({"background_r": new_background_r})
+```
+</details>
+
+<details>
+```toml
+bl_eval_mode = "full"
+
+turtlesim_ns = "turtlesim1"
+use_provided_red = False
+new_background_r = 200
+
+[turtle_group]
+func = "group"
+namespace = "${turtlesim_ns}"
+
+[turtle_group.children.turtle_node]
+func = "node"
+package="turtlesim"
+executable="turtlesim_node"
+name="turtle_node"
+params={"background_r": 120}
+
+[spawn_turtle]
+func = "call_service"
+topic = "/${turtlesim_ns}/spawn"
+service_type = "turtlesim/srv/Spawn"
+request_args = {"x": 2.0, "y": 2.0, "theta": 0.2}
+
+# TOML files are less powerful than python files, but you can still do a lot
+[update_params]
+if = "${eval new_background_r == 200 and use_provided_red}"
+func = "call_service"
+topic = "/${turtlesim_ns}/turtle_node/set_parameters"
+service_type = "rcl_interfaces/srv/SetParameters"
+request_args = {
+    "parameters": {
+        "name": "background_r",
+        "value": {
+            type: 2,
+            integer_value: "${new_background_r}"
+        }
+    }
+}
 ```
 </details>
 

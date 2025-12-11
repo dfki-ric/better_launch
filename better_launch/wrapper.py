@@ -15,7 +15,7 @@ from better_launch.launcher import (
     _bl_singleton_instance,
     _bl_include_args,
 )
-from better_launch.utils.settings import Colormode, SETTINGS, default_screen_format, default_file_format
+from better_launch.utils.settings import Colormode, Settings, _update_settings, default_screen_format, default_file_format
 from better_launch.utils.better_logging import init_logging
 from better_launch.utils.introspection import find_calling_frame
 from better_launch.utils.click import (
@@ -83,14 +83,14 @@ def launch_this(
     # Settings of included launchfiles will be ignored
     # NOTE be careful not to instantiate BetterLaunch before the launch function has run
     if not BetterLaunch.is_included():
-        SETTINGS._initialize(
-            ui,
-            colormode,
-            print_limit,
-            screen_log_level,
-            screen_log_format,
-            file_log_level,
-            file_log_format,
+        _update_settings(
+            ui=ui,
+            colormode=colormode,
+            print_limit=print_limit,
+            screen_log_level=screen_log_level,
+            screen_log_format=screen_log_format,
+            file_log_level=file_log_level,
+            file_log_format=file_log_format,
         )
 
     def decoration_helper(func):
@@ -183,6 +183,7 @@ def _exec_launch_func(
     declared_args: list[DeclaredArg],
     func_doc: str = None,
     *,
+    launchfile: str = None,
     manage_foreign_nodes: bool = False,
     join: bool = True,
     keep_alive: bool = False,
@@ -224,11 +225,10 @@ def _exec_launch_func(
     
     # Get the filename of the original launchfile
     # At this point we know that we are the main launch file
-    BetterLaunch._launchfile = launch_frame.filename
-    print(f"Starting launch file:\n{BetterLaunch._launchfile}\n")
-    print(f"Log files will be saved at\n{roslog.launch_config.log_dir}\n")
-    print("==================================================")
-
+    if launchfile:
+        BetterLaunch._launchfile = launchfile
+    else:
+        BetterLaunch._launchfile = launch_frame.filename
 
     _init_signal_handlers()
 
@@ -273,7 +273,7 @@ def _exec_launch_func(
     def run(ctx: click.Context, *args, **kwargs):
         init_logging(roslog.launch_config)
 
-        if allow_kwargs is not None:
+        if allow_kwargs:
             # If the launch func defines a **kwarg we can pass all extra arguments to it, with
             # the caveat that these extra args need to be defined as `-[-]<key> val` tuples.
             assert (
@@ -313,10 +313,10 @@ def _exec_launch_func(
             bl = BetterLaunch()
 
             # The UI will manage spinning itself
-            if join and not SETTINGS.ui:
+            if join and not Settings().ui:
                 bl.spin(exit_with_last_node=not keep_alive)
 
-        if SETTINGS.ui:
+        if Settings().ui:
             from better_launch.tui.better_tui import BetterTui
 
             app = BetterTui(

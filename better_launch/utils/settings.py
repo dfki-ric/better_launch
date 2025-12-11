@@ -1,10 +1,11 @@
+from typing import Any
 import os
 import logging
-import enum
-from dataclasses import dataclass
+from enum import IntEnum
+from dataclasses import dataclass, fields, replace, asdict
 
 
-class Colormode(enum.IntEnum):
+class Colormode(IntEnum):
     # Color messages based on their severity and highlight the sources in one color
     DEFAULT = 0
 
@@ -14,7 +15,7 @@ class Colormode(enum.IntEnum):
     # Color messages only based on the logging source
     SOURCE = 2
 
-    # Don't color messages
+    # Don"t color messages
     NONE = 3
 
     # Give a different color to each severity and logging source
@@ -42,127 +43,149 @@ default_screen_format = "[{levelcolor_start}{levelname}{levelcolor_end}] [{sourc
 default_file_format = "[{levelname}] [{asctime}] {message}"
 
 
-# TODO make this a singleton somehow
-@dataclass
+@dataclass(frozen=True)
 class _Settings:
-    __ui: bool = False
-    __colormode: Colormode = Colormode.DEFAULT
-    __print_limit: int = 0
-    __screen_log_level: int = logging.INFO
-    __screen_log_format: str = default_screen_format
-    __file_log_level: int = logging.INFO
-    __file_log_format: str = default_file_format
+    ui: bool = False
+    colormode: Colormode = Colormode.DEFAULT
+    print_limit: int = 0
+    screen_log_level: int = logging.INFO
+    screen_log_format: str = default_screen_format
+    file_log_level: int = logging.INFO
+    file_log_format: str = default_file_format
 
-    __initialized = False
-
-    def _initialize(
-        self,
-        ui: bool,
-        colormode: Colormode,
-        print_limit: int,
-        screen_log_level: int,
-        screen_log_format: str,
-        file_log_level: int,
-        file_log_format: str,
-    ) -> None:
-        """For all overrides the priority is `CLI > ENV > launchfile`.
+    def __init__(self, **kwargs):
         """
-        if self.__initialized:
-            raise RuntimeError("Settings cannot be initialized again")
+        Initialize settings with priority: env vars > kwargs > defaults.
 
-        # Whether to start the TUI
-        env_ui = os.environ.get("BL_UI_OVERRIDE")
-        if env_ui:
-            self.__ui = (env_ui.lower() == "true")
-        else:
-            self.__ui = ui
+        Parameters
+        ----------
+        kwargs
+            Function-level overrides
+        """
+        for field in fields(self):
+            # Get environment variable value
+            key = f"BL_{field.name.upper()}"
+            val = self._get_env_value(key, field.type)
 
-        # Logging colormode
-        env_colormode = os.environ.get("BL_COLORMODE")
-        if env_colormode:
+            # Resolve priority: env > kwargs > default
+            if val is not None:
+                res = val
+            elif field.name in kwargs:
+                res = kwargs[field.name]
+            else:
+                # Get default value from field
+                res = (
+                    field.default
+                    if field.default is not field.default_factory
+                    else field.default_factory()
+                )
+
+            # Cannot use regular setattr in a frozen dataclass
+            object.__setattr__(self, field.name, res)
+
+    def _get_env_value(self, env_key: str, field_type: type) -> Any:
+        """Get and convert environment variable based on field type.
+
+        Parameters
+        ----------
+        env_key : str
+            Env variable key to get the value from.
+        field_type : type
+            Type to convert the env variable to.
+
+        Returns
+        -------
+        Any
+            The value of the env variable converted to the target type, or None if the env variable is not set.
+
+        Raises
+        ------
+            ValueError if the env variable value could not be converted to the target type.
+        """
+        env_str = os.environ.get(env_key)
+        if env_str is None:
+            return None
+
+        if field_type is bool:
+            return env_str.lower() in ("1", "true", "yes", "on")
+        elif field_type is int:
+            return int(env_str)
+        elif field_type is str:
+            return env_str
+        elif issubclass(field_type, IntEnum):
             try:
-                colormode = int(env_colormode)
+                return field_type(int(env_str))
             except ValueError:
-                colormode = env_colormode
-        
-        if isinstance(colormode, str):
-            self.__colormode = Colormode[colormode.upper()]
+                return field_type[env_str]
         else:
-            # Also works for IntEnum members
-            self.__colormode = Colormode(colormode)
+            return field_type(env_str)
 
-        # Limits the lengths of printed messages
-        env_print_limit = os.environ.get("BL_PRINT_LIMIT")
-        if env_print_limit:
-            self.__print_limit = int(env_print_limit)
-        else:
-            self.__print_limit = print_limit
+    def get_env_variables(self) -> dict[str, Any]:
+        """Return the env variables that are set and will influence these settings.
 
-        # Log levels
-        env_screen_level = os.environ.get("BL_SCREEN_LOG_LEVEL")
-        if env_screen_level:
-            try:
-                screen_log_level = int(env_screen_level)
-            except ValueError:
-                screen_log_level = env_screen_level
-        elif isinstance(screen_log_level, str):
-            screen_log_level = severity_to_loglevel(screen_log_level)
-        
-        self.__screen_log_level = screen_log_level
+        Returns
+        -------
+        dict[str, Any]
+            A dict from variable keys to values (with proper types).
+        """
+        vars = {}
+        for field in fields(self):
+            key = f"BL_{field.name.upper()}"
+            val = self._get_env_value(key, field.type)
 
-        env_file_level = os.environ.get("BL_file_LOG_LEVEL")
-        if env_file_level:
-            try:
-                file_log_level = int(env_file_level)
-            except ValueError:
-                file_log_level = env_file_level
-        elif isinstance(file_log_level, str):
-            file_log_level = severity_to_loglevel(file_log_level)
+            if val is not None:
+                vars[key] = val
 
-        self.__file_log_level = file_log_level
+        return vars
 
-        # Log formats
-        env_screen_format = os.environ.get("BL_SCREEN_LOG_FORMAT")
-        if env_screen_format:
-            self.__screen_log_format = env_screen_format
-        else:
-            self.__screen_log_format = screen_log_format
+    def as_dict(self) -> dict[str, Any]:
+        """Returns the settings as a dict.
+        """
+        # A bit more comfortable than having to import dataclasses.asdict each time
+        return asdict(self)
 
-        env_file_format = os.environ.get("BL_FILE_LOG_FORMAT")
-        if env_file_format:
-            self.__file_log_format = env_file_format
-        else:
-            self.__file_log_format = file_log_format
+def _update_settings(**overrides) -> None:
+    """Replace the _SETTINGS object with a new instance with updated values. Only non-None values are applied.
 
-        self.__initialized = True
+    This should only be called right after the launch process has started. 
 
-    @property
-    def ui(self) -> bool:
-        return self.__ui
+    Parameters
+    ----------
+    overrides :
+        Values to override. See :py:class:`_Settings` for valid keywords.
+    """
+    global _SETTINGS
 
-    @property
-    def colormode(self) -> Colormode:
-        return self.__colormode
+    updates = {}
+    for field in fields(_SETTINGS):
+        value = overrides.get(field.name)
 
-    @property
-    def print_limit(self) -> int:
-        return self.__print_limit
+        if value is None:
+            continue
 
-    @property
-    def screen_log_level(self) -> int:
-        return self.__screen_log_level
+        if issubclass(field.type, IntEnum):
+            if isinstance(value, int):
+                value = field.type(value)
+            elif isinstance(value, str):
+                value = field.type[value]
 
-    @property
-    def screen_log_format(self) -> str:
-        return self.__screen_log_format
+        updates[field.name] = value
 
-    @property
-    def file_log_level(self) -> int:
-        return self.__file_log_level
-
-    @property
-    def file_log_format(self) -> str:
-        return self.__file_log_format
+    if updates:
+        _SETTINGS = replace(_SETTINGS, **updates)
 
 
-SETTINGS = _Settings()
+def Settings() -> _Settings:
+    """Get the current settings.
+
+    This function serves two purposes: 1. dissuades replacing the _SETTINGS object, and 2. ensures that importing modules always get the most recent state (instead of the state on import).
+
+    Returns
+    -------
+    Settings
+        The current settings.
+    """
+    return _SETTINGS
+
+
+_SETTINGS = _Settings()

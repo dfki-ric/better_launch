@@ -7,7 +7,7 @@ import enum
 
 import better_launch.ros.logging as roslog
 from .colors import get_contrast_color
-from .settings import Colormode, SETTINGS
+from .settings import Colormode, Settings
 
 
 # Log format string for ROS so that we can identify and reformat its log messages.
@@ -310,8 +310,9 @@ def configure_logger(
     else:
         output = {LogSink.SCREEN}
 
-    screen_filter = LevelFilter(SETTINGS.screen_log_level)
-    file_filter = LevelFilter(SETTINGS.file_log_level)
+    config = Settings()
+    screen_filter = LevelFilter(config.screen_log_level)
+    file_filter = LevelFilter(config.file_log_level)
 
     for sink in output:
         if sink == LogSink.SCREEN:
@@ -357,23 +358,24 @@ def configure_logger(
 def init_logging(
     log_config: roslog.LaunchConfig,
 ) -> None:
-    if SETTINGS.colormode == Colormode.DEFAULT:
+    config = Settings()
+    if config.colormode == Colormode.DEFAULT:
         src_color = default_source_color
         log_color = None
-    elif SETTINGS.colormode == Colormode.SEVERITY:
+    elif config.colormode == Colormode.SEVERITY:
         src_color = ""
         log_color = None
-    elif SETTINGS.colormode == Colormode.SOURCE:
+    elif config.colormode == Colormode.SOURCE:
         src_color = None
         log_color = ""
-    elif SETTINGS.colormode == Colormode.NONE:
+    elif config.colormode == Colormode.NONE:
         src_color = ""
         log_color = ""
-    elif SETTINGS.colormode == Colormode.RAINBOW:
+    elif config.colormode == Colormode.RAINBOW:
         src_color = None
         log_color = None
     else:
-        raise ValueError(f"Invalid colormode {SETTINGS.colormode}")
+        raise ValueError(f"Invalid colormode {config.colormode}")
 
     # We'll handle formatting and color ourselves, just get the nodes to comply
     os.environ["RCUTILS_CONSOLE_OUTPUT_FORMAT"] = ROSLOG_PATTERN_ROS
@@ -382,9 +384,9 @@ def init_logging(
     log_config.level = logging.INFO
 
     log_config.screen_formatter = PrettyLogFormatter(
-        format=SETTINGS.screen_log_format,
+        format=config.screen_log_format,
         source_colors=src_color,
         log_colors=log_color,
-        max_message_length=SETTINGS.print_limit,
+        max_message_length=config.print_limit,
     )
-    log_config.file_formatter = PrettyLogFormatter(format=SETTINGS.file_log_format)
+    log_config.file_formatter = PrettyLogFormatter(format=config.file_log_format)

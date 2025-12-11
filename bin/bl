@@ -145,7 +145,7 @@ class BetterLaunchPython(LaunchFile):
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Delegating to better_launch: {self.name}, args={kwargs}",
+            f"Delegating to better_launch: {self.name}, args={kwargs}",
             flush=True,
         )
 
@@ -189,7 +189,7 @@ class BetterLaunchToml(LaunchFile):
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Calling launch_toml: {self.name}, args={kwargs}",
+            f"Calling launch_toml: {self.name}, args={kwargs}",
             flush=True,
         )
 
@@ -348,7 +348,7 @@ class Ros2LaunchFile(LaunchFile):
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Delegating to ROS2 launch: {self.name}, args={kwargs}",
+            f"Delegating to ROS2 launch: {self.name}, args={kwargs}",
             flush=True,
         )
 
@@ -373,7 +373,7 @@ class ExecutableLaunchFile(LaunchFile):
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Directly executing launch file: {self.name}, args={kwargs}",
+            f"Directly executing launch file: {self.name}, args={kwargs}",
             flush=True,
         )
 

@@ -108,10 +108,8 @@ def _parse_substitutions(s: str) -> list[list | str]:
                 current = []
                 is_key = True  # Next token will be the substitution key
                 in_substitution = True
-            elif tok == "}":
+            elif tok == "}" and stack:
                 # End of a substitution: pop context from stack and add completed substitution
-                if not stack:
-                    raise ValueError("Unbalanced '}' - no matching '${'")
                 completed = current
                 current, in_substitution = stack.pop()
                 # Add the completed substitution as a nested list

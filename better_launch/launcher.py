@@ -51,7 +51,7 @@ from better_launch.utils.introspection import (
     find_calling_frame,
     find_launchthis_function,
 )
-from better_launch.utils.settings import severity_to_loglevel
+from better_launch.utils.settings import Settings, severity_to_loglevel
 from better_launch.utils.better_logging import LogSink
 from better_launch.utils.random_names import get_unique_word
 from better_launch.ros.ros_adapter import ROSAdapter
@@ -183,19 +183,27 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
         Note that this will not appear in the logs!
         """
         # Ascii art based on: https://asciiart.cc/view/10677
+        
+        config_str = "\n".join(f"{key}={val}" for key, val in Settings().as_dict().items())
+
         msg = f"""
 \x1b[1;20mBetter Launch is starting!\x1b[0m
 Please fasten your seatbelts and secure all baggage underneath your chair.
 
-Default log level is \x1b[34;20m{roslog.launch_config.level} ({logging.getLevelName(roslog.launch_config.level)})\x1b[0m
-All log files can be found at
-\x1b[34;20m{roslog.launch_config.log_dir}\x1b[0m
+\x1b[94;20mSettings:\x1b[0m
+{config_str}
 
-Takeoff in 3... 2... 1...
+\x1b[94;20mLaunchfile:\x1b[0m
+{self.launchfile}
 
-           *            ,:
+\x1b[94;20mLogs:\x1b[0m
+{roslog.launch_config.log_dir}
+
+\x1b[94;20mTakeoff in 3... 2... 1...\x1b[0m
+
+                *       ,:
     +                 ,' |
-               +     /   :
+           +         /   :
        *          --'   /
 +                \\/ /:/
             *     / ://_\\
@@ -1839,6 +1847,7 @@ Takeoff in 3... 2... 1...
             include_args.update(self.launch_args)
         include_args.update(**kwargs)
 
+        # BUG add support for toml launchfiles
         if find_launchthis_function(file_path):
             try:
                 with open(file_path) as f:
