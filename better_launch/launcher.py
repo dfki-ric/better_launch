@@ -56,7 +56,7 @@ from better_launch.utils.better_logging import LogSink
 from better_launch.utils.random_names import get_unique_word
 from better_launch.ros.ros_adapter import ROSAdapter
 from better_launch.ros import logging as roslog
-
+from better_launch.declarative import _execute_toml
 
 _bl_singleton_instance = "__better_launch_instance"
 _bl_include_args = "__better_launch_include_args"
@@ -1847,9 +1847,13 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             include_args.update(self.launch_args)
         include_args.update(**kwargs)
 
-        # BUG add support for toml launchfiles
-        if find_launchthis_function(file_path):
-            try:
+        try:
+            if file_path.lower().endswith(".toml"):
+                # TOML launchfile
+                _execute_toml(file_path, **include_args)
+            elif file_path.lower().endswith(".py") and find_launchthis_function(file_path):
+                # Python better_launch launchfile
+                # Read the code, compile it and insert ourselves before running it
                 with open(file_path) as f:
                     source = f.read()
 
@@ -1861,15 +1865,15 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 global_args[_bl_include_args] = include_args
 
                 # Since we're running an entire module locals won't have any effect
-                exec(code, global_args)
-            except Exception as e:
-                self.logger.error(
-                    f"Launch include '{package}/{launchfile}' failed: {e}"
-                )
-                raise
-        else:
-            # Was not a better_launch launch file, assume it's a ROS2 launch file (py, xml, yaml)
-            self._include_ros2_launchfile(file_path, **include_args)
+                exec(code, globals=global_args)
+            else:
+                # Assume it's a ROS2 launch file (py, xml, yaml)
+                self._include_ros2_launchfile(file_path, **include_args)
+        except Exception as e:
+            self.logger.error(
+                f"Launch include '{package}/{launchfile}' failed: {e}"
+            )
+            raise
 
     def _include_ros2_launchfile(self, file_path: str, **kwargs) -> None:
         # Delegate to ros2 launch service

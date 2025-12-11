@@ -7,9 +7,8 @@ from better_launch import BetterLaunch
 from better_launch.wrapper import _exec_launch_func
 from better_launch.utils.settings import Colormode, _update_settings
 from better_launch.utils.click import DeclaredArg
-
-from .toml_parser import load as load_toml
-from .substitutions import apply_substitutions
+from better_launch.toml.toml_parser import load as load_toml
+from better_launch.toml.substitutions import apply_substitutions
 
 
 current_toml_format_version = 1
@@ -18,10 +17,19 @@ current_toml_format_version = 1
 def _execute_toml(
     toml: dict[str, Any],
     eval_mode: Literal["full", "literal", "none"] = "literal",
+    **kwargs,
 ) -> dict[str, Any]:
     """Execute each call table and apply substitutions."""
     if BetterLaunch.instance():
         raise RuntimeError("BetterLaunch has already been initialized")
+
+    # Apply any launch arguments, but prevent overriding call tables
+    for key, val in kwargs.items():
+        toml_val = toml.get(key)
+        if isinstance(toml_val, dict) and "func" in toml_val:
+            raise RuntimeError(f"Launcher tried to override TOML call table '{key}'")
+        
+        toml[key] = val
 
     # Initialize the launcher instance
     bl = BetterLaunch()
@@ -301,12 +309,10 @@ def launch_toml(
         argv = []
         for key, arg in launch_args.items():
             if arg is not None:
-                argv.extend([f"--{key}", arg])
+                argv.extend([f"--{key}", str(arg)])
 
     def launch_func(*args, **kwargs):
-        # TODO prevent using names of call tables
-        toml.update(kwargs)
-        _execute_toml(toml, eval_mode=eval_mode)
+        _execute_toml(toml, eval_mode=eval_mode, **kwargs)
 
     _exec_launch_func(
         launch_func,

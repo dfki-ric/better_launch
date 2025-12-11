@@ -169,7 +169,7 @@ class BetterLaunchToml(LaunchFile):
         if not filepath.lower().endswith(".launch.toml"):
             raise ValueError("Not a toml file")
 
-        from better_launch.declarative.declarative import (
+        from better_launch.declarative import (
             _get_toml_args,
             load_toml,
         )
@@ -194,7 +194,7 @@ class BetterLaunchToml(LaunchFile):
             flush=True,
         )
 
-        from better_launch.declarative.declarative import launch_toml
+        from better_launch.declarative import launch_toml
 
         # Since the toml files are not executable, we need something else to run them. We
         # could create another script with a main function, but I don't think there's much
