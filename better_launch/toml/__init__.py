@@ -1,2 +1,2 @@
 from .substitutions import apply_substitutions
-from .declarative import launch_toml
+from .toml_parser import TomlReader, load, loads

@@ -56,7 +56,6 @@ from better_launch.utils.better_logging import LogSink
 from better_launch.utils.random_names import get_unique_word
 from better_launch.ros.ros_adapter import ROSAdapter
 from better_launch.ros import logging as roslog
-from better_launch.declarative import _execute_toml
 
 _bl_singleton_instance = "__better_launch_instance"
 _bl_include_args = "__better_launch_include_args"
@@ -1850,6 +1849,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         try:
             if file_path.lower().endswith(".toml"):
                 # TOML launchfile
+                from better_launch.declarative import _execute_toml
+                
                 _execute_toml(file_path, **include_args)
             elif file_path.lower().endswith(".py") and find_launchthis_function(file_path):
                 # Python better_launch launchfile

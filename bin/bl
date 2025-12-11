@@ -170,8 +170,8 @@ class BetterLaunchToml(LaunchFile):
             raise ValueError("Not a toml file")
 
         from better_launch.declarative import (
-            _get_toml_args,
             load_toml,
+            _get_toml_args,
         )
 
         toml = load_toml(filepath)

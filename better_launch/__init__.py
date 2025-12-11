@@ -6,9 +6,9 @@ __all__ = [
     "LifecycleStage"
 ]
 
+from .launcher import BetterLaunch
 from .wrapper import launch_this
 from .declarative import launch_toml
-from .launcher import BetterLaunch
 from .elements import LifecycleStage
 from .ros.logging import LaunchConfig as LogConfig
 from . import elements
