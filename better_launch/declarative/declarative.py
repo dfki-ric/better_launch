@@ -141,8 +141,6 @@ def launch_toml(
     launch_args: dict[str, str] = None,
     *,
     # These should largely mirror the launch_this decorator
-    eval_mode: Literal["full", "literal", "none"] = "literal",
-    allow_kwargs: bool = None,
     ui: bool = None,
     colormode: Colormode = None,
     print_limit: int = 0,
@@ -150,9 +148,11 @@ def launch_toml(
     screen_log_format: str = None,
     file_log_level: str | int = None,
     file_log_format: str = None,
-    manage_foreign_nodes: bool = None,
+    eval_mode: Literal["full", "literal", "none"] = "literal",
     join: bool = None,
+    manage_foreign_nodes: bool = None,
     keep_alive: bool = None,
+    allow_kwargs: bool = None,
 ) -> None:
     """Execute a TOML better_launch launchfile.
 
@@ -284,14 +284,17 @@ def launch_toml(
             file_log_format=file_log_format,
         )
 
-    if join is None and "bl_join" in toml:
-        join = toml["bl_join"]
+    if join is None:
+        join = toml.get("bl_join", True)
 
-    if manage_foreign_nodes is None and "bl_manage_foreign_nodes" in toml:
-        manage_foreign_nodes = toml["bl_manage_foreign_nodes"]
+    if manage_foreign_nodes is None:
+        manage_foreign_nodes = toml.get("bl_manage_foreign_nodes", False)
 
-    if keep_alive is None and "bl_keep_alive" in toml:
-        keep_alive = toml["bl_keep_alive"]
+    if keep_alive is None:
+        keep_alive = toml.get("bl_keep_alive", False)
+
+    if allow_kwargs is None:
+        allow_kwargs = toml.get("bl_allow_kwargs", False)
 
     argv = None
     if launch_args:

@@ -1985,7 +1985,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         threading.Thread(target=run, daemon=True).start()
         return future
 
-    def wait(self, seconds: float) -> None:
+    def sleep(self, seconds: float) -> None:
         """Wait for the specified amount of time.
 
         This mostly exists to provide this functionality for TOML launchfiles.
@@ -1995,6 +1995,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         seconds : float
             How many seconds to wait.
         """
+        self.logger.info(f"Sleeping for {seconds} seconds")
         time.sleep(seconds)
 
     def log(

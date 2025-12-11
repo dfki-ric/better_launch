@@ -14,6 +14,10 @@ executable="turtlesim_node"
 name="sim"
 params={background_r = 120}
 
+[snooze]
+func = "sleep"
+seconds = 1.5
+
 [spawn_turtle]
 func = "call_service"
 topic = "/${turtlesim_ns}/spawn"

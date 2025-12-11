@@ -179,6 +179,7 @@ class BetterLaunchToml(LaunchFile):
         declared_args = _get_toml_args(toml)
 
         options = get_click_options(declared_args)
+        # We'll stay within the same process, so there's no need to expose these on the CLI
         options.extend(get_click_bl_options(expose=False))
 
         return options, doc
