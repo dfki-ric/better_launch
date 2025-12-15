@@ -1850,7 +1850,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             if file_path.lower().endswith(".toml"):
                 # TOML launchfile
                 from better_launch.declarative import _execute_toml
-                
+
                 _execute_toml(file_path, **include_args)
             elif file_path.lower().endswith(".py") and find_launchthis_function(file_path):
                 # Python better_launch launchfile
@@ -1888,11 +1888,69 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             AnyLaunchDescriptionSource(file_path),
             launch_arguments=[
                 # ROS2 can handle only tuples of strings and strings/substitutions here...
-                (key, str(val) if val is not None else "")
+                (key, self._value_to_yaml(val) if val is not None else "")
                 for key, val in kwargs.items()
             ],
         )
         self.ros2_actions(ros2_include)
+
+    def _value_to_yaml(self, val: Any) -> str | Any:
+        """Convert a value to a YAML string suitable for ROS2 launch arguments.
+        
+        Optimized for performance on embedded platforms (Jetson Orin Nano).
+        Uses direct type dispatch for primitives to avoid json.dumps overhead.
+        
+        Parameters
+        ----------
+        val: Any
+            The value to convert.
+
+        Returns
+        -------
+        str | Any
+            A YAML-formatted string for primitives/containers, or the object itself 
+            if it is a ROS2 Substitution.
+
+        Raises
+        ------
+        ValueError
+            If the passed in value could not be serialized.
+        """
+        if val is None:
+            return ""
+
+        # Fast path for primitives using direct type checking
+        # This avoids the overhead of the JSON encoder for the 90% case
+        t = type(val)
+        if t is bool:
+            return "true" if val else "false"
+        elif t is int:
+            return str(val)
+        elif t is float:
+            if val != val:  # NaN
+                return ".NaN"
+            if val == float('inf'):
+                return ".inf"
+            if val == float('-inf'):
+                return "-.inf"
+            return str(val)
+        elif t is str:
+            return val
+
+        # Check for ROS2 Substitution objects
+        # We can probably get away without importing from ROS2 to keep this function more general.
+        if hasattr(val, 'perform') or hasattr(val, 'describe'):
+             return val
+
+        # Fallback to JSON serialization for containers (list, dict)
+        # JSON is valid YAML and safer/cleaner than yaml.dump for these
+        import json
+        try:
+            return json.dumps(val)
+        except TypeError as e:
+            # Fallback for non-serializable types (e.g. custom objects)
+            # We could try str(), but it might not be valid YAML
+            raise ValueError(f"Failed to serialize launch argument '{val}' of type '{type(val).__name__}': {e}") from e
 
     def ros2_launch_service(
         self,
