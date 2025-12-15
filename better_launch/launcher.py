@@ -1929,9 +1929,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         elif t is float:
             if val != val:  # NaN
                 return ".NaN"
-            if val == float('inf'):
+            if val == float("inf"):
                 return ".inf"
-            if val == float('-inf'):
+            if val == float("-inf"):
                 return "-.inf"
             return str(val)
         elif t is str:
@@ -1939,7 +1939,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         # Check for ROS2 Substitution objects
         # We can probably get away without importing from ROS2 to keep this function more general.
-        if hasattr(val, 'perform') or hasattr(val, 'describe'):
+        if hasattr(val, "perform") or hasattr(val, "describe"):
              return val
 
         # Fallback to JSON serialization for containers (list, dict)
@@ -1950,7 +1950,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         except TypeError as e:
             # Fallback for non-serializable types (e.g. custom objects)
             # We could try str(), but it might not be valid YAML
-            raise ValueError(f"Failed to serialize launch argument '{val}' of type '{type(val).__name__}': {e}") from e
+            raise ValueError(f"Failed to serialize launch argument '{val}' ({type(val).__name__}): {e}") from e
 
     def ros2_launch_service(
         self,
