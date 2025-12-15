@@ -125,17 +125,17 @@ class TestParameterTranslation:
         # Verify call args
         from launch.actions import IncludeLaunchDescription
         _, kwargs = IncludeLaunchDescription.call_args
-        launch_args = dict(kwargs.get('launch_arguments'))
+        launch_args = dict(kwargs.get("launch_arguments"))
         
-        assert launch_args['arg1'] == "true"
-        assert launch_args['arg2'] is sub
-        assert launch_args['arg3'] == "string"
+        assert launch_args["arg1"] == "true"
+        assert launch_args["arg2"] is sub
+        assert launch_args["arg3"] == "string"
 
     def test_special_floats(self, bl):
         """Test handling of NaN and Infinity."""
-        assert bl._value_to_yaml(float('nan')) == ".NaN"
-        assert bl._value_to_yaml(float('inf')) == ".inf"
-        assert bl._value_to_yaml(float('-inf')) == "-.inf"
+        assert bl._value_to_yaml(float("nan")) == ".NaN"
+        assert bl._value_to_yaml(float("inf")) == ".inf"
+        assert bl._value_to_yaml(float("-inf")) == "-.inf"
         assert bl._value_to_yaml(3.14) == "3.14"
 
     def test_empty_containers(self, bl):
