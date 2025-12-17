@@ -8,7 +8,7 @@
   <!-- Use the short version name from: https://spdx.org/licenses/ -->
   <license>MIT</license>
   <url>https://git.hb.dfki.de/ric-maritime/solutions/tools/better_launch</url>
-  <logo>media/logo.png</logo>
+  <logo>docs/media/logo.png</logo>
 
   <depend package="rclpy"/>
 

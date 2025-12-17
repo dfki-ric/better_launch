@@ -1,4 +1,4 @@
-![Logo](media/logo_text.png)
+![Logo](docs/media/logo_text.png)
 
 
 [About](#about) | [Why?](#why-not-improve-the-existing-ros2-launch) | [Features](#okay-what-can-i-do-with-it) | [Usage](#how-do-i-use-it) | [TUI](#the-tui) | [Differences](#what-are-the-differences) | [Performance](#performance) | [Installation](#installation) | [ROS2](#whats-so-bad-about-ros2-launch) | [Contributors](#contributors)
@@ -45,7 +45,7 @@ $> bl my_package my_launch_file.py --enable_x True
 # 🤔 Why not improve the existing ROS2 launch?
 Because I think it is beyond redemption and no amount of refactoring and REPs (ROS enhancement proposals) will turn the sails. Tools like the highly rated [simple_launch](https://github.com/oKermorgant/simple_launch) or [launch-generator](https://github.com/Tacha-S/launch_generator/) exist, but still use ROS2 launch under the hood and so inherit much of its clunkiness. Rather than fixing an inherently broken solution, I decided to make a RAP - a ROS abandonment proposal :)
 
-Essentially, *better_launch* is what I wish ROS2 launch would be: intuitive to use, simple to understand, easy to remember. This is why *better_launch* is **not** yet another abstraction layer over ROS2 launch; it is a **full replacement** with no required dependencies on the existing launch system.
+Essentially, *better_launch* is what I wish ROS2 launch would be: intuitive to use, simple to understand, easy to remember. This is why *better_launch* is **not** yet anothe``r abstraction layer over ROS2 launch; it is a **full replacement** with no required dependencies on the existing launch system.
 
 
 # 🧩 Okay, what can I do with it?
@@ -266,7 +266,7 @@ bl better_launch 05_launch_arguments.py --help
 # 📟 The TUI
 *better_launch* comes with a sneaky, unobstrusive TUI (terminal user interface) based on [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit), which will hover below the log output. You can start it by either passing `ui=True` to the `launch_this` wrapper, or by adding `--bl_ui_override=enable` on the command line. Use *\<tab>* to switch between menu items.
 
-![TUI](media/tui.png)
+![TUI](docs/media/tui.png)
 
 See the single line of shortcuts at the bottom? That's the TUI, and it will never take up more than 3 lines! Despite its simplicity, the TUI allows you a comfortable degree of control over all nodes managed by the *better_launch* process it is running in:
 - listing a node's services and topics
@@ -328,7 +328,7 @@ ROS2 launch has a bad reputation of leaving stale and abandoned processes behind
 
 
 # 💯 Performance
-I am not an expert on profiling code. Even though *better_launch* uses synchronous calls (or classic threads if necessary), and does some additional work to reformat output from nodes, it was able to achieve similar performance to `ros2 launch`. The scripts and results from the benchmarks can be found under [media/benchmarks](media/benchmarks/). This section will only show the most relevant parts.
+I am not an expert on profiling code. Even though *better_launch* uses synchronous calls (or classic threads if necessary), and does some additional work to reformat output from nodes, it was able to achieve similar performance to `ros2 launch`. The scripts and results from the benchmarks can be found under [docs/benchmarks](docs/benchmarks/). This section will only show the most relevant parts.
 
 > `bl` is just a script to locate the launch file and then run it, so I decided to not use `bl` for these benchmarks and instead run the launch file directly; otherwise the resources used by the launch file will not be visible to most profilers.
 
@@ -507,4 +507,4 @@ Overall, ROS2 launch seems like a system architect's wet fever dream, and I don'
 
 *Copyright 2025, [DFKI GmbH](http://www.dfki.de) / [Robotics Innovation Center](http://robotik.dfki-bremen.de/en/startpage.html)*
 
-![dfki-logo](media/dfki.png)
+![dfki-logo](docs/media/dfki.png)
