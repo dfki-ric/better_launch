@@ -1,0 +1,12 @@
+# TODO
+- content
+    - configuration
+    - toml
+    - examples
+- css for API reference
+- cleanup docstrings
+- add DFKI logo to footer
+- improve hero spaceship
+- social media links?
+- check social card
+- shorten original README

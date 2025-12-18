@@ -1,21 +1,9 @@
-# better_launch
+---
+template: home.html
+title: better_launch
+social:
+  cards_layout_options:
+    title: A better launch system for ROS2
+---
 
-```
-                *       ,:
-    +                 ,' |
-           +         /   :
-       *          --'   /
-+                \\/ /:/
-            *     / ://_\\
-       +       __/   /
-  -            )'-. /
-               ./  :\\
-        *       /.' '
-              '/'
-   '          +
-           .-"-
-          (    )
-       . .-'  '.
-      ( (.   )8:
-  .' _  / (_  ) '._
-```
+Welcome to better_launch

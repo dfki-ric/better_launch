@@ -1,4 +1,4 @@
-![Logo](docs/media/logo_text.png)
+![Logo](docs/assets/images/logo_text.png)
 
 
 [About](#about) | [Why?](#why-not-improve-the-existing-ros2-launch) | [Features](#okay-what-can-i-do-with-it) | [Usage](#how-do-i-use-it) | [TUI](#the-tui) | [Differences](#what-are-the-differences) | [Performance](#performance) | [Installation](#installation) | [ROS2](#whats-so-bad-about-ros2-launch) | [Contributors](#contributors)
@@ -266,7 +266,7 @@ bl better_launch 05_launch_arguments.py --help
 # 📟 The TUI
 *better_launch* comes with a sneaky, unobstrusive TUI (terminal user interface) based on [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit), which will hover below the log output. You can start it by either passing `ui=True` to the `launch_this` wrapper, or by adding `--bl_ui_override=enable` on the command line. Use *\<tab>* to switch between menu items.
 
-![TUI](docs/media/tui.png)
+![TUI](docs/assets/images/tui.png)
 
 See the single line of shortcuts at the bottom? That's the TUI, and it will never take up more than 3 lines! Despite its simplicity, the TUI allows you a comfortable degree of control over all nodes managed by the *better_launch* process it is running in:
 - listing a node's services and topics
@@ -507,4 +507,4 @@ Overall, ROS2 launch seems like a system architect's wet fever dream, and I don'
 
 *Copyright 2025, [DFKI GmbH](http://www.dfki.de) / [Robotics Innovation Center](http://robotik.dfki-bremen.de/en/startpage.html)*
 
-![dfki-logo](docs/media/dfki.png)
+![dfki-logo](docs/assets/images/dfki.png)

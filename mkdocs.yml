@@ -1,46 +1,65 @@
 site_name: better_launch
 repo_url: https://github.com/dfki-ric/better_launch
+site_url: https://github.com/dfki-ric/better_launch  # TODO
+site_author: Nikolas Dahn
+site_description: "A better launch system for ROS2"
 copyright: Copyright &copy; 2025 DFKI GmbH
 theme:
-  favicon: media/logo.png
+  favicon: assets/images/logo.png
+  logo: assets/images/logo.png
   name: material
+  custom_dir: docs/overrides
   font:
     text: Noto Sans
   features:
+    - announce.dismiss
     - content.code.copy
     - header.autohide
     - navigation.tabs
-    - navigation.expand
     - navigation.footer
     - navigation.indexes
     - navigation.instant
     - navigation.tabs
+    - navigation.tracking
     - navigation.top
     - search.highlight
     - search.share
     - search.suggest
   palette:
     - scheme: slate
-      primary: black
-      accent: indigo
+      primary: deep purple
+      accent: pink
 
 nav:
   - Home: index.md
-  - Installation: installation.md
-  - Usage: usage.md
+  - About: 
+    - Why?: about/why.md
+    - Features: about/features.md
+    - Differences: about/differences.md
+    - Performance: about/performance.md
+    - ROS2: about/ros2.md
+  - Installation: 
+    - Installation: installation/installation.md
+    - Configuration: installation/configuration.md
+  - HowTo:
+    - Basics: howto/basics.md
+    - TUI: howto/tui.md
+    - Convenience: howto/convenience.md
+    - Gazebo: howto/gazebo.md
+    - TOML: howto/toml.md
   - Examples: examples.md
-  - Documentation: $api/better_launch.***
+  - API Reference
 
 plugins:
-  - group:
-      enabled: !ENV MKDOCS_MATERIAL_INSIDERS_ENABLED
-      plugins:
-          - optimize
   - search
-  - mkapi
+  - mkdocstrings
+  - api-autonav:
+      modules: ["better_launch"]
+      nav_item_prefix: ""
+  - social:
+      cards_layout: default/variant
 
 markdown_extensions:
-  - abbr
   - admonition
   - attr_list
   - def_list
