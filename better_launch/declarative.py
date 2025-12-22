@@ -28,22 +28,28 @@ def _execute_toml(
         toml_val = toml.get(key)
         if isinstance(toml_val, dict) and "func" in toml_val:
             raise RuntimeError(f"Launcher tried to override TOML call table '{key}'")
-        
+
         toml[key] = val
 
     # Initialize the launcher instance
     bl = BetterLaunch()
 
-    # 
+    #
     contexts = {
         "betterlaunch": dict(
-            f for f in inspect.getmembers(BetterLaunch, inspect.isfunction) if not f.startswith("_")
+            f
+            for f in inspect.getmembers(BetterLaunch, inspect.isfunction)
+            if not f.startswith("_")
         ),
         "convenience": dict(
-            f for f in inspect.getmembers(convenience, inspect.isfunction) if not f.startswith("_")
+            f
+            for f in inspect.getmembers(convenience, inspect.isfunction)
+            if not f.startswith("_")
         ),
         "gazebo": dict(
-            f for f in inspect.getmembers(gazebo, inspect.isfunction) if not f.startswith("_")
+            f
+            for f in inspect.getmembers(gazebo, inspect.isfunction)
+            if not f.startswith("_")
         ),
     }
     results = dict(bl.launch_args)
@@ -77,7 +83,7 @@ def _execute_toml(
         ctx = req.pop("context", "betterlaunch")
         if ctx not in contexts:
             raise KeyError(f"{key}: context='{ctx}' is not a valid context")
-        
+
         valid_funcs = contexts[ctx]
 
         # Get the function to execute
@@ -104,9 +110,13 @@ def _execute_toml(
                 return
 
             with res:
-                # Must be a proper TOML subtable, we don't accept arrays of tables here
+                if isinstance(children, list):
+                    children = {f"{key}.children.{idx}": child for idx, child in enumerate(children)}
+
                 if not isinstance(children, dict):
-                    raise ValueError(f"Children of {key} must be specified as a dict")
+                    raise ValueError(
+                        f"Children of {key} must be specified as a dict or subtable"
+                    )
 
                 for subkey, child in children.items():
                     exec_request(subkey, child)
@@ -227,7 +237,7 @@ def launch_toml(
 
     Lastly, there are a couple of special keys that may be declared in the TOML:
     - `bl_toml_format`: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don't want to update your launch file. The current version is :py:data:`toml_format_version`.
-    
+
     Parameters
     ----------
     path : str

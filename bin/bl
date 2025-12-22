@@ -116,9 +116,6 @@ class BetterLaunchPython(LaunchFile):
     def _get_launch_params_and_doc_bl_python(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        if not filepath.lower().endswith(".launch.py"):
-            raise ValueError("Not a python file")
-
         from better_launch.wrapper import _get_declared_args
 
         _, signature, func_doc = get_launchfunc_signature_from_file(filepath)
@@ -166,9 +163,6 @@ class BetterLaunchToml(LaunchFile):
     def _get_launch_params_and_doc_bl_toml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        if not filepath.lower().endswith(".launch.toml"):
-            raise ValueError("Not a toml file")
-
         from better_launch.declarative import (
             load_toml,
             _get_toml_args,
@@ -239,9 +233,6 @@ class Ros2LaunchFile(LaunchFile):
     def _get_launch_params_and_doc_ros2_python(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        if not filepath.lower().endswith(".launch.py"):
-            raise ValueError("Not a python file")
-
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 source = f.read()
@@ -286,9 +277,6 @@ class Ros2LaunchFile(LaunchFile):
     def _get_launch_params_and_doc_ros2_xml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        if not filepath.lower().endswith(".launch.xml"):
-            raise ValueError("Not a python file")
-
         tree = ElementTree.parse(filepath)
         root = tree.getroot()
 
