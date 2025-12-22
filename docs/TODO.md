@@ -1,6 +1,5 @@
 # TODO
 - content
-    - configuration
     - toml
     - examples
 - css for API reference

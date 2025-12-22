@@ -196,47 +196,19 @@ def launch_toml(
     For example:
 
     .. code-block:: toml
-        max_respawns = 3
+        name = "the-node-of-destiny"
 
         [my_awesome_node]
         func = "node"
         package = "my-package"
         executable = "my-node"
-        name = "my-node"
-        max_respawns = "${max_respawns}"
+        name = "${name}"
 
-    This launch file declares a launch argument `max_respawns`. It then creates a new node and passes the launch argument to it using a substitution. The returned :py:class:`Node` instance is stored in the launch context under the `my_awesome_node` key, and could be referred to by later call tables.
+    Substitutions are also possible and use a similar syntax as in ROS1 (as shown for the `name` launch argument above). `if` and `unless` conditions can be added as well. 
 
-    An example launchfile with more explanations can be found in the examples folder.
+    All parameters below can be set through the launch file by declaring them on the global scope with a `bl_` prefix (i.e. `ui` becomes `bl_ui`).
 
-    Substitutions in better_launch take heavy inspiration from those found in ROS1 and should be familiar to many. However, as the TOML launchfile format is much more powerful, only the following substitutions were deemed necessary for now:
-    - `${<K>}` this will resolve to a launch arg or call table result named <K>
-    - `${param <N> <P>}` will retrieve a parameter <P> from the *full* nodename <N>
-    - `${env <E> [D]}` will get the environment variable <E> (default to <D> if specified)
-    - `${eval <X>}` will treat <X> as a python expression to evaluate (see `eval_mode` below)
-
-    Substitutions can also be nested, in which case the innermost ones will be resolved first.
-
-    For those functions in :py:class:`BetterLaunch` which are used as context objects (e.g. :py:meth:`BetterLaunch.group`, :py:meth:`BetterLaunch.compose`) you may provide a `children` attribute, which must be a dict of dicts. It's possible to use TOML's subtables for this like so:
-
-    .. code-block:: toml
-        [my_composer]
-        func = "compose"
-
-        [my_composer.children.talker]
-        func = "component"
-        package = "composition"
-        plugin = "composition::Talker"
-
-    In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions). These will be evaluated according to
-    python truthiness.
-    - if     -> execute only if condition is true
-    - unless -> execute only if condition is false
-
-    Similar to :py:meth:`launch_this`, a TOML launchfile may specify various settings to configure the launch process. In particular, all of the *keyword-only* arguments to this function can be specified with a `bl_` prefix as global args. For example, to set the `screen_log_level` from your launchfile you could add `bl_screen_log_level = "warning"` in the global scope.
-
-    Lastly, there are a couple of special keys that may be declared in the TOML:
-    - `bl_toml_format`: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don't want to update your launch file. The current version is :py:data:`toml_format_version`.
+    Please see the documentation for full details.
 
     Parameters
     ----------
