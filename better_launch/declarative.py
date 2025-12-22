@@ -3,7 +3,7 @@ import inspect
 import contextlib
 import logging
 
-from better_launch import BetterLaunch
+from better_launch import BetterLaunch, convenience, gazebo
 from better_launch.wrapper import _exec_launch_func
 from better_launch.utils.settings import Colormode, _update_settings
 from better_launch.utils.click import DeclaredArg
@@ -34,7 +34,18 @@ def _execute_toml(
     # Initialize the launcher instance
     bl = BetterLaunch()
 
-    valid_funcs = {f: getattr(bl, f) for f in dir(bl) if not f.startswith("_")}
+    # 
+    contexts = {
+        "betterlaunch": dict(
+            f for f in inspect.getmembers(BetterLaunch, inspect.isfunction) if not f.startswith("_")
+        ),
+        "convenience": dict(
+            f for f in inspect.getmembers(convenience, inspect.isfunction) if not f.startswith("_")
+        ),
+        "gazebo": dict(
+            f for f in inspect.getmembers(gazebo, inspect.isfunction) if not f.startswith("_")
+        ),
+    }
     results = dict(bl.launch_args)
 
     def substitute_all(value: Any):
@@ -63,10 +74,16 @@ def _execute_toml(
             results[key] = None
             return
 
+        ctx = req.pop("context", "betterlaunch")
+        if ctx not in contexts:
+            raise KeyError(f"{key}: context='{ctx}' is not a valid context")
+        
+        valid_funcs = contexts[ctx]
+
         # Get the function to execute
         func_name = req.pop("func")
         if func_name not in valid_funcs:
-            raise KeyError(f"func='{func_name}' is not a valid request")
+            raise KeyError(f"{key}: func='{func_name}' is not a valid function")
 
         func = valid_funcs[func_name]
         func_sig = inspect.signature(func)

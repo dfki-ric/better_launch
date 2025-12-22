@@ -49,8 +49,8 @@ class _Settings:
     colormode: Colormode = Colormode.DEFAULT
     print_limit: int = 0
     screen_log_level: int = logging.INFO
-    screen_log_format: str = default_screen_format
     file_log_level: int = logging.INFO
+    screen_log_format: str = default_screen_format
     file_log_format: str = default_file_format
 
     def __init__(self, **kwargs):
