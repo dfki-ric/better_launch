@@ -1,7 +1,4 @@
 # TODO
-- content
-    - toml
-    - examples
 - css for API reference
 - cleanup docstrings
 - add DFKI logo to footer

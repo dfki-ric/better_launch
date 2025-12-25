@@ -1,14 +1,20 @@
-# :page_with_curl: TOML launchfiles
+# :t_rex: TOML Launchfiles
 
-The discussions over at ros discourse revealed that there was a need for launchfiles that are not code-based but can be parsed offline. TOML launchfiles are *better_launch*'s answer, based on the TOML format. They provide the full power of *better_launch* while limiting the complexity that would be achievable through python.
+The discussions over at ros discourse revealed that there was a need for launchfiles that are not code-based but can be parsed offline. TOML launchfiles provide exactly that: the full power of *better_launch* while limiting the complexity that would be achievable through python.
 
-This page will give you a general overview. Have a look at the [examples](../examples.md) for more details!
+???+ tip
+
+    This page will give you a general overview. Have a look at the [examples](https://github.com/dfki-ric/better_launch/tree/main/examples) for more details!
+
+???+ example "Feedback welcome!"
+
+    The TOML format is an entirely new way of writing launchfiles. While I have faith in the general approach, it may not quite meet the needs yet. [Feedback](https://github.com/dfki-ric/better_launch/issues) is very much welcome!
 
 ## Call Tables
-In TOML launchfiles most tables are *call tables*. A call table is a dictionary with a `func` key referring to one of the
-public [BetterLaunch](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch) member functions. Most other attributes are treated as keyword arguments to that function. Call tables execute in order of appearance, and their return value are stored under the table’s name.
+In TOML launchfiles most tables are so-called *call tables*. These are dictionaries with a `func` key referring to one of the
+public [BetterLaunch](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch) member functions. Most other attributes are treated as keyword arguments to that function. Just like with python launchfiles, call tables are executed in order of appearance, and their return values are stored under the table’s name.
 
-For example, the following call table will call [bl.find](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch.find), pass `better_launch` as the package and `cube.sdf` as the filename, and store the returned value under `a_simple_cube`.
+For example, the following call table will call [bl.find](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch.find), pass `better_launch` as the package and `cube.sdf` as the filename, then store the returned value under `a_simple_cube`.
 
 ```toml
 [a_simple_cube]
@@ -51,17 +57,6 @@ Launch arguments can be defined as global parameters before the first table. The
 
 In order to support required launch arguments, *better_launch* makes a small extension to TOML: when defining your launch arguments, instead of assigning them a value you may also assign them one of python's primitive types *without quotes* (e.g. `my_arg = bool`). The launchfile will then require this argument to be passed and handle it as the specified type.
 
-## Function Context
-By default, call tables will lookup the function to run on the [BetterLaunch](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch) instance. To run functions from the [convenience](convenience.md) or [gazebo](gazebo.md) modules, you may specify a `context` parameter and pass it either `convenience` or `gazebo`. This *cannot*  be used to run code from arbitrary modules - only these values are supported.
-
-For example, the following call table will start a rosbag recording:
-
-```toml
-[start_recording]
-context = "convenience"
-func = "record_topics"
-```
-
 ## Namespaces & Components
 When using functions like [bl.group](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch.group) and [bl.compose](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch.compose) that create a python context, you have to add the elements belonging to them as *children* using the following syntax:
 
@@ -85,6 +80,17 @@ You may also use TOML table arrays. In this case the children will get assigned 
 # key will be my_composer.children.1
 [[my_composer.children]]
 ...
+```
+
+## Convenience & Gazebo
+By default, call tables will lookup the function to run on the [BetterLaunch](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch) instance. To run functions from the [convenience](../../reference/better_launch/convenience/) or [gazebo](../../reference/better_launch/gazebo/) modules, you may specify a `context` parameter and pass it either `convenience` or `gazebo`. This *cannot*  be used to run code from arbitrary modules - only these values are supported.
+
+For example, the following call table will start a rosbag recording:
+
+```toml
+[start_recording]
+context = "convenience"
+func = "record_topics"
 ```
 
 # Comments & Docstrings

@@ -1,10 +1,10 @@
-# :gear: Configuration
+# :gear: Settings
 
 *better_launch* has a few settings that can be set from launchfiles or externally. 
 
 Every option listed here can be set in the launchfile, as an environment variable, or passed as a command line argument. The priority order is always `CLI > env > launchfile`. Their names slightly change depending on where you define them:
 
-- In python launchfiles, pass them in lowercase to the `launch_this` decorator (e.g. `ui=True`).
+- In python launchfiles, pass them in lowercase to the [@launch_this](../../reference/better_launch/wrapper/#better_launch.wrapper.launch_this) decorator (e.g. `ui=True`).
 - For [TOML lanuchfiles](../howto/toml.md), define them as global launch arguments and add a `bl_` prefix (so `ui` becomes `bl_ui`).
 - As environment variables they become uppercase and get a `BL_` prefix (so `ui` becomes `BL_UI`).
 - On the command line they get a `--bl-` prefix and underscores become dashes (so `ui` becomes `--bl-ui`). 

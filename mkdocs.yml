@@ -38,16 +38,12 @@ nav:
     - Differences: about/differences.md
     - Performance: about/performance.md
     - ROS2: about/ros2.md
-  - Installation: 
-    - Installation: installation/installation.md
-    - Configuration: installation/configuration.md
+  - Installation: installation/installation.md
   - HowTo:
-    - Basics: howto/basics.md
-    - TUI: howto/tui.md
-    - Convenience: howto/convenience.md
-    - Gazebo: howto/gazebo.md
+    - Python: howto/python.md
     - TOML: howto/toml.md
-  - Examples: examples.md
+    - TUI: howto/tui.md
+    - Settings: howto/settings.md
   - API Reference
 
 plugins:

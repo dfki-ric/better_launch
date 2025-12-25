@@ -1,5 +1,5 @@
 # :inbox_tray: Installation
-I'm working on getting a .deb package up and running. Until then you may follow the steps below!
+I'm working on getting a proper distro package up and running, but it's a surprisingly non-fun process. Until then you may follow the steps below!
 
 ???+ tip
 

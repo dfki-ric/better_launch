@@ -2,9 +2,9 @@
 
 *better_launch* comes with a sneaky, unobstrusive TUI (terminal user interface) based on [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit), which will hover below the log output. You can start it by either passing `ui=True` to the `launch_this` wrapper, or by adding `--bl_ui=enable` on the command line. Use *\<tab>* to switch between menu items.
 
-![TUI](../assets/images/tui.png)
+![TUI](../assets/images/tui_small_x4.png)
 
-See the single line of shortcuts at the bottom? That's the TUI, and it will never take up more than 3 lines! Despite its simplicity, the TUI allows you a comfortable degree of control over all nodes managed by the *better_launch* process it is running in:
+See the single line of shortcuts at the bottom of each example? That's the TUI, and it will never take up more than 3 lines! Despite its simplicity, the TUI allows you a comfortable degree of control over all nodes managed by the *better_launch* process it is running in:
 
 - listing a node's services and topics
 - starting and stopping nodes
