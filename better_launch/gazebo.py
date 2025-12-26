@@ -93,7 +93,7 @@ def gazebo_launch(
     Parameters
     ----------
     package : str,
-        A package to locate the world_file in. May be `None` (see :py:meth:`BetterLaunch.find`).
+        A package to locate the world_file in. May be `None` (see [BetterLaunch.find][]).
     world_file : str
         Path to the primary world file for the simulation.
     gz_args : _type_, optional
@@ -263,7 +263,7 @@ def get_gazebo_axes_args(
     Returns
     -------
     dict[str, float]
-        A dictionary containing the axes names and values. The axes names correspond to what Gazebo expects on the command line and so can be passed to e.g. :py:meth:`gazebo_spawn_model`.
+        A dictionary containing the axes names and values. The axes names correspond to what Gazebo expects on the command line and so can be passed to e.g. [spawn_model][].
     """
     return {
         "x": x,
@@ -286,18 +286,18 @@ def spawn_model(
 
     The `spawn_args` dictionary can include additional options, such as the initial pose of the model.
 
-    Note that when spawning robot models this way, they typically also need a :py:meth:`convenience.joint_state_publisher`.
+    Note that when spawning robot models this way, they typically also need a [convenience.joint_state_publisher][].
 
     Parameters
     ----------
-    name : str
+    model_name : str
         The name of the model to spawn in the Gazebo environment.
     model : str
         The model to spawn. The contents of this string depend on the model_source, but should ultimately lead to a full XML description.
     model_source : str
         Where to read the model from. Auto will try to guess the source based on the content of `model`: does it look like XML, is it a file, is it an existing topic? Otherwise assume it's a ROS2 parameter.
     spawn_args : dict[str, Any], optional
-        Additional arguments for spawning the model, such as pose and other options. See :py:meth:`get_gazebo_axes_args` for defining the model's orientation.
+        Additional arguments for spawning the model, such as pose and other options. See [get_gazebo_axes_args][] for defining the model's orientation.
 
     Returns
     -------
@@ -337,7 +337,7 @@ def spawn_world_transform(gazebo_world_frame: str = None) -> Node:
     Parameters
     ----------
     gazebo_world_frame : str, optional
-        The name of the Gazebo world frame. If None, retrieves the default from :py:meth:`GazeboBridge.world`.
+        The name of the Gazebo world frame. Uses [get_active_world_name][] if None.
 
     Returns
     -------
@@ -362,12 +362,12 @@ def spawn_topic_bridge(
 ) -> Node:
     """Start a Gazebo topic bridge to relay messages between ROS2 and Gazebo.
 
-    Note that there is a separate function for bridging image topics more efficiently. See :py:meth:`spawn_image_bridge`.
+    Note that there is a separate function for bridging image topics more efficiently. See [spawn_image_bridge][].
 
     Parameters
     ----------
     bridges : list[str | GazeboBridge]
-        Definitions of topic bridges. This can be either a typical string (`<topic>@<ros2_type><direction><gazebo_type>`) or a :py:class:`GazeboBridge` instance. Note that in order to bridge services you will have to specify them as strings for now. 
+        Definitions of topic bridges. This can be either a typical string (`<topic>@<ros2_type><direction><gazebo_type>`) or a [GazeboBridge][] instance. Note that in order to bridge services you will have to specify them as strings for now. 
     node_name : str, optional
         The name of the bridge node.
     remaps : dict[str, str], optional
@@ -426,7 +426,7 @@ def spawn_image_bridge(
     Parameters
     ----------
     bridges : list[str | GazeboBridge]
-        The image topics to bridge. These can be specified as either Gazebo bridge definitions, :py:class:`GazeboBridge` instances. Also accepts regular topics, in which case the type is assumed to be `sensor_msgs/Image`.
+        The image topics to bridge. These can be specified as either Gazebo bridge definitions, [GazeboBridge][] instances. Also accepts regular topics, in which case the type is assumed to be `sensor_msgs/Image`.
     node_name : str, optional
         The name of the node running the bridge.
     remaps : dict[str, str], optional
@@ -559,6 +559,7 @@ class GazeboBridge:
         "vision_msgs/msg/Detection2D": "gz.msgs.AnnotatedAxisAligned2DBox",
         "vision_msgs/msg/Detection2DArray": "gz.msgs.AnnotatedAxisAligned2DBox_V",
     }
+    """Map from ROS2 message types to Gazebo message types."""
 
     @classmethod
     def from_string(cls, bridge: str, remaps: dict[str, str] = None) -> "GazeboBridge":
@@ -629,7 +630,7 @@ class GazeboBridge:
         *,
         remaps: dict[str, str] = None,
     ):
-        """Create a definition for a gazebo bridge. Convert to a string in order to get the canonical Gazebo bridge representation. To start a topic bridge see :py:meth:`spawn_topic_bridge`.
+        """Create a definition for a gazebo bridge. Convert to a string in order to get the canonical Gazebo bridge representation. To start a topic bridge see [spawn_topic_bridge][].
 
         Parameters
         ----------
@@ -640,7 +641,7 @@ class GazeboBridge:
         direction : str, optional
             The direction in which messages will be passed,
         gazebo_type : str, optional
-            The message type of the Gazebo topic. If not provided it will be looked up from the common :py:member:`gazebo_message_types`.
+            The message type of the Gazebo topic. If not provided it will be looked up from the common [GazeboBridge.gazebo_message_types][].
         remaps : dict[str, str], optional
             Additional topic remaps for the bridge node.
 

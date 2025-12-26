@@ -30,8 +30,8 @@ def rviz(
     ----------
     package : str, optional
         Path to locate the config file in (if one is specified).
-    config_file : str, optional
-        Path to the RViz2 configuration file which will be resolved by :py:meth:`BetterLaunch.find`. Otherwise RViz2 will run with the default config.
+    configfile : str, optional
+        Path to the RViz2 configuration file which will be resolved by [BetterLaunch.find][]. Otherwise RViz2 will run with the default config.
     subdir : str, optional
         A path fragment the config file must be located in.
     extra_args : list[str], optional
@@ -67,12 +67,12 @@ def read_robot_description(
 ) -> str | None:
     """Returns the contents of a robot description after a potential xacro parse.
 
-    The file is resolved using :py:meth:`BetterLaunch.find`. If the description file ends with `.urdf` and `xacro_args` is not provided, it reads the URDF file directly. Otherwise it runs `xacro` to generate the URDF from a `.xacro` file.
+    The file is resolved using [BetterLaunch.find][]. If the description file ends with `.urdf` and `xacro_args` is not provided, it reads the URDF file directly. Otherwise it runs `xacro` to generate the URDF from a `.xacro` file.
 
     Parameters
     ----------
     package : str
-        The package where the robot description file is located. May be `None` to use this launch file's package (see :py:meth:`BetterLaunch.find`).
+        The package where the robot description file is located. May be `None` to use this launch file's package (see [BetterLaunch.find][]).
     description_file : str
         The name of the robot description file (URDF or XACRO).
     subdir : str, optional
@@ -120,7 +120,7 @@ def joint_state_publisher(
     node_name : str, optional
         The name of the node. If not provided the name of the executable will be used. Will be anonymized unless `anonymous=False` is passed.
     **kwargs : dict, optional
-        Additional arguments to pass to the node (e.g. name, remaps, params, etc.). See :py:meth:`BetterLaunch.node`.
+        Additional arguments to pass to the node (e.g. name, remaps, params, etc.). See [BetterLaunch.node][].
 
     Returns
     -------
@@ -156,12 +156,12 @@ def robot_state_publisher(
     node_name: str = None,
     **kwargs,
 ) -> Node:
-    """Start a Robot State Publisher node using the given URDF/Xacro file. The file is resolved using :py:meth:`BetterLaunch.find`.
+    """Start a Robot State Publisher node using the given URDF/Xacro file. The file is resolved using [BetterLaunch.find][].
 
     Parameters
     ----------
     package : str
-        The name of the package containing the robot description file. May be `None` to use this launch file's package (see :py:meth:`BetterLaunch.find`).
+        The name of the package containing the robot description file. May be `None` to use this launch file's package (see [BetterLaunch.find][]).
     description_file : str
         The name of the robot description for the robot. Typically a .sdf, .urdf or .xacro file.
     subdir : str, optional
@@ -277,9 +277,9 @@ def spawn_controller_manager(
     Parameters
     ----------
     robot_description : str, optional
-        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by :py:meth:`read_robot_description`, however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
+        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
     params : str | dict[str, Any], optional
-        The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via :py:meth:`BetterLaunch.load_params`.
+        The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via [BetterLaunch.load_params][].
     remaps : dict[str, str], optional
         Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.
     cmd_args: list[str], optional
@@ -444,7 +444,7 @@ def record_topics(
     ----------
     bagfile : str, optional
         Where to record the bagfile. If not specified it will use the rosbag default.
-    camera_image_topic : str, optional
+    camera_topic : str, optional
         If specified, only record camera topics if they contain this string. Assumes that the word "camera" appears in the topic path. If specified it is independent from `include_image_topics`. Ignored if topics are specified.
     include_image_topics : bool, optional
         Whether to include non-camera image topics. Ignored if topics are specified.

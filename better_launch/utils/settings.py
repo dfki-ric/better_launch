@@ -152,7 +152,7 @@ def _update_settings(**overrides) -> None:
     Parameters
     ----------
     overrides :
-        Values to override. See :py:class:`_Settings` for valid keywords.
+        Values to override. See [_Settings][] for valid keywords.
     """
     global _SETTINGS
 

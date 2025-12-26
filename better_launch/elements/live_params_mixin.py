@@ -30,7 +30,7 @@ class LiveParamsMixin:
     def list_live_params(self, *, timeout: float = 5.0) -> list[str]:
         """List the names of the ROS parameters this node has registered.
 
-        This will only work if the node is up and running. Note that this is different from :py:meth:`params` in that this method will directly query the ROS node, while `params` is only used when starting the node.
+        Note that this is different from the `params` used to start the node. This method will directly query the ROS node for its parameters, while `params` is used to pass arguments on startup.
 
         Parameters
         ----------
@@ -67,7 +67,7 @@ class LiveParamsMixin:
     def get_live_params(self, *params: str, timeout: float = 5.0) -> dict[str, Any]:
         """Retrieves the values for the specified ROS parameters of this node. If no parameters are provided, all parameters will be listed.
 
-        This will only work if the node is up and running. Note that this is different from :py:meth:`params` in that this method will directly query the ROS node, while `params` is only used when starting the node.
+        Note that this is different from the `params` used to start the node. This method will directly query the ROS node for its parameters, while `params` is used to pass arguments on startup.
 
         Parameters
         ----------
@@ -120,7 +120,7 @@ class LiveParamsMixin:
     ) -> dict[str, bool]:
         """Sets the specified ROS parameters on this node.
 
-        This will only work if the node is up and running. This will also not change :py:meth:`params`, which is used for starting the node.
+        Note that this is different from the `params` used to start the node. This method will directly query the ROS node for its parameters, while `params` is used to pass arguments on startup.
 
         Parameters
         ----------
@@ -169,7 +169,7 @@ class LiveParamsMixin:
     ) -> bool:
         """Sets the specified ROS parameters on this node. No updates will be performed if any of the operations fail.
 
-        This will only work if the node is up and running. This will also not change :py:meth:`params`, which is used for starting the node.
+        Note that this is different from the `params` used to start the node. This method will directly query the ROS node for its parameters, while `params` is used to pass arguments on startup.
 
         Parameters
         ----------
