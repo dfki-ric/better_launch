@@ -2,20 +2,13 @@
 
 <!-- Custom front matter -->
 {% block extrahead %}
-
   <!-- Extra style sheets (can't be set in mkdocs.yml due to content hash) -->
-  <link
-    rel="stylesheet"
-    href="{{ 'assets/stylesheets/custom.css' | url }}"
-  />
+  <link rel="stylesheet" href="{{ 'assets/stylesheets/custom.css' | url }}"/>
+  <link rel="stylesheet" href="{{ 'assets/stylesheets/hero.css' | url }}"/>
+  <link rel="stylesheet" href="{{ 'assets/stylesheets/apidoc.css' | url }}"/>
 {% endblock %}
 
 <!-- Announcement bar -->
 {% block announce %}
   We now have a website - look at all the shininess! :star-struck:
-{% endblock %}
-
-<!-- Theme-related JavaScript -->
-{% block scripts %}
-  {{ super() }}
 {% endblock %}

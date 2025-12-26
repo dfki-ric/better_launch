@@ -59,8 +59,6 @@ plugins:
               show_symbol_type_heading: true
               show_symbol_type_toc: true
               scoped_crossrefs: true
-              preload_modules:
-              - inspect
   - api-autonav:
       modules: ["better_launch"]
       nav_item_prefix: ""
