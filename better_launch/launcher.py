@@ -1396,7 +1396,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     ) -> Node:
         """Create a new ROS2 node process. The bread and butter of every ROS setup!
 
-        Note that this method also handles lifecycle nodes (they REALLY should have a common interface). Note that especially for lifecycle nodes you probably want `autostart_process == True`, otherwise there lifecycle management will not exist. With `autostart_process == True`, a lifecycle node will automatically advance to `lifecycle_target` once it is up. Otherwise you can also call [Node.start][better_launch.elements.abstract_node.AbstractNode.start] later.
+        Please note that by default better_launch will generate an anonymous node name if no node name was specified. This helps to avoid multiple nodes with the same name, which in ROS2 is both possible and problematic. If you really don't want to specify a node name, pass an empty string instead.
+
+        This method also handles lifecycle nodes (they REALLY should have a common interface). Note that especially for lifecycle nodes you probably want `autostart_process == True`, otherwise there lifecycle management will not exist. With `autostart_process == True`, a lifecycle node will automatically advance to `lifecycle_target` once it is up. Otherwise you can also call [Node.start][better_launch.elements.abstract_node.AbstractNode.start] later.
 
         The `ROS2 documentation <https://docs.ros.org/en/rolling/How-To-Guides/Node-arguments.html>`_ can provide some additional information regarding `params`, `remaps`, and so on.
 
@@ -1407,7 +1409,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         executable : str
             The executable that should be run.
         name : str, optional
-            The name you want the node to be known as. If `None`, a name will be derived from `package` and `executable` and `anonymous` will be set to True.
+            The name you want the node to be known as. If `None`, a name will be derived from `package` and `executable` and `anonymous` will be set to True. Pass an empty string instead if you really want to use the node's default name - just know that you'll make a cute kitten really sad.
         remaps : dict[str, str], optional
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
@@ -1445,7 +1447,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         raw : bool, optional
             If True, don't treat the executable as a ROS2 node and avoid passing it any command line arguments except those specified.
         remap_qualifier : str, optional
-            Additional qualifier that will precede the node's `__ns` and `__name` remap rules. Should be the original name of the node (i.e. whatever its default name is) and can be qualified with a namespace. Useful to prevent multiple nodes with the same name when a process can have more than one node (e.g. `controller_manager`). See `this ROS2 design doc <https://design.ros2.org/articles/static_remapping.html#how-the-syntax-works`_ for more information.
+            Additional qualifier that will precede the node's `__ns` and `__name` remap rules. Should be the original name of the node (i.e. whatever its default name is) and can be qualified with a namespace. Useful to prevent multiple nodes with the same name when a process can have more than one node (e.g. `controller_manager`). See [this ROS2 design doc](https://design.ros2.org/articles/static_remapping.html#how-the-syntax-works) for more information.
         qualify_all_remaps : bool, optional
             If True, apply the `remap_qualifier` to all remaps that are not already qualified.
 
@@ -1462,9 +1464,11 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if self._composition_node:
             raise RuntimeError("Cannot add nodes inside a composition node")
 
-        if not name:
+        if name is None:
             name = f"{package}_{executable}"
-            anonymous = True
+            if not anonymous:
+                self.logger.warning(f"Name of node {package}/{executable} not set, will use anonymous name")
+                anonymous = True
 
         if anonymous:
             name = self.get_unique_name(name)
@@ -1543,7 +1547,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         Parameters
         ----------
         name : str, optional
-            The name you want the composer to be known as. `anonymous` will be set to True if no name is provided.
+            The name you want the composer to be known as. `anonymous` will be set to True if no name is provided. Pass an empty string if you really want to use the composer node's default name.
         language : str, optional
             The implementation of the standard composer you want to use. Ignored if `reuse_existing` is True and a matching node is found.
         variant : Literal["normal", "multithreading", "isolated"], optional
@@ -1576,9 +1580,11 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if self._composition_node is not None:
             raise RuntimeError("Cannot nest composition nodes")
 
-        if not name:
+        if name is None:
             name = "composer"
-            anonymous = True
+            if not anonymous:
+                self.logger.warning("Name of composer not set, will use anonymous name")
+                anonymous = True
 
         if anonymous:
             name = self.get_unique_name(name)
@@ -1698,7 +1704,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         plugin : str
             The name the component is registered as, typically of the form `<package>::<Name>`.
         name : str, optional
-            The name the instantiated component should be known as. If `None`, a name will be derived from `package` and `plugin`, and `anonymous` will be set to True.
+            The name the instantiated component should be known as. If `None`, a name will be derived from `package` and `plugin`, and `anonymous` will be set to True. Pass an empty string instead if you really want to use the node's default name - just know that you'll make a cute kitten really sad.
         remaps : dict[str, str], optional
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         anonymous : bool, optional
@@ -1733,7 +1739,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         if not name:
             name = f"{package}_{plugin.replace('::', '_')}"
-            anonymous = True
+            if not anonymous:
+                self.logger.warning(f"Name of {package}::{plugin} not set, will use anonymous name")
+                anonymous = True
 
         if anonymous:
             name = self.get_unique_name(name)

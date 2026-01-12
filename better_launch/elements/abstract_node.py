@@ -143,10 +143,13 @@ class AbstractNode:
         """
         ros_args = dict(self.remaps)
 
-        # Why do I hear mad hatter music???
-        # See launch_ros/actions/node.py:495
-        ros_args["__ns"] = self.namespace
-        ros_args["__node"] = self.name
+        if self.namespace:
+            # Why do I hear mad hatter music???
+            # See launch_ros/actions/node.py:495
+            ros_args["__ns"] = self.namespace
+
+        if self.name:
+            ros_args["__node"] = self.name
 
         return ros_args
 
