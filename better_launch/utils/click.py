@@ -1,6 +1,6 @@
 from typing import Any, Type, Iterable, Callable
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import click
 
 from better_launch.utils.better_logging import Colormode
@@ -22,6 +22,7 @@ class Overrides:
     colormode = Colormode.DEFAULT
     screen_log_format: str = None
     file_log_format: str = None
+    node_params: list[tuple[str, str, str]] = field(default_factory=list)
 
     def __init__(
         self,
@@ -29,6 +30,7 @@ class Overrides:
         colormode: Colormode = Colormode.DEFAULT,
         screen_log_format: str = None,
         file_log_format: str = None,
+        node_params: list[tuple[str, str, str]] = None,
     ):
         env_ui = os.environ.get("BL_UI_OVERRIDE", str(ui)).lower()
         self.ui = env_ui in ("enable", "true", "1")
@@ -42,6 +44,7 @@ class Overrides:
         self.file_log_format = os.environ.get(
             "BL_FILE_LOG_FORMAT_OVERRIDE", file_log_format
         )
+        self.node_params = node_params or []
 
 
 def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option]:
@@ -68,7 +71,9 @@ def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option
     return options
 
 
-def get_click_overrides(overrides: Overrides, expose: bool = False) -> list[click.Option]:
+def get_click_overrides(
+    overrides: Overrides, expose: bool = False
+) -> list[click.Option]:
     # Additional overrides for launch arguments
     def set_override_ui(ctx: click.Context, param: click.Parameter, value: str):
         if value != "unset":
@@ -78,6 +83,13 @@ def get_click_overrides(overrides: Overrides, expose: bool = False) -> list[clic
     def set_override_colormode(ctx: click.Context, param: click.Parameter, value: str):
         if value:
             overrides.colormode = Colormode[value.upper()]
+        return value
+
+    def set_override_node_param(
+        ctx: click.Context, param: click.Parameter, value: list[tuple[str, str, str]]
+    ):
+        if value:
+            overrides.node_params = value
         return value
 
     # NOTE these should be mirrored in the bl script
@@ -101,6 +113,14 @@ def get_click_overrides(overrides: Overrides, expose: bool = False) -> list[clic
             help="Override the logging color mode",
             expose_value=expose,
             callback=set_override_colormode,
+        ),
+        click.Option(
+            ["--node_param"],
+            type=(str, str, str),
+            multiple=True,
+            help="Override a node parameter: <node_name> <param_name> <value>",
+            expose_value=expose,
+            callback=set_override_node_param,
         ),
     ]
 
