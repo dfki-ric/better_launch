@@ -1,6 +1,6 @@
 site_name: better_launch
 repo_url: https://github.com/dfki-ric/better_launch
-site_url: https://github.com/dfki-ric/better_launch  # TODO
+site_url: https://dfki-ric.github.io/better_launch/
 site_author: Nikolas Dahn
 site_description: "A better launch system for ROS2"
 copyright: Copyright &copy; 2025 DFKI GmbH

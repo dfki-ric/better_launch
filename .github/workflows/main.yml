@@ -6,6 +6,21 @@ on:
       - main
 
 jobs:
+  build:
+    name: Deploy docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v1
+
+      - name: Deploy docs
+        uses: mhausenblas/mkdocs-deploy-gh-pages@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIREMENTS: docs/requirements.txt
+
   build-and-test:
     name: Build and Test
     runs-on: ubuntu-latest
