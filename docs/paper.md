@@ -29,7 +29,7 @@ On one hand, being able to write launch files in python is a nice feature which 
 - convoluted and obscure internals
 - etc.
 
-There are of course good reasons for the way the launch system has been implemented, at least on a superficial level. According to the design document, the intent is to treat launch files as "a description of what will happen" without executing anything. This is so that tools can "visualize and modify the launch description". The recently released LaunchMap [@launchmap] is able to do just that. However, given that users may define their own launch actions without a common way of inspecting them, it could be argued that even this use case is not well supported right now. There is also no good argument why the same couldn't be achieved using e.g. python's inspect module and/or a non-declarative syntax.
+There are of course good reasons for the way the launch system has been implemented, at least on a superficial level. According to the design document [@ros2_launch_design], the intent is to treat launch files as "a description of what will happen" without executing anything. This is so that tools can "visualize and modify the launch description". The recently released LaunchMap [@launchmap] is able to do just that. However, given that users may define their own launch actions without a common way of inspecting them, it could be argued that even this use case is not well supported right now. There is also no good argument why the same couldn't be achieved using e.g. python's inspect module and/or a non-declarative syntax.
 
 # Existing Remedies
 
@@ -50,13 +50,13 @@ In order to actually resolve these issues I have written *better_launch*, a comp
 
 ![Screenshot of the TUI](../media/tui.png){height="60%"}
 
-We consider *better_launch* mature enough for general use in research applications. It is under active development and can be downloaded for free from https://github.com/dfki-ric/better_launch. We hope that *better_launch* will advance the state of ROS2 in a meaningful way.
+We consider *better_launch* mature enough for general use in research applications, with performance similar or better than `ros2 launch` (benchmarks in repo) [@py-spy; @memray; @psutil].. It is under active development and can be downloaded for free from https://github.com/dfki-ric/better_launch. We hope that *better_launch* will advance the state of ROS2 in a meaningful way.
 
 \newpage
 
 # Example
 
-The ROS2 tutorials provide an [example launch file](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Launch/Using-Substitutions.html) for running a turtlebot simulation. This launch file creates a node, then calls one of its services and updates a parameter. Ironically, due to the asynchronous execution, the parameter update usually fails because the node has not come up yet. *better_launch* does not have this issue, and can in addition express the same launch file with only 28 instead of 73 lines - including documentation!
+The ROS2 tutorials provide an example [@ros2_substitution_example] for running a turtlebot simulation. This launch file creates a node, then calls one of its services and updates a parameter. Ironically, due to the asynchronous execution, the parameter update usually fails because the node has not come up yet. *better_launch* does not have this issue, and can in addition express the same launch file with only 28 instead of 73 lines - including documentation!
 
 ```python
 #!/usr/bin/env python3

@@ -4,6 +4,9 @@ feature developments, extensions, or bugfixes that you are working on.
 An easy way is to open an issue or a pull request in which you explain
 what you are trying to do.
 
+## Issues
+Any issues should be reported on the *better_launch* [issue tracker](https://github.com/dfki-ric/better_launch/issues). This is also the preferred way of getting support, making feature requests, etc. Keep your post short and concise, I have other books to read :) I will ask clarifying questions as needed. 
+
 ## Pull Requests
 The preferred way to contribute to *better_launch* is to fork the
 [main repository](https://github.com/dfki-ric/better_launch) on GitHub, then submit a "pull request"
@@ -27,7 +30,7 @@ The preferred way to contribute to *better_launch* is to fork the
     and start making changes. Never work in the ``master`` branch!
 
 5. Work on this copy, on your computer, using Git to do the version
-   control. When you're done editing, do::
+   control. When you're done editing, do:
 
         $ git add modified_files
         $ git commit
