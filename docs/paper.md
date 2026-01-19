@@ -92,4 +92,9 @@ def great_atuin(
 
 \newpage
 
+# AI usage disclosure
+
+No generative AI tools were used in the development of this software, the writing
+of this manuscript, or the preparation of supporting materials.
+
 # References
