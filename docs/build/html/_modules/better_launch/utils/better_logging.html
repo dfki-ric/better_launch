@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.utils.better_logging &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.utils.better_logging &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
 
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" href="../../../_static/logo.svg"/>
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
       <script src="../../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -76,12 +76,29 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">enum</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">better_launch.ros.logging</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">roslog</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_contrast_color</span>
 
 
-<span class="n">Colormode</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="s2">&quot;severity&quot;</span><span class="p">,</span> <span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;rainbow&quot;</span><span class="p">]</span>
+<span class="c1"># Log format string for ROS so that we can identify and reformat its log messages.</span>
+<span class="n">ROSLOG_PATTERN_ROS</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%%{severity}%%{time}%%{message}</span><span class="s2">&quot;</span>
+
+<span class="c1"># Regular expression matching ROSLOG_PATTERN_ROS. The named groups will be matched to log</span>
+<span class="c1"># Record attributes via their group names.</span>
+<span class="n">ROSLOG_PATTERN_BL</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;</span><span class="si">%%</span><span class="s2">(?P&lt;levelname&gt;\w+)</span><span class="si">%%</span><span class="s2">(?P&lt;created&gt;[\d.]+)</span><span class="si">%%</span><span class="s2">(?P&lt;msg&gt;[\s\S]*)&quot;</span>
+
+
+<div class="viewcode-block" id="Colormode">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.better_logging.Colormode">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Colormode</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="n">DEFAULT</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="n">SEVERITY</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="n">SOURCE</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="n">NONE</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="n">RAINBOW</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span></div>
+
 
 
 <span class="n">default_log_colormap</span> <span class="o">=</span> <span class="p">{</span>
@@ -149,9 +166,10 @@
         <span class="n">timestamp_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S.</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">defaults</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">roslog_pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;</span><span class="si">%%</span><span class="s2">(\w+)</span><span class="si">%%</span><span class="s2">([\d.]+)</span><span class="si">%%</span><span class="s2">(.*)&quot;</span><span class="p">,</span>
-        <span class="n">pattern_info</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;levelname&quot;</span><span class="p">,</span> <span class="s2">&quot;created&quot;</span><span class="p">,</span> <span class="s2">&quot;msg&quot;</span><span class="p">),</span>
-        <span class="n">source_colors</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_source_color</span><span class="p">,</span>
+        <span class="n">roslog_pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">source_colors</span><span class="p">:</span> <span class="p">(</span>
+            <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+        <span class="p">)</span> <span class="o">=</span> <span class="n">default_source_color</span><span class="p">,</span>
         <span class="n">log_colors</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">no_colors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
@@ -175,9 +193,7 @@
 <span class="sd">        defaults : dict[str, Any], optional</span>
 <span class="sd">            Defaults the formatter may use when formatting strings.</span>
 <span class="sd">        roslog_pattern : str, optional</span>
-<span class="sd">            The pattern used for matching incoming log messages. The pattern&#39;s regex groups will be associated with `pattern_info`.</span>
-<span class="sd">        pattern_info : list[str], optional</span>
-<span class="sd">            Formatting keys that can be extracted from incoming log messages using `roslog_pattern`, one for each regex group.</span>
+<span class="sd">            The pattern used for matching incoming log messages. The pattern should define named groups that will be matched to logging.Record attributes via their names.</span>
 <span class="sd">        source_colors : str | int | Iterable[int] | dict[str, Any], optional</span>
 <span class="sd">            Colors to use when formatting `sourcecolor_start` tags based on the source of the log report. If a string, integer or iterable, use this as the color for all sources. If None, use a different color for every source. Pass a dict to specify custom colors for a set of sources.</span>
 <span class="sd">        log_colors : str | int | Iterable[int] | dict[str, Any], optional</span>
@@ -188,8 +204,10 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="nb">format</span><span class="p">,</span> <span class="n">timestamp_format</span><span class="p">,</span> <span class="s2">&quot;{&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">defaults</span><span class="o">=</span><span class="n">defaults</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">converter</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">roslog_pattern</span><span class="p">:</span>
+            <span class="n">roslog_pattern</span> <span class="o">=</span> <span class="n">ROSLOG_PATTERN_BL</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">roslog_pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">roslog_pattern</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pattern_info</span> <span class="o">=</span> <span class="n">pattern_info</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">source_colors</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source_colors</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
@@ -256,7 +274,7 @@
 
 <div class="viewcode-block" id="PrettyLogFormatter.formatTime">
 <a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.better_logging.PrettyLogFormatter.formatTime">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">formatTime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">,</span> <span class="n">datefmt</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">formatTime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">LogRecord</span><span class="p">,</span> <span class="n">datefmt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">float</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">dt</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">created</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">datefmt</span><span class="p">:</span>
@@ -268,22 +286,22 @@
 
 <div class="viewcode-block" id="PrettyLogFormatter.format">
 <a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.better_logging.PrettyLogFormatter.format">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">LogRecord</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="n">match</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roslog_pattern</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">msg</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pattern_info</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="c1"># If we replace an existing key, make sure the value type matches the original,</span>
                 <span class="c1"># otherwise we will get some problems with formatting down the line</span>
                 <span class="n">key_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
-                <span class="n">val</span> <span class="o">=</span> <span class="n">key_type</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="n">key_type</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
                 <span class="nb">setattr</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="s2">&quot;levelname&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pattern_info</span> <span class="ow">and</span> <span class="s2">&quot;levelno&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pattern_info</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;levelname&quot;</span> <span class="ow">in</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span> <span class="ow">and</span> <span class="s2">&quot;levelno&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">():</span>
                 <span class="n">record</span><span class="o">.</span><span class="n">levelno</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLevelName</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">levelname</span><span class="p">)</span>
 
             <span class="k">elif</span> <span class="p">(</span>
-                <span class="s2">&quot;levelno&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pattern_info</span> <span class="ow">and</span> <span class="s2">&quot;levelname&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pattern_info</span>
+                <span class="s2">&quot;levelno&quot;</span> <span class="ow">in</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span> <span class="ow">and</span> <span class="s2">&quot;levelname&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span>
             <span class="p">):</span>
                 <span class="n">record</span><span class="o">.</span><span class="n">levelname</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLevelName</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">levelno</span><span class="p">)</span>
 
@@ -395,7 +413,7 @@
             <span class="k">if</span> <span class="n">screen_handler</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span><span class="p">:</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">screen_formatter</span><span class="p">:</span>
                     <span class="n">screen_formatter</span> <span class="o">=</span> <span class="n">roslog</span><span class="o">.</span><span class="n">launch_config</span><span class="o">.</span><span class="n">screen_formatter</span>
-                
+
                 <span class="n">screen_handler</span><span class="o">.</span><span class="n">setFormatterFor</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="n">screen_formatter</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">screen_handler</span><span class="p">)</span>
 
@@ -404,12 +422,21 @@
             <span class="k">if</span> <span class="n">common_log_handler</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span><span class="p">:</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">log_formatter</span><span class="p">:</span>
                     <span class="n">log_formatter</span> <span class="o">=</span> <span class="n">roslog</span><span class="o">.</span><span class="n">launch_config</span><span class="o">.</span><span class="n">file_formatter</span>
-                
+
                 <span class="n">common_log_handler</span><span class="o">.</span><span class="n">setFormatterFor</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="n">log_formatter</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">common_log_handler</span><span class="p">)</span>
 
         <span class="k">elif</span> <span class="n">sink</span> <span class="o">==</span> <span class="s2">&quot;own_log&quot;</span><span class="p">:</span>
-            <span class="n">own_log_handler</span> <span class="o">=</span> <span class="n">roslog</span><span class="o">.</span><span class="n">launch_config</span><span class="o">.</span><span class="n">get_log_file_handler</span><span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.log&quot;</span><span class="p">)</span>
+            <span class="c1"># Make sure the logfile is not in /</span>
+            <span class="n">logfile</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.log&quot;</span>
+
+            <span class="c1"># We use namespaces for nesting the logfile in a directory structure</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">roslog</span><span class="o">.</span><span class="n">launch_config</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">logfile</span><span class="p">)),</span>
+                <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">own_log_handler</span> <span class="o">=</span> <span class="n">roslog</span><span class="o">.</span><span class="n">launch_config</span><span class="o">.</span><span class="n">get_log_file_handler</span><span class="p">(</span><span class="n">logfile</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">own_log_handler</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span><span class="p">:</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">log_formatter</span><span class="p">:</span>
                     <span class="n">log_formatter</span> <span class="o">=</span> <span class="n">roslog</span><span class="o">.</span><span class="n">launch_config</span><span class="o">.</span><span class="n">file_formatter</span>
@@ -425,7 +452,7 @@
     <span class="n">log_config</span><span class="p">:</span> <span class="n">roslog</span><span class="o">.</span><span class="n">LaunchConfig</span><span class="p">,</span>
     <span class="n">screen_log_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">file_log_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">colormode</span><span class="p">:</span> <span class="n">Colormode</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+    <span class="n">colormode</span><span class="p">:</span> <span class="n">Colormode</span> <span class="o">=</span> <span class="n">Colormode</span><span class="o">.</span><span class="n">DEFAULT</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">screen_log_format</span><span class="p">:</span>
         <span class="n">screen_log_format</span> <span class="o">=</span> <span class="n">PrettyLogFormatter</span><span class="o">.</span><span class="n">default_screen_format</span>
@@ -433,26 +460,26 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">file_log_format</span><span class="p">:</span>
         <span class="n">file_log_format</span> <span class="o">=</span> <span class="n">PrettyLogFormatter</span><span class="o">.</span><span class="n">default_file_format</span>
 
-    <span class="k">if</span> <span class="n">colormode</span> <span class="o">==</span> <span class="s2">&quot;default&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">colormode</span> <span class="o">==</span> <span class="n">Colormode</span><span class="o">.</span><span class="n">DEFAULT</span><span class="p">:</span>
         <span class="n">src_color</span> <span class="o">=</span> <span class="n">default_source_color</span>
         <span class="n">log_color</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">elif</span> <span class="n">colormode</span> <span class="o">==</span> <span class="s2">&quot;severity&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">colormode</span> <span class="o">==</span> <span class="n">Colormode</span><span class="o">.</span><span class="n">SEVERITY</span><span class="p">:</span>
         <span class="n">src_color</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
         <span class="n">log_color</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">elif</span> <span class="n">colormode</span> <span class="o">==</span> <span class="s2">&quot;source&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">colormode</span> <span class="o">==</span> <span class="n">Colormode</span><span class="o">.</span><span class="n">SOURCE</span><span class="p">:</span>
         <span class="n">src_color</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">log_color</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-    <span class="k">elif</span> <span class="n">colormode</span> <span class="o">==</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">colormode</span> <span class="o">==</span> <span class="n">Colormode</span><span class="o">.</span><span class="n">NONE</span><span class="p">:</span>
         <span class="n">src_color</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
         <span class="n">log_color</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-    <span class="k">elif</span> <span class="n">colormode</span> <span class="o">==</span> <span class="s2">&quot;rainbow&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">colormode</span> <span class="o">==</span> <span class="n">Colormode</span><span class="o">.</span><span class="n">RAINBOW</span><span class="p">:</span>
         <span class="n">src_color</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">log_color</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid colormode &quot;</span> <span class="o">+</span> <span class="n">colormode</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid colormode </span><span class="si">{</span><span class="n">colormode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="c1"># We&#39;ll handle formatting and color ourselves, just get the nodes to comply</span>
-    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;RCUTILS_CONSOLE_OUTPUT_FORMAT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%%{severity}%%{time}%%{message}</span><span class="s2">&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;RCUTILS_CONSOLE_OUTPUT_FORMAT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ROSLOG_PATTERN_ROS</span>
     <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;RCUTILS_COLORIZED_OUTPUT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
 
     <span class="n">log_config</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span>

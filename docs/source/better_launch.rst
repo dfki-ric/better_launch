@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   better_launch.declarative
    better_launch.elements
    better_launch.ros
    better_launch.tui

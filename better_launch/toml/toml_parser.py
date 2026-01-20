@@ -303,9 +303,9 @@ class TomlReader:
             return value_str[1:-1]
 
         # Boolean
-        if value_str == "true":
+        if value_str.lower() == "true":
             return True
-        if value_str == "false":
+        if value_str.lower() == "false":
             return False
 
         # Special float values

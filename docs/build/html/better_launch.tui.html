@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.tui package &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.tui package &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
@@ -14,7 +14,7 @@
     <link rel="shortcut icon" href="_static/logo.svg"/>
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/documentation_options.js?v=1ed6394b"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
@@ -153,6 +153,11 @@
 <span class="sig-name descname"><span class="pre">LOG_LEVEL</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">10</span></em><a class="headerlink" href="#better_launch.tui.better_tui.AppMode.LOG_LEVEL" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.tui.better_tui.AppMode.NODE_LOG_LEVEL">
+<span class="sig-name descname"><span class="pre">NODE_LOG_LEVEL</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">11</span></em><a class="headerlink" href="#better_launch.tui.better_tui.AppMode.NODE_LOG_LEVEL" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -177,18 +182,77 @@
 </dd></dl>
 
 <dl class="py class">
+<dt class="sig sig-object py" id="better_launch.tui.better_tui.NodeLogFilter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.tui.better_tui.</span></span><span class="sig-name descname"><span class="pre">NodeLogFilter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/tui/better_tui.html#NodeLogFilter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.tui.better_tui.NodeLogFilter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Filter</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.tui.better_tui.NodeLogFilter.mute">
+<span class="sig-name descname"><span class="pre">mute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/tui/better_tui.html#NodeLogFilter.mute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.tui.better_tui.NodeLogFilter.mute" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.tui.better_tui.NodeLogFilter.unmute">
+<span class="sig-name descname"><span class="pre">unmute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/tui/better_tui.html#NodeLogFilter.unmute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.tui.better_tui.NodeLogFilter.unmute" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.tui.better_tui.NodeLogFilter.set_hermit">
+<span class="sig-name descname"><span class="pre">set_hermit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/tui/better_tui.html#NodeLogFilter.set_hermit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.tui.better_tui.NodeLogFilter.set_hermit" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.tui.better_tui.NodeLogFilter.clear">
+<span class="sig-name descname"><span class="pre">clear</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/tui/better_tui.html#NodeLogFilter.clear"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.tui.better_tui.NodeLogFilter.clear" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.tui.better_tui.NodeLogFilter.filter">
+<span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/tui/better_tui.html#NodeLogFilter.filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.tui.better_tui.NodeLogFilter.filter" title="Link to this definition"></a></dt>
+<dd><p>Determine if the specified record is to be logged.</p>
+<p>Returns True if the record should be logged, or False otherwise.
+If deemed appropriate, the record may be modified in-place.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="better_launch.tui.better_tui.BetterTui">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.tui.better_tui.</span></span><span class="sig-name descname"><span class="pre">BetterTui</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">launch_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manage_foreign_nodes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_alive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/tui/better_tui.html#BetterTui"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.tui.better_tui.BetterTui" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_launch.tui.better_tui.BetterTui.footer_default">
-<span class="sig-name descname"><span class="pre">footer_default</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">HTML('</span> <span class="pre">&lt;orange&gt;^C&lt;/orange&gt;</span> <span class="pre">Quit</span>&#160; <span class="pre">&lt;orange&gt;space&lt;/orange&gt;</span> <span class="pre">Mute</span>&#160; <span class="pre">&lt;orange&gt;F1&lt;/orange&gt;</span> <span class="pre">Nodes</span>&#160; <span class="pre">&lt;orange&gt;F9&lt;/orange&gt;</span> <span class="pre">Log</span> <span class="pre">Level')</span></em><a class="headerlink" href="#better_launch.tui.better_tui.BetterTui.footer_default" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
 <dl class="py method">
 <dt class="sig sig-object py" id="better_launch.tui.better_tui.BetterTui.__init__">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">launch_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manage_foreign_nodes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_alive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/tui/better_tui.html#BetterTui.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.tui.better_tui.BetterTui.__init__" title="Link to this definition"></a></dt>
 <dd><p>Our TUI class. Use <a class="reference internal" href="#better_launch.tui.better_tui.BetterTui.run" title="better_launch.tui.better_tui.BetterTui.run"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code></a> to start the TUI.</p>
+<p>In order to override keybindings you may set the BL_TUI_KEYBINDS environment variable. For example, this will bind the nodes menu to ctrl-n and setting the log level to ctrl-l:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">BL_TUI_KEYBINDS</span><span class="o">=</span><span class="s2">&quot;nodes: c-n; loglevel: c-l&quot;</span><span class="w"> </span>bl<span class="w"> </span>better_launch<span class="w"> </span>02_ui.launch.py
+</pre></div>
+</div>
+<p>The syntax is always <cite>&lt;action&gt;:&lt;keys&gt;</cite> separated by <cite>;</cite>. The valid actions are <cite>exit</cite>, <cite>mute</cite>, <cite>nodes</cite>, <cite>loglevel</cite>, <cite>cancel</cite>, <cite>enter</cite>, <cite>next</cite>, <cite>previous</cite>. For valid key specifiers see <a class="reference external" href="https://python-prompt-toolkit.readthedocs.io/en/stable/pages/advanced_topics/key_bindings.html">prompt_toolkit</a>. Take special note of how the Alt/Meta/Option key is treated.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

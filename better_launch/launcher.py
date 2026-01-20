@@ -1,4 +1,4 @@
-from typing import Any, Callable, Generator, Literal, TYPE_CHECKING
+from typing import Any, Callable, Generator, Iterable, Literal, TYPE_CHECKING
 import importlib
 import sys
 import os
@@ -51,11 +51,11 @@ from better_launch.utils.introspection import (
     find_calling_frame,
     find_launchthis_function,
 )
+from better_launch.utils.settings import Settings, severity_to_loglevel
 from better_launch.utils.better_logging import LogSink
 from better_launch.utils.random_names import get_unique_word
 from better_launch.ros.ros_adapter import ROSAdapter
 from better_launch.ros import logging as roslog
-
 
 _bl_singleton_instance = "__better_launch_instance"
 _bl_include_args = "__better_launch_include_args"
@@ -143,7 +143,7 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
         """
         if not name:
             if not BetterLaunch._launchfile:
-                frame = find_calling_frame(self.__init__)
+                frame = find_calling_frame(self.__init__, -1)
                 BetterLaunch._launchfile = frame.filename
             name = os.path.basename(BetterLaunch._launchfile)
 
@@ -182,19 +182,27 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
         Note that this will not appear in the logs!
         """
         # Ascii art based on: https://asciiart.cc/view/10677
+        
+        config_str = "\n".join(f"{key}={val}" for key, val in Settings().as_dict().items())
+
         msg = f"""
 \x1b[1;20mBetter Launch is starting!\x1b[0m
 Please fasten your seatbelts and secure all baggage underneath your chair.
 
-Default log level is \x1b[34;20m{roslog.launch_config.level} ({logging.getLevelName(roslog.launch_config.level)})\x1b[0m
-All log files can be found at
-\x1b[34;20m{roslog.launch_config.log_dir}\x1b[0m
+\x1b[94;20mSettings:\x1b[0m
+{config_str}
 
-Takeoff in 3... 2... 1...
+\x1b[94;20mLaunchfile:\x1b[0m
+{self.launchfile}
 
-           *            ,:
+\x1b[94;20mLogs:\x1b[0m
+{roslog.launch_config.log_dir}
+
+\x1b[94;20mTakeoff in 3... 2... 1...\x1b[0m
+
+                *       ,:
     +                 ,' |
-               +     /   :
+           +         /   :
        *          --'   /
 +                \\/ /:/
             *     / ://_\\
@@ -212,7 +220,6 @@ Takeoff in 3... 2... 1...
 """
         # We don't want to log this
         print(msg)
-        self.logger.critical(f"Log files at {roslog.launch_config.log_dir}")
 
     def spin(self, exit_with_last_node: bool = True) -> None:
         """Join the BetterLaunch thread until it terminates. You do **not** need to call this if you're using the :py:meth:`launch_this` wrapper or the TUI.
@@ -243,7 +250,9 @@ Takeoff in 3... 2... 1...
             except (CancelledError, TimeoutError):
                 pass
 
-        self.logger.critical(f"Reminder: log files are at {roslog.launch_config.log_dir}")
+        self.logger.critical(
+            f"Reminder: log files are at {roslog.launch_config.log_dir}"
+        )
 
     def get_unique_name(self, name: str = "", check_running_nodes: bool = True) -> str:
         """Returns a unique name. If a name is provided it will be prepended with an underscore.
@@ -336,10 +345,10 @@ Takeoff in 3... 2... 1...
             nodes.append(self._ros2_launcher)
 
         if include_foreign:
-            # Note that self.shared_node.get_node_names_and_namespaces() will only give us the 
+            # Note that self.shared_node.get_node_names_and_namespaces() will only give us the
             # names and namespaces, but no handle on the actual processes, not even a package
 
-            # TODO should check if it's a composer and has subnodes, but we won't know the 
+            # TODO should check if it's a composer and has subnodes, but we won't know the
             # components' handles or plugins...
             # if include_components:
             #     for f in foreign:
@@ -347,7 +356,7 @@ Takeoff in 3... 2... 1...
             #             composer = Composer(f)
             #             for cid, component in composer.get_live_components().items():
             #                 nodes.append(Component(...))
-            
+
             foreign = self.get_foreign_nodes()
             nodes.extend(foreign)
 
@@ -667,9 +676,7 @@ Takeoff in 3... 2... 1...
             If `package` contains path separators, or if a `filename` is provided but could not be found within base path.
         """
         if filename and os.path.isabs(filename):
-            self.logger.info(
-                f"find({package}, {filename}, {subdir}):1 -> {filename}"
-            )
+            self.logger.info(f"find({package}, {filename}, {subdir}):1 -> {filename}")
             return filename
 
         if not package:
@@ -717,7 +724,6 @@ Takeoff in 3... 2... 1...
         raise ValueError(
             f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
         )
-
 
     def load_params(
         self,
@@ -1372,7 +1378,7 @@ Takeoff in 3... 2... 1...
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
         anonymous: bool = False,
         hidden: bool = False,
         on_exit: Callable = None,
@@ -1382,7 +1388,7 @@ Takeoff in 3... 2... 1...
         autostart_process: bool = True,
         ros_waittime: float = 3.0,
         lifecycle_waittime: float = 0.01,
-        lifecycle_target: LifecycleStage = LifecycleStage.ACTIVE,
+        lifecycle_target: LifecycleStage | str = LifecycleStage.ACTIVE,
         raw: bool = False,
         remap_qualifier: str = None,
         qualify_all_remaps: bool = False,
@@ -1413,7 +1419,7 @@ Takeoff in 3... 2... 1...
             If True, the node process' env will not be inherited from the parent process and only those passed via `env` will be used. Be aware that this can result in many common things to not work anymore since e.g. keys like *PATH* will be missing.
         log_level : int, optional
             The minimum severity a logged message from this node must have in order to be published. This will be added to the cmd_args unless it is None.
-        output : LogSink | set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
         anonymous : bool, optional
             If True, the node name will be appended with a unique suffix to avoid name conflicts.
@@ -1433,7 +1439,7 @@ Takeoff in 3... 2... 1...
             How long to wait for the node to register with ROS. This should cover the time between the process starting and the node initializing itself. Set negative to wait indefinitely. Set to None to avoid the check entirely. Will do nothing if `autostart_process` is False.
         lifecycle_waittime : float, optional
             How long to wait for the node's lifecycle management to come up. This should cover the time between the node initializing itself (see `ros_waittime`) and creating its additional topics and services. While neglible on modern computers, slower devices and embedded systems may experience a noticable delay here. Set negative to wait indefinitely. Set to None to avoid the check entirely. Will do nothing if `autostart_process` is False.
-        lifecycle_target : LifecycleStage, optional
+        lifecycle_target : LifecycleStage | str, optional
             The lifecycle stage to bring the node into after starting. Has no effect if `autostart_process` is False or if the node does not appear to be a lifecycle node after waiting `ros_waittime + lifecycle_waittime`.
         raw : bool, optional
             If True, don't treat the executable as a ROS2 node and avoid passing it any command line arguments except those specified.
@@ -1496,6 +1502,7 @@ Takeoff in 3... 2... 1...
             if ros_waittime is not None and node.is_ros2_connected(ros_waittime):
                 if (
                     lifecycle_target not in (None, LifecycleStage.PRISTINE)
+                    and str(lifecycle_target).upper() != "PRISTINE"
                     and lifecycle_waittime is not None
                     and node.is_lifecycle_node(lifecycle_waittime)
                 ):
@@ -1516,7 +1523,7 @@ Takeoff in 3... 2... 1...
         hidden: bool = False,
         autostart_process: bool = True,
         ros_waittime: float = 3.0,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ) -> Generator[Composer, None, None]:
         """Creates a composer node which can be used to load :py:class:`Component`s. Components can be instantiated directly, or preferably via :py:meth:`component`. Only components can reside within a composer.
 
@@ -1552,7 +1559,7 @@ Takeoff in 3... 2... 1...
             If True, start the composer process before returning from this function. Note that setting this to False for a composer will make it unusable as a context object, since you won't be able to load any components.
         ros_waittime : float, optional
             How long to wait for the composer to register with ROS. This should cover the time between the process starting and the composer initializing itself. Set negative to wait indefinitely. Will do nothing if `autostart_process` is False.
-        output : LogSink | set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
 
         Yields
@@ -1637,7 +1644,14 @@ Takeoff in 3... 2... 1...
             else:
                 raise ValueError(f"Unknown container mode '{variant}")
 
-            node_ref = Node(package, executable, name, namespace, output=output)
+            node_ref = Node(
+                package,
+                executable,
+                name,
+                namespace,
+                remaps=component_remaps,
+                output=output,
+            )
 
         if isinstance(node_ref, Composer):
             comp = node_ref
@@ -1668,8 +1682,8 @@ Takeoff in 3... 2... 1...
         use_intra_process_comms: bool = True,
         ros_waittime: float = 3.0,
         lifecycle_waittime: float = 0.01,
-        lifecycle_target: LifecycleStage = LifecycleStage.ACTIVE,
-        output: LogSink | set[LogSink] = "screen",
+        lifecycle_target: LifecycleStage | str = LifecycleStage.ACTIVE,
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
         **extra_composer_args: dict[str, Any],
     ) -> Component:
         """Create a component and load it into an existing :py:meth:`compose` context.
@@ -1698,9 +1712,9 @@ Takeoff in 3... 2... 1...
             How long to wait for the component to register with ROS. This should cover the time between the process starting and the component initializing itself. Set negative to wait indefinitely. Set to None to avoid the check entirely. Will do nothing if `autostart_process` is False.
         lifecycle_waittime : float, optional
             How long to wait for the component's lifecycle management to come up. This should cover the time between the component initializing itself (see `ros_waittime`) and creating its additional topics and services. While neglible on modern computers, slower devices and embedded systems may experience a noticable delay here. Set negative to wait indefinitely. Set to None to avoid the check entirely. Will do nothing if `autostart_process` is False.
-        lifecycle_target : LifecycleStage, optional
+        lifecycle_target : LifecycleStage | str, optional
             The lifecycle stage to bring the component into after starting. Has no effect if `autostart_process` is False or if the component does not appear to be a lifecycle component after waiting `ros_waittime + lifecycle_waittime`.
-        output : LogSink | set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
 
         Returns
@@ -1749,12 +1763,49 @@ Takeoff in 3... 2... 1...
         if ros_waittime is not None and comp.is_ros2_connected(ros_waittime):
             if (
                 lifecycle_target not in (None, LifecycleStage.PRISTINE)
+                and str(lifecycle_target).upper() != "PRISTINE"
                 and lifecycle_waittime is not None
                 and comp.is_lifecycle_node(lifecycle_waittime)
             ):
                 comp.lifecycle.transition(lifecycle_target)
 
         return comp
+
+    @classmethod
+    def is_included(cls) -> bool:
+        """Check if this is run from an included launchfile.
+
+        NOTE: this will only work when (indirectly) invoked from :py:meth:`launch_this`.
+
+        More specifically, this checks if a :py:class:`BetterLaunch` instance has been stored in the calling frame's globals, which happens on the first instantiation. This mechanism is an implementation detail and should not be relied on.
+
+        Returns
+        -------
+        bool
+            True if a launch_this function has already run.
+
+        Raises
+        ------
+        ValueError
+            When launch_this is not part of the current stack frame.
+        """
+        bl = BetterLaunch.instance()
+
+        if not bl:
+            return False
+
+        from .wrapper import _expose_ros2_launch_function
+
+        # Check various ways how we could have been included
+        # TODO verify this works
+        for func in (cls.include, _expose_ros2_launch_function):
+            try:
+                find_calling_frame(func, 0)
+                return True
+            except ValueError:
+                pass
+
+        return False
 
     def include(
         self,
@@ -1795,8 +1846,15 @@ Takeoff in 3... 2... 1...
             include_args.update(self.launch_args)
         include_args.update(**kwargs)
 
-        if find_launchthis_function(file_path):
-            try:
+        try:
+            if file_path.lower().endswith(".toml"):
+                # TOML launchfile
+                from better_launch.declarative import _execute_toml
+
+                _execute_toml(file_path, **include_args)
+            elif file_path.lower().endswith(".py") and find_launchthis_function(file_path):
+                # Python better_launch launchfile
+                # Read the code, compile it and insert ourselves before running it
                 with open(file_path) as f:
                     source = f.read()
 
@@ -1808,15 +1866,15 @@ Takeoff in 3... 2... 1...
                 global_args[_bl_include_args] = include_args
 
                 # Since we're running an entire module locals won't have any effect
-                exec(code, global_args)
-            except Exception as e:
-                self.logger.error(
-                    f"Launch include '{package}/{launchfile}' failed: {e}"
-                )
-                raise
-        else:
-            # Was not a better_launch launch file, assume it's a ROS2 launch file (py, xml, yaml)
-            self._include_ros2_launchfile(file_path, **include_args)
+                exec(code, globals=global_args)
+            else:
+                # Assume it's a ROS2 launch file (py, xml, yaml)
+                self._include_ros2_launchfile(file_path, **include_args)
+        except Exception as e:
+            self.logger.error(
+                f"Launch include '{package}/{launchfile}' failed: {e}"
+            )
+            raise
 
     def _include_ros2_launchfile(self, file_path: str, **kwargs) -> None:
         # Delegate to ros2 launch service
@@ -1830,17 +1888,75 @@ Takeoff in 3... 2... 1...
             AnyLaunchDescriptionSource(file_path),
             launch_arguments=[
                 # ROS2 can handle only tuples of strings and strings/substitutions here...
-                (key, str(val) if val is not None else "")
+                (key, self._value_to_yaml(val) if val is not None else "")
                 for key, val in kwargs.items()
             ],
         )
         self.ros2_actions(ros2_include)
 
+    def _value_to_yaml(self, val: Any) -> str | Any:
+        """Convert a value to a YAML string suitable for ROS2 launch arguments.
+        
+        Optimized for performance on embedded platforms (Jetson Orin Nano).
+        Uses direct type dispatch for primitives to avoid json.dumps overhead.
+        
+        Parameters
+        ----------
+        val: Any
+            The value to convert.
+
+        Returns
+        -------
+        str | Any
+            A YAML-formatted string for primitives/containers, or the object itself 
+            if it is a ROS2 Substitution.
+
+        Raises
+        ------
+        ValueError
+            If the passed in value could not be serialized.
+        """
+        if val is None:
+            return ""
+
+        # Fast path for primitives using direct type checking
+        # This avoids the overhead of the JSON encoder for the 90% case
+        t = type(val)
+        if t is bool:
+            return "true" if val else "false"
+        elif t is int:
+            return str(val)
+        elif t is float:
+            if val != val:  # NaN
+                return ".NaN"
+            if val == float("inf"):
+                return ".inf"
+            if val == float("-inf"):
+                return "-.inf"
+            return str(val)
+        elif t is str:
+            return val
+
+        # Check for ROS2 Substitution objects
+        # We can probably get away without importing from ROS2 to keep this function more general.
+        if hasattr(val, "perform") or hasattr(val, "describe"):
+             return val
+
+        # Fallback to JSON serialization for containers (list, dict)
+        # JSON is valid YAML and safer/cleaner than yaml.dump for these
+        import json
+        try:
+            return json.dumps(val)
+        except TypeError as e:
+            # Fallback for non-serializable types (e.g. custom objects)
+            # We could try str(), but it might not be valid YAML
+            raise ValueError(f"Failed to serialize launch argument '{val}' ({type(val).__name__}): {e}") from e
+
     def ros2_launch_service(
         self,
         name: str = "LaunchService",
         launchservice_args: list[str] = None,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
         start_immediately: bool = True,
     ) -> Ros2LaunchWrapper:
         """Create or retrieve a manager object that can be used for queueing ROS2 launch actions.
@@ -1857,7 +1973,7 @@ Takeoff in 3... 2... 1...
             The name used to identify the process and its logger.
         launchservice_args : list[str], optional
             Additional launch arguments to pass to the ROS2 launch service. These will end up in :py:meth:`launch.LaunchContext.argv`.
-        output : LogSink  |  set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             How log output from the launch service should be handled. This will also include the output from all nodes launched by this launch service. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
         start_immediately : bool, optional
             If True, the ROS2 launch service process is started immediately.
@@ -1931,3 +2047,46 @@ Takeoff in 3... 2... 1...
         # TODO this is a good candidate for running on an asyncio loop
         threading.Thread(target=run, daemon=True).start()
         return future
+
+    def sleep(self, seconds: float) -> None:
+        """Wait for the specified amount of time.
+
+        This mostly exists to provide this functionality for TOML launchfiles.
+
+        Parameters
+        ----------
+        seconds : float
+            How many seconds to wait.
+        """
+        self.logger.info(f"Sleeping for {seconds} seconds")
+        time.sleep(seconds)
+
+    def log(
+        self,
+        severity: str | int,
+        message: str,
+        *args: list[Any],
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """Pass the specified message to the logger.
+
+        This mostly exists to provide this functionality for TOML launchfiles.
+
+        Parameters
+        ----------
+        severity : str | int
+            A logging severity or level. Standard severities are debug, info, warning, error, critical, and fatal. Integers can be used for more fine grained control and custom 
+            log levels, as per the python logging module.
+        message : str
+            The message to log.
+        args : list[Any], optional
+            A sequence of additional arguments to format the message.
+        kwargs : dict[str, Any], optional
+            A dict of additional arguments to format the message.
+        """
+        if isinstance(severity, str):
+            level = severity_to_loglevel(severity)
+        else:
+            level = severity
+
+        self.logger.log(level, message.format(*args, **kwargs))

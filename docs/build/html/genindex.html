@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Index &mdash; better_launch 1.0.0 documentation</title>
+  <title>Index &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" href="_static/logo.svg"/>
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/documentation_options.js?v=1ed6394b"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
@@ -87,6 +87,7 @@
  | <a href="#L"><strong>L</strong></a>
  | <a href="#M"><strong>M</strong></a>
  | <a href="#N"><strong>N</strong></a>
+ | <a href="#O"><strong>O</strong></a>
  | <a href="#P"><strong>P</strong></a>
  | <a href="#Q"><strong>Q</strong></a>
  | <a href="#R"><strong>R</strong></a>
@@ -102,6 +103,8 @@
       <li><a href="better_launch.html#better_launch.BetterLaunch.__init__">__init__() (better_launch.BetterLaunch method)</a>
 
       <ul>
+        <li><a href="better_launch.declarative.html#better_launch.declarative.toml_parser.TomlReader.__init__">(better_launch.declarative.toml_parser.TomlReader method)</a>
+</li>
         <li><a href="better_launch.elements.html#better_launch.elements.abstract_node.AbstractNode.__init__">(better_launch.elements.abstract_node.AbstractNode method)</a>
 </li>
         <li><a href="better_launch.elements.html#better_launch.elements.Component.__init__">(better_launch.elements.Component method)</a>
@@ -195,18 +198,14 @@
         <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.add_shutdown_callback">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.add_shutdown_callback">[1]</a>
 </li>
       </ul></li>
-      <li><a href="better_launch.html#better_launch.BetterLaunch.get_groups">get_groups() (better_launch.BetterLaunch method)</a>
+      <li><a href="better_launch.html#better_launch.BetterLaunch.all_ros2_node_names">all_ros2_node_names() (better_launch.BetterLaunch method)</a>
 
       <ul>
-        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.get_groups">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.get_groups">[1]</a>
+        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.all_ros2_node_names">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.all_ros2_node_names">[1]</a>
 </li>
       </ul></li>
-      <li><a href="better_launch.html#better_launch.BetterLaunch.get_bl_nodes">get_bl_nodes() (better_launch.BetterLaunch method)</a>
-
-      <ul>
-        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.get_bl_nodes">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.get_bl_nodes">[1]</a>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.substitutions.apply_substitutions">apply_substitutions() (in module better_launch.declarative.substitutions)</a>
 </li>
-      </ul></li>
       <li><a href="better_launch.tui.html#better_launch.tui.better_tui.AppMode">AppMode (class in better_launch.tui.better_tui)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.Group.assemble_namespace">assemble_namespace() (better_launch.elements.Group method)</a>
@@ -233,6 +232,34 @@
 
       <ul>
         <li><a href="better_launch.html#module-better_launch.convenience">module</a>
+</li>
+      </ul></li>
+      <li>
+    better_launch.declarative
+
+      <ul>
+        <li><a href="better_launch.declarative.html#module-better_launch.declarative">module</a>
+</li>
+      </ul></li>
+      <li>
+    better_launch.declarative.declarative
+
+      <ul>
+        <li><a href="better_launch.declarative.html#module-better_launch.declarative.declarative">module</a>
+</li>
+      </ul></li>
+      <li>
+    better_launch.declarative.substitutions
+
+      <ul>
+        <li><a href="better_launch.declarative.html#module-better_launch.declarative.substitutions">module</a>
+</li>
+      </ul></li>
+      <li>
+    better_launch.declarative.toml_parser
+
+      <ul>
+        <li><a href="better_launch.declarative.html#module-better_launch.declarative.toml_parser">module</a>
 </li>
       </ul></li>
       <li>
@@ -305,6 +332,8 @@
         <li><a href="better_launch.html#module-better_launch.gazebo">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     better_launch.launcher
 
@@ -319,8 +348,6 @@
         <li><a href="better_launch.ros.html#module-better_launch.ros">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     better_launch.ros.handlers
 
@@ -378,6 +405,13 @@
 </li>
       </ul></li>
       <li>
+    better_launch.utils.click
+
+      <ul>
+        <li><a href="better_launch.utils.html#module-better_launch.utils.click">module</a>
+</li>
+      </ul></li>
+      <li>
     better_launch.utils.colors
 
       <ul>
@@ -392,10 +426,10 @@
 </li>
       </ul></li>
       <li>
-    better_launch.utils.substitutions
+    better_launch.utils.random_names
 
       <ul>
-        <li><a href="better_launch.utils.html#module-better_launch.utils.substitutions">module</a>
+        <li><a href="better_launch.utils.html#module-better_launch.utils.random_names">module</a>
 </li>
       </ul></li>
       <li>
@@ -425,6 +459,8 @@
         <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.call_service">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.call_service">[1]</a>
 </li>
       </ul></li>
+      <li><a href="better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.clear">clear() (better_launch.tui.better_tui.NodeLogFilter method)</a>
+</li>
       <li><a href="better_launch.html#better_launch.gazebo.GazeboBridge.clock_bridge">clock_bridge() (better_launch.gazebo.GazeboBridge class method)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.foreign_node.ForeignNode.cmd_args">cmd_args (better_launch.elements.foreign_node.ForeignNode property)</a>
@@ -433,6 +469,10 @@
         <li><a href="better_launch.elements.html#better_launch.elements.ForeignNode.cmd_args">(better_launch.elements.ForeignNode property)</a>
 </li>
       </ul></li>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.Overrides.colormode">colormode (better_launch.utils.click.Overrides attribute)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.better_logging.Colormode">Colormode (class in better_launch.utils.better_logging)</a>
+</li>
       <li><a href="better_launch.elements.html#better_launch.elements.Component">Component (class in better_launch.elements)</a>
 
       <ul>
@@ -501,15 +541,21 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.DeclaredArg">DeclaredArg (class in better_launch.utils.click)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.better_logging.Colormode.DEFAULT">DEFAULT (better_launch.utils.better_logging.Colormode attribute)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.DeclaredArg.default">default (better_launch.utils.click.DeclaredArg attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="better_launch.utils.html#better_launch.utils.better_logging.PrettyLogFormatter.default_file_format">default_file_format (better_launch.utils.better_logging.PrettyLogFormatter attribute)</a>
 </li>
       <li><a href="better_launch.utils.html#better_launch.utils.better_logging.PrettyLogFormatter.default_screen_format">default_screen_format (better_launch.utils.better_logging.PrettyLogFormatter attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="better_launch.utils.html#better_launch.utils.substitutions.default_substitution_handlers">default_substitution_handlers() (in module better_launch.utils.substitutions)</a>
-</li>
       <li><a href="better_launch.elements.html#better_launch.elements.ros2_launch_wrapper.Ros2LaunchWrapper.describe_launch_actions">describe_launch_actions() (better_launch.elements.ros2_launch_wrapper.Ros2LaunchWrapper method)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.DeclaredArg.description">description (better_launch.utils.click.DeclaredArg attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -535,6 +581,10 @@
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.Overrides.file_log_format">file_log_format (better_launch.utils.click.Overrides attribute)</a>
+</li>
+      <li><a href="better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.filter">filter() (better_launch.tui.better_tui.NodeLogFilter method)</a>
+</li>
       <li><a href="better_launch.elements.html#better_launch.elements.lifecycle_manager.LifecycleStage.FINALIZED">FINALIZED (better_launch.elements.lifecycle_manager.LifecycleStage attribute)</a>
 
       <ul>
@@ -565,10 +615,10 @@
       </ul></li>
       <li><a href="better_launch.utils.html#better_launch.utils.introspection.find_launchthis_function">find_launchthis_function() (in module better_launch.utils.introspection)</a>
 </li>
-      <li><a href="better_launch.elements.html#better_launch.elements.foreign_node.find_process_for_node">find_process_for_node() (in module better_launch.elements.foreign_node)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.elements.html#better_launch.elements.foreign_node.find_process_for_node">find_process_for_node() (in module better_launch.elements.foreign_node)</a>
+</li>
       <li><a href="better_launch.elements.html#better_launch.elements.foreign_node.find_ros2_node_processes">find_ros2_node_processes() (in module better_launch.elements.foreign_node)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.lifecycle_manager.LifecycleManager.find_transition_path">find_transition_path() (better_launch.elements.lifecycle_manager.LifecycleManager class method)</a>
@@ -577,8 +627,6 @@
         <li><a href="better_launch.elements.html#better_launch.elements.LifecycleManager.find_transition_path">(better_launch.elements.LifecycleManager class method)</a>
 </li>
       </ul></li>
-      <li><a href="better_launch.tui.html#better_launch.tui.better_tui.BetterTui.footer_default">footer_default (better_launch.tui.better_tui.BetterTui attribute)</a>
-</li>
       <li><a href="better_launch.tui.html#better_launch.tui.footer_menu.FooterMenu">FooterMenu (class in better_launch.tui.footer_menu)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.ForeignNode">ForeignNode (class in better_launch.elements)</a>
@@ -617,12 +665,30 @@
 </li>
       <li><a href="better_launch.utils.html#better_launch.utils.introspection.get_bound_arguments">get_bound_arguments() (in module better_launch.utils.introspection)</a>
 </li>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.get_click_launch_command">get_click_launch_command() (in module better_launch.utils.click)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.get_click_options">get_click_options() (in module better_launch.utils.click)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.get_click_overrides">get_click_overrides() (in module better_launch.utils.click)</a>
+</li>
       <li><a href="better_launch.utils.html#better_launch.utils.colors.get_contrast_color">get_contrast_color (in module better_launch.utils.colors)</a>
 </li>
+      <li><a href="better_launch.html#better_launch.BetterLaunch.get_foreign_nodes">get_foreign_nodes() (better_launch.BetterLaunch method)</a>
+
+      <ul>
+        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.get_foreign_nodes">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.get_foreign_nodes">[1]</a>
+</li>
+      </ul></li>
       <li><a href="better_launch.html#better_launch.gazebo.get_gazebo_axes_args">get_gazebo_axes_args() (in module better_launch.gazebo)</a>
 </li>
       <li><a href="better_launch.html#better_launch.gazebo.get_gazebo_version">get_gazebo_version() (in module better_launch.gazebo)</a>
 </li>
+      <li><a href="better_launch.html#better_launch.BetterLaunch.get_groups">get_groups() (better_launch.BetterLaunch method)</a>
+
+      <ul>
+        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.get_groups">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.get_groups">[1]</a>
+</li>
+      </ul></li>
       <li><a href="better_launch.elements.html#better_launch.elements.abstract_node.AbstractNode.get_info_sheet">get_info_sheet() (better_launch.elements.abstract_node.AbstractNode method)</a>
 </li>
       <li><a href="better_launch.utils.html#better_launch.utils.introspection.get_launchfunc_signature_from_file">get_launchfunc_signature_from_file() (in module better_launch.utils.introspection)</a>
@@ -639,12 +705,18 @@
 </li>
       <li><a href="better_launch.utils.html#better_launch.utils.better_logging.PrettyLogFormatter.get_loglevel_color">get_loglevel_color() (better_launch.utils.better_logging.PrettyLogFormatter method)</a>
 </li>
+      <li><a href="better_launch.html#better_launch.BetterLaunch.get_nodes">get_nodes() (better_launch.BetterLaunch method)</a>
+
+      <ul>
+        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.get_nodes">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.get_nodes">[1]</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="better_launch.ros.html#better_launch.ros.logging.get_output_loggers">get_output_loggers() (in module better_launch.ros.logging)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.foreign_node.get_package_for_path">get_package_for_path() (in module better_launch.elements.foreign_node)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="better_launch.elements.html#better_launch.elements.abstract_node.AbstractNode.get_published_services">get_published_services() (better_launch.elements.abstract_node.AbstractNode method)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.abstract_node.AbstractNode.get_published_topics">get_published_topics() (better_launch.elements.abstract_node.AbstractNode method)</a>
@@ -665,6 +737,12 @@
 
       <ul>
         <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.get_unique_name">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.get_unique_name">[1]</a>
+</li>
+      </ul></li>
+      <li><a href="better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator.get_unique_word">get_unique_word() (better_launch.utils.random_names.UniqueWordGenerator method)</a>
+
+      <ul>
+        <li><a href="better_launch.utils.html#better_launch.utils.random_names.get_unique_word">(in module better_launch.utils.random_names)</a>
 </li>
       </ul></li>
       <li><a href="better_launch.elements.html#better_launch.elements.Group">Group (class in better_launch.elements)</a>
@@ -845,6 +923,8 @@
         <li><a href="better_launch.html#better_launch.wrapper.launch_this">(in module better_launch.wrapper)</a>, <a href="better_launch_custom.html#better_launch.wrapper.launch_this">[1]</a>
 </li>
       </ul></li>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.declarative.launch_toml">launch_toml() (in module better_launch.declarative.declarative)</a>
+</li>
       <li><a href="better_launch.html#better_launch.BetterLaunch.launchfile">launchfile (better_launch.BetterLaunch property)</a>
 
       <ul>
@@ -877,6 +957,8 @@
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.live_params_mixin.LiveParamsMixin">LiveParamsMixin (class in better_launch.elements.live_params_mixin)</a>
 </li>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.toml_parser.load">load() (in module better_launch.declarative.toml_parser)</a>
+</li>
       <li><a href="better_launch.elements.html#better_launch.elements.Composer.load_component">load_component() (better_launch.elements.Composer method)</a>
 
       <ul>
@@ -889,6 +971,8 @@
         <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.load_params">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.load_params">[1]</a>
 </li>
       </ul></li>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.toml_parser.loads">loads() (in module better_launch.declarative.toml_parser)</a>
+</li>
       <li><a href="better_launch.tui.html#better_launch.tui.better_tui.AppMode.LOG_LEVEL">LOG_LEVEL (better_launch.tui.better_tui.AppMode attribute)</a>
 </li>
       <li><a href="better_launch.tui.html#better_launch.tui.better_tui.LogLevel">LogLevel (class in better_launch.tui.better_tui)</a>
@@ -912,6 +996,14 @@
         <li><a href="better_launch.html#module-better_launch">better_launch</a>
 </li>
         <li><a href="better_launch.html#module-better_launch.convenience">better_launch.convenience</a>
+</li>
+        <li><a href="better_launch.declarative.html#module-better_launch.declarative">better_launch.declarative</a>
+</li>
+        <li><a href="better_launch.declarative.html#module-better_launch.declarative.declarative">better_launch.declarative.declarative</a>
+</li>
+        <li><a href="better_launch.declarative.html#module-better_launch.declarative.substitutions">better_launch.declarative.substitutions</a>
+</li>
+        <li><a href="better_launch.declarative.html#module-better_launch.declarative.toml_parser">better_launch.declarative.toml_parser</a>
 </li>
         <li><a href="better_launch.elements.html#module-better_launch.elements">better_launch.elements</a>
 </li>
@@ -953,15 +1045,21 @@
 </li>
         <li><a href="better_launch.utils.html#module-better_launch.utils.better_logging">better_launch.utils.better_logging</a>
 </li>
+        <li><a href="better_launch.utils.html#module-better_launch.utils.click">better_launch.utils.click</a>
+</li>
         <li><a href="better_launch.utils.html#module-better_launch.utils.colors">better_launch.utils.colors</a>
 </li>
         <li><a href="better_launch.utils.html#module-better_launch.utils.introspection">better_launch.utils.introspection</a>
 </li>
-        <li><a href="better_launch.utils.html#module-better_launch.utils.substitutions">better_launch.utils.substitutions</a>
+        <li><a href="better_launch.utils.html#module-better_launch.utils.random_names">better_launch.utils.random_names</a>
 </li>
         <li><a href="better_launch.html#module-better_launch.wrapper">better_launch.wrapper</a>, <a href="better_launch_custom.html#module-better_launch.wrapper">[1]</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.mute">mute() (better_launch.tui.better_tui.NodeLogFilter method)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -973,6 +1071,8 @@
       <ul>
         <li><a href="better_launch.tui.html#better_launch.tui.better_tui.LogLevel.name">(better_launch.tui.better_tui.LogLevel attribute)</a>
 </li>
+        <li><a href="better_launch.utils.html#better_launch.utils.click.DeclaredArg.name">(better_launch.utils.click.DeclaredArg attribute)</a>
+</li>
       </ul></li>
       <li><a href="better_launch.elements.html#better_launch.elements.abstract_node.AbstractNode.namespace">namespace (better_launch.elements.abstract_node.AbstractNode property)</a>
 </li>
@@ -982,21 +1082,35 @@
         <li><a href="better_launch.elements.html#better_launch.elements.node.Node">(class in better_launch.elements.node)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="better_launch.html#better_launch.BetterLaunch.node">node() (better_launch.BetterLaunch method)</a>
 
       <ul>
         <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.node">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.node">[1]</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="better_launch.elements.html#better_launch.elements.abstract_node.AbstractNode.node_id">node_id (better_launch.elements.abstract_node.AbstractNode property)</a>
 </li>
       <li><a href="better_launch.tui.html#better_launch.tui.better_tui.AppMode.NODE_INFO">NODE_INFO (better_launch.tui.better_tui.AppMode attribute)</a>
 </li>
       <li><a href="better_launch.tui.html#better_launch.tui.better_tui.AppMode.NODE_LIFECYCLE">NODE_LIFECYCLE (better_launch.tui.better_tui.AppMode attribute)</a>
 </li>
+      <li><a href="better_launch.tui.html#better_launch.tui.better_tui.AppMode.NODE_LOG_LEVEL">NODE_LOG_LEVEL (better_launch.tui.better_tui.AppMode attribute)</a>
+</li>
       <li><a href="better_launch.tui.html#better_launch.tui.better_tui.AppMode.NODE_MENU">NODE_MENU (better_launch.tui.better_tui.AppMode attribute)</a>
+</li>
+      <li><a href="better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter">NodeLogFilter (class in better_launch.tui.better_tui)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.better_logging.Colormode.NONE">NONE (better_launch.utils.better_logging.Colormode attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="O">O</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.Overrides">Overrides (class in better_launch.utils.click)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -1007,6 +1121,8 @@
       <li><a href="better_launch.elements.html#better_launch.elements.abstract_node.AbstractNode.package">package (better_launch.elements.abstract_node.AbstractNode property)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.abstract_node.AbstractNode.params">params (better_launch.elements.abstract_node.AbstractNode property)</a>
+</li>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.toml_parser.TomlReader.parse">parse() (better_launch.declarative.toml_parser.TomlReader method)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.foreign_node.parse_process_args">parse_process_args() (in module better_launch.elements.foreign_node)</a>
 </li>
@@ -1040,6 +1156,8 @@
         <li><a href="better_launch.html#better_launch.LifecycleStage.PRISTINE">(better_launch.LifecycleStage attribute)</a>
 </li>
       </ul></li>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.DeclaredArg.ptype">ptype (better_launch.utils.click.DeclaredArg attribute)</a>
+</li>
       <li><a href="better_launch.html#better_launch.BetterLaunch.publish_message">publish_message() (better_launch.BetterLaunch method)</a>
 
       <ul>
@@ -1082,20 +1200,22 @@
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.utils.html#better_launch.utils.better_logging.Colormode.RAINBOW">RAINBOW (better_launch.utils.better_logging.Colormode attribute)</a>
+</li>
       <li><a href="better_launch.html#better_launch.convenience.read_robot_description">read_robot_description() (in module better_launch.convenience)</a>
 </li>
       <li><a href="better_launch.utils.html#better_launch.utils.better_logging.RecordForwarder">RecordForwarder (class in better_launch.utils.better_logging)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator.remaining">remaining() (better_launch.utils.random_names.UniqueWordGenerator method)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.abstract_node.AbstractNode.remaps">remaps (better_launch.elements.abstract_node.AbstractNode property)</a>
 </li>
       <li><a href="better_launch.tui.html#better_launch.tui.footer_menu.FooterMenu.render">render() (better_launch.tui.footer_menu.FooterMenu method)</a>
 </li>
-      <li><a href="better_launch.ros.html#better_launch.ros.logging.reset">reset() (in module better_launch.ros.logging)</a>
-</li>
-      <li><a href="better_launch.html#better_launch.BetterLaunch.resolve_string">resolve_string() (better_launch.BetterLaunch method)</a>
+      <li><a href="better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator.reset">reset() (better_launch.utils.random_names.UniqueWordGenerator method)</a>
 
       <ul>
-        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.resolve_string">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.resolve_string">[1]</a>
+        <li><a href="better_launch.ros.html#better_launch.ros.logging.reset">(in module better_launch.ros.logging)</a>
 </li>
       </ul></li>
       <li><a href="better_launch.html#better_launch.convenience.robot_state_publisher">robot_state_publisher() (in module better_launch.convenience)</a>
@@ -1122,16 +1242,16 @@
         <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.ros_adapter">(better_launch.launcher.BetterLaunch property)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.ros_adapter">[1]</a>
 </li>
       </ul></li>
+      <li><a href="better_launch.html#better_launch.BetterLaunch.ros_distro">ros_distro() (better_launch.BetterLaunch static method)</a>
+
+      <ul>
+        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.ros_distro">(better_launch.launcher.BetterLaunch static method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.ros_distro">[1]</a>
+</li>
+      </ul></li>
       <li><a href="better_launch.elements.html#better_launch.elements.lifecycle_manager.LifecycleManager.ros_state">ros_state (better_launch.elements.lifecycle_manager.LifecycleManager property)</a>
 
       <ul>
         <li><a href="better_launch.elements.html#better_launch.elements.LifecycleManager.ros_state">(better_launch.elements.LifecycleManager property)</a>
-</li>
-      </ul></li>
-      <li><a href="better_launch.html#better_launch.BetterLaunch.ros_version">ros_version() (better_launch.BetterLaunch static method)</a>
-
-      <ul>
-        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.ros_version">(better_launch.launcher.BetterLaunch static method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.ros_version">[1]</a>
 </li>
       </ul></li>
       <li><a href="better_launch.ros.html#better_launch.ros.ros_adapter.ROSAdapter">ROSAdapter (class in better_launch.ros.ros_adapter)</a>
@@ -1153,6 +1273,8 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="better_launch.html#better_launch.gazebo.save_world">save_world() (in module better_launch.gazebo)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.Overrides.screen_log_format">screen_log_format (better_launch.utils.click.Overrides attribute)</a>
 </li>
       <li><a href="better_launch.tui.html#better_launch.tui.better_tui.AppMode.SEARCH_NODE">SEARCH_NODE (better_launch.tui.better_tui.AppMode attribute)</a>
 </li>
@@ -1176,6 +1298,8 @@
         <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.service_client">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.service_client">[1]</a>
 </li>
       </ul></li>
+      <li><a href="better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.set_hermit">set_hermit() (better_launch.tui.better_tui.NodeLogFilter method)</a>
+</li>
       <li><a href="better_launch.tui.html#better_launch.tui.footer_menu.FooterMenu.set_items">set_items() (better_launch.tui.footer_menu.FooterMenu method)</a>
 </li>
       <li><a href="better_launch.elements.html#better_launch.elements.live_params_mixin.LiveParamsMixin.set_live_params">set_live_params() (better_launch.elements.live_params_mixin.LiveParamsMixin method)</a>
@@ -1188,6 +1312,8 @@
         <li><a href="better_launch.utils.html#better_launch.utils.better_logging.StubbornHandler.setFormatterFor">(better_launch.utils.better_logging.StubbornHandler method)</a>
 </li>
       </ul></li>
+      <li><a href="better_launch.utils.html#better_launch.utils.better_logging.Colormode.SEVERITY">SEVERITY (better_launch.utils.better_logging.Colormode attribute)</a>
+</li>
       <li><a href="better_launch.html#better_launch.BetterLaunch.shared_node">shared_node (better_launch.BetterLaunch property)</a>
 
       <ul>
@@ -1224,6 +1350,8 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.utils.html#better_launch.utils.better_logging.Colormode.SOURCE">SOURCE (better_launch.utils.better_logging.Colormode attribute)</a>
+</li>
       <li><a href="better_launch.html#better_launch.gazebo.spawn_image_bridge">spawn_image_bridge() (in module better_launch.gazebo)</a>
 </li>
       <li><a href="better_launch.html#better_launch.gazebo.spawn_model">spawn_model() (in module better_launch.gazebo)</a>
@@ -1270,15 +1398,19 @@
 </li>
       <li><a href="better_launch.tui.html#better_launch.tui.better_tui.LogLevel.style">style (better_launch.tui.better_tui.LogLevel attribute)</a>
 </li>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.substitutions.sub_env">sub_env() (in module better_launch.declarative.substitutions)</a>
+</li>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.substitutions.sub_eval">sub_eval() (in module better_launch.declarative.substitutions)</a>
+</li>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.substitutions.sub_param">sub_param() (in module better_launch.declarative.substitutions)</a>
+</li>
       <li><a href="better_launch.html#better_launch.BetterLaunch.subscriber">subscriber() (better_launch.BetterLaunch method)</a>
 
       <ul>
         <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.subscriber">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.subscriber">[1]</a>
 </li>
       </ul></li>
-      <li><a href="better_launch.utils.html#better_launch.utils.substitutions.substitute_tokens">substitute_tokens() (in module better_launch.utils.substitutions)</a>
-</li>
-      <li><a href="better_launch.utils.html#better_launch.utils.substitutions.SubstitutionError">SubstitutionError</a>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.substitutions.SubstitutionError">SubstitutionError</a>
 </li>
   </ul></td>
 </tr></table>
@@ -1292,8 +1424,12 @@
         <li><a href="better_launch.elements.html#better_launch.elements.ForeignNode.takeover">(better_launch.elements.ForeignNode method)</a>
 </li>
       </ul></li>
+      <li><a href="better_launch.declarative.html#better_launch.declarative.toml_parser.TomlReader">TomlReader (class in better_launch.declarative.toml_parser)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator.total_available">total_available() (better_launch.utils.random_names.UniqueWordGenerator method)</a>
+</li>
       <li><a href="better_launch.elements.html#better_launch.elements.lifecycle_manager.LifecycleManager.transition">transition() (better_launch.elements.lifecycle_manager.LifecycleManager method)</a>
 
       <ul>
@@ -1306,6 +1442,10 @@
 <h2 id="U">U</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.utils.html#better_launch.utils.click.Overrides.ui">ui (better_launch.utils.click.Overrides attribute)</a>
+</li>
+      <li><a href="better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator">UniqueWordGenerator (class in better_launch.utils.random_names)</a>
+</li>
       <li><a href="better_launch.elements.html#better_launch.elements.Composer.unload_component">unload_component() (better_launch.elements.Composer method)</a>
 
       <ul>
@@ -1314,6 +1454,8 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.unmute">unmute() (better_launch.tui.better_tui.NodeLogFilter method)</a>
+</li>
       <li><a href="better_launch.utils.html#better_launch.utils.better_logging.RecordForwarder.unsetFormatterFor">unsetFormatterFor() (better_launch.utils.better_logging.RecordForwarder method)</a>
 
       <ul>
@@ -1327,6 +1469,20 @@
 
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="better_launch.html#better_launch.BetterLaunch.wait_for_service">wait_for_service() (better_launch.BetterLaunch method)</a>
+
+      <ul>
+        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.wait_for_service">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.wait_for_service">[1]</a>
+</li>
+      </ul></li>
+      <li><a href="better_launch.html#better_launch.BetterLaunch.wait_for_topic">wait_for_topic() (better_launch.BetterLaunch method)</a>
+
+      <ul>
+        <li><a href="better_launch.html#better_launch.launcher.BetterLaunch.wait_for_topic">(better_launch.launcher.BetterLaunch method)</a>, <a href="better_launch_custom.html#better_launch.launcher.BetterLaunch.wait_for_topic">[1]</a>
+</li>
+      </ul></li>
+  </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="better_launch.elements.html#better_launch.elements.foreign_node.ForeignNode.wrap_process">wrap_process() (better_launch.elements.foreign_node.ForeignNode class method)</a>
 

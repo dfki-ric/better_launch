@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.tui.better_tui &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.tui.better_tui &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
 
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" href="../../../_static/logo.svg"/>
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
       <script src="../../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -76,6 +76,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntEnum</span><span class="p">,</span> <span class="n">auto</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">prompt_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Application</span><span class="p">,</span> <span class="n">print_formatted_text</span>
@@ -88,7 +89,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">prompt_toolkit.filters</span><span class="w"> </span><span class="kn">import</span> <span class="n">Condition</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">prompt_toolkit.key_binding</span><span class="w"> </span><span class="kn">import</span> <span class="n">KeyBindings</span><span class="p">,</span> <span class="n">KeyPressEvent</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">prompt_toolkit.widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">TextArea</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">prompt_toolkit.formatted_text</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTML</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">prompt_toolkit.formatted_text</span><span class="w"> </span><span class="kn">import</span> <span class="n">ANSI</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">prompt_toolkit.history</span><span class="w"> </span><span class="kn">import</span> <span class="n">InMemoryHistory</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">prompt_toolkit.buffer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Buffer</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">prompt_toolkit.patch_stdout</span><span class="w"> </span><span class="kn">import</span> <span class="n">patch_stdout</span>
@@ -120,7 +121,8 @@
     <span class="n">CONFIRM_NODE_TAKEOVER</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
     <span class="n">CONFIRM_NODE_RESTART</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
     <span class="n">CONFIRM_NODE_KILL</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
-    <span class="n">LOG_LEVEL</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
+    <span class="n">LOG_LEVEL</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">NODE_LOG_LEVEL</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
 
 
 
@@ -144,6 +146,54 @@
 <span class="p">}</span>
 
 
+<div class="viewcode-block" id="NodeLogFilter">
+<a class="viewcode-back" href="../../../better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NodeLogFilter</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Filter</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">muted</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hermit</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="NodeLogFilter.mute">
+<a class="viewcode-back" href="../../../better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.mute">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">muted</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">node</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="NodeLogFilter.unmute">
+<a class="viewcode-back" href="../../../better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.unmute">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unmute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">muted</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">node</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="NodeLogFilter.set_hermit">
+<a class="viewcode-back" href="../../../better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.set_hermit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_hermit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hermit</span> <span class="o">=</span> <span class="n">node</span></div>
+
+
+<div class="viewcode-block" id="NodeLogFilter.clear">
+<a class="viewcode-back" href="../../../better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.clear">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">muted</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hermit</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="NodeLogFilter.filter">
+<a class="viewcode-back" href="../../../better_launch.tui.html#better_launch.tui.better_tui.NodeLogFilter.filter">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">LogRecord</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hermit</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hermit</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">elif</span> <span class="n">record</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">muted</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">record</span><span class="p">)</span></div>
+</div>
+
+
+
 <span class="c1"># Custom level to block all output</span>
 <span class="n">logging</span><span class="o">.</span><span class="n">addLevelName</span><span class="p">(</span><span class="mi">999</span><span class="p">,</span> <span class="s2">&quot;MUTE&quot;</span><span class="p">)</span>
 
@@ -151,10 +201,6 @@
 <div class="viewcode-block" id="BetterTui">
 <a class="viewcode-back" href="../../../better_launch.tui.html#better_launch.tui.better_tui.BetterTui">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">BetterTui</span><span class="p">:</span>
-    <span class="n">footer_default</span> <span class="o">=</span> <span class="n">HTML</span><span class="p">(</span>
-        <span class="s2">&quot; &lt;orange&gt;^C&lt;/orange&gt; Quit  &lt;orange&gt;space&lt;/orange&gt; Mute  &lt;orange&gt;F1&lt;/orange&gt; Nodes  &lt;orange&gt;F9&lt;/orange&gt; Log Level&quot;</span>
-    <span class="p">)</span>
-
 <div class="viewcode-block" id="BetterTui.__init__">
 <a class="viewcode-back" href="../../../better_launch.tui.html#better_launch.tui.better_tui.BetterTui.__init__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -166,6 +212,14 @@
         <span class="n">color_depth</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">24</span><span class="p">]</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Our TUI class. Use :py:meth:`run` to start the TUI.</span>
+
+<span class="sd">        In order to override keybindings you may set the BL_TUI_KEYBINDS environment variable. For example, this will bind the nodes menu to ctrl-n and setting the log level to ctrl-l:</span>
+
+<span class="sd">        .. code:: bash</span>
+
+<span class="sd">            BL_TUI_KEYBINDS=&quot;nodes: c-n; loglevel: c-l&quot; bl better_launch 02_ui.launch.py</span>
+
+<span class="sd">        The syntax is always `&lt;action&gt;:&lt;keys&gt;` separated by `;`. The valid actions are `exit`, `mute`, `nodes`, `loglevel`, `cancel`, `enter`, `next`, `previous`. For valid key specifiers see `prompt_toolkit &lt;https://python-prompt-toolkit.readthedocs.io/en/stable/pages/advanced_topics/key_bindings.html&gt;`_. Take special note of how the Alt/Meta/Option key is treated. </span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -191,8 +245,57 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">history</span> <span class="o">=</span> <span class="n">InMemoryHistory</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">bindings</span> <span class="o">=</span> <span class="n">KeyBindings</span><span class="p">()</span>
 
+        <span class="c1"># Allows the user to override keybindings. Keybindings as lists to support meta keys.</span>
+        <span class="c1"># See https://python-prompt-toolkit.readthedocs.io/en/stable/pages/advanced_topics/key_bindings.html</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;exit&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;c-c&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;mute&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;space&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;nodes&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;f1&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;loglevel&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;f9&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;cancel&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;escape&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;enter&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;enter&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;next&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;tab&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;previous&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;s-tab&quot;</span><span class="p">],</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Keybind overrides</span>
+        <span class="n">alt_keybinds</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;BL_TUI_KEYBINDS&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">alt_keybinds</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">alt_keybinds</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">):</span>
+                <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[a-z_]+:\s*[\w ]+&quot;</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid keybind override </span><span class="si">{</span><span class="n">item</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                
+                <span class="n">action</span><span class="p">,</span> <span class="n">keys</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">action</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ignoring unknown keybind </span><span class="si">{</span><span class="n">action</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                
+                <span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">[</span><span class="n">action</span><span class="p">]</span> <span class="o">=</span> <span class="n">keys</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make the key combinations in our footer show up a little nicer</span>
+        <span class="n">default_footer_text</span> <span class="o">=</span> <span class="s2">&quot; </span><span class="se">\x1b</span><span class="s2">[38;5;208m</span><span class="si">{exit}</span><span class="se">\x1b</span><span class="s2">[0m Quit  </span><span class="se">\x1b</span><span class="s2">[38;5;208m</span><span class="si">{mute}</span><span class="se">\x1b</span><span class="s2">[0m Mute  </span><span class="se">\x1b</span><span class="s2">[38;5;208m</span><span class="si">{nodes}</span><span class="se">\x1b</span><span class="s2">[0m Nodes  </span><span class="se">\x1b</span><span class="s2">[38;5;208m</span><span class="si">{loglevel}</span><span class="se">\x1b</span><span class="s2">[0m Log Level&quot;</span>
+
+        <span class="n">keys_print</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">action</span><span class="p">,</span> <span class="n">keys</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># We only show the first key (or two in case of meta + key, see below)</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            
+            <span class="c1"># Control as ^X</span>
+            <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;c-&quot;</span><span class="p">):</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="s2">&quot;^&quot;</span> <span class="o">+</span> <span class="n">k</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="n">k</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
+            <span class="c1"># Meta as M-</span>
+            <span class="k">elif</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;escape&quot;</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c1"># Represented as escape + a key stroke in prompt_toolkit</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="s2">&quot;M-&quot;</span> <span class="o">+</span> <span class="n">keys</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="n">keys</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+            <span class="n">keys_print</span><span class="p">[</span><span class="n">action</span><span class="p">]</span> <span class="o">=</span> <span class="n">k</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_footer_text</span> <span class="o">=</span> <span class="n">ANSI</span><span class="p">(</span><span class="n">default_footer_text</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="n">keys_print</span><span class="p">))</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">AppMode</span><span class="o">.</span><span class="n">STANDARD</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">footer_text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">footer_default</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">footer_text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_footer_text</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nodes_snapshot</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">AbstractNode</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">selected_node</span><span class="p">:</span> <span class="n">AbstractNode</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -205,6 +308,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">search_field</span><span class="p">:</span> <span class="n">TextArea</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">search_buffer</span><span class="p">:</span> <span class="n">Buffer</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">footer_menu</span><span class="p">:</span> <span class="n">FooterMenu</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Allows us to have more control over what is showing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_filter</span> <span class="o">=</span> <span class="n">NodeLogFilter</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_setup_key_bindings</span><span class="p">()</span></div>
 
@@ -226,6 +332,10 @@
         <span class="k">def</span><span class="w"> </span><span class="nf">_run_launch_func</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;Runs the launch function passed to the constructor and sets up the log capturing mechanism.&quot;&quot;&quot;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">launch_func</span><span class="p">()</span>
+
+            <span class="c1"># Doing this earlier will mess up screen output somehow</span>
+            <span class="n">log_handler</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Handler</span> <span class="o">=</span> <span class="n">roslog</span><span class="o">.</span><span class="n">launch_config</span><span class="o">.</span><span class="n">get_screen_handler</span><span class="p">()</span>
+            <span class="n">log_handler</span><span class="o">.</span><span class="n">addFilter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_filter</span><span class="p">)</span>
 
             <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">wait_for_instance</span><span class="p">()</span>
             <span class="n">set_title</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">bl</span><span class="o">.</span><span class="n">launchfile</span><span class="p">))</span>
@@ -333,41 +443,42 @@
         <span class="n">mode_standard</span> <span class="o">=</span> <span class="n">Condition</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">AppMode</span><span class="o">.</span><span class="n">STANDARD</span><span class="p">)</span>
         <span class="n">menu_visible</span> <span class="o">=</span> <span class="n">Condition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_menu_visible</span><span class="p">)</span>
 
-        <span class="nd">@bind</span><span class="p">(</span><span class="s2">&quot;c-c&quot;</span><span class="p">)</span>
+
+        <span class="nd">@bind</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">[</span><span class="s2">&quot;exit&quot;</span><span class="p">])</span>
         <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="n">KeyPressEvent</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_switch_mode</span><span class="p">(</span><span class="n">AppMode</span><span class="o">.</span><span class="n">CONFIRM_EXIT</span><span class="p">)</span>
 
-        <span class="nd">@bind</span><span class="p">(</span><span class="s2">&quot;space&quot;</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=~</span><span class="n">Condition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_search_visible</span><span class="p">))</span>
+        <span class="nd">@bind</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">[</span><span class="s2">&quot;mute&quot;</span><span class="p">],</span> <span class="nb">filter</span><span class="o">=~</span><span class="n">Condition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_search_visible</span><span class="p">))</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="n">KeyPressEvent</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">muted</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">muted</span>
             <span class="n">level</span> <span class="o">=</span> <span class="n">_log_levels</span><span class="p">[</span><span class="s2">&quot;MUTE&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">muted</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">prev_log_level</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_set_log_level</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
 
-        <span class="nd">@bind</span><span class="p">(</span><span class="s2">&quot;f1&quot;</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="n">mode_standard</span><span class="p">)</span>
+        <span class="nd">@bind</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">[</span><span class="s2">&quot;nodes&quot;</span><span class="p">],</span> <span class="nb">filter</span><span class="o">=</span><span class="n">mode_standard</span><span class="p">)</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="n">KeyPressEvent</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_switch_mode</span><span class="p">(</span><span class="n">AppMode</span><span class="o">.</span><span class="n">SEARCH_NODE</span><span class="p">)</span>
 
-        <span class="nd">@bind</span><span class="p">(</span><span class="s2">&quot;f9&quot;</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="n">mode_standard</span><span class="p">)</span>
+        <span class="nd">@bind</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">[</span><span class="s2">&quot;loglevel&quot;</span><span class="p">],</span> <span class="nb">filter</span><span class="o">=</span><span class="n">mode_standard</span><span class="p">)</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="n">KeyPressEvent</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_switch_mode</span><span class="p">(</span><span class="n">AppMode</span><span class="o">.</span><span class="n">LOG_LEVEL</span><span class="p">)</span>
 
         <span class="c1"># Menu interactions</span>
-        <span class="nd">@bind</span><span class="p">(</span><span class="s2">&quot;escape&quot;</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="n">menu_visible</span><span class="p">,</span> <span class="n">eager</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="nd">@bind</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">[</span><span class="s2">&quot;cancel&quot;</span><span class="p">],</span> <span class="nb">filter</span><span class="o">=</span><span class="n">menu_visible</span><span class="p">,</span> <span class="n">eager</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="n">KeyPressEvent</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_switch_mode</span><span class="p">(</span><span class="n">AppMode</span><span class="o">.</span><span class="n">STANDARD</span><span class="p">)</span>
 
-        <span class="nd">@bind</span><span class="p">(</span><span class="s2">&quot;enter&quot;</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="n">menu_visible</span><span class="p">)</span>
+        <span class="nd">@bind</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">[</span><span class="s2">&quot;enter&quot;</span><span class="p">],</span> <span class="nb">filter</span><span class="o">=</span><span class="n">menu_visible</span><span class="p">)</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="n">KeyPressEvent</span><span class="p">):</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">footer_menu</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_menu_cancel</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_handle_menu_accept</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">footer_menu</span><span class="o">.</span><span class="n">selected</span><span class="p">)</span>
 
-        <span class="nd">@bind</span><span class="p">(</span><span class="s2">&quot;tab&quot;</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="n">menu_visible</span><span class="p">)</span>
+        <span class="nd">@bind</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">[</span><span class="s2">&quot;next&quot;</span><span class="p">],</span> <span class="nb">filter</span><span class="o">=</span><span class="n">menu_visible</span><span class="p">)</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="n">KeyPressEvent</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">footer_menu</span><span class="o">.</span><span class="n">select_next</span><span class="p">()</span>
 
-        <span class="nd">@bind</span><span class="p">(</span><span class="s2">&quot;s-tab&quot;</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="n">menu_visible</span><span class="p">)</span>
+        <span class="nd">@bind</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">keybinds</span><span class="p">[</span><span class="s2">&quot;previous&quot;</span><span class="p">],</span> <span class="nb">filter</span><span class="o">=</span><span class="n">menu_visible</span><span class="p">)</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="n">KeyPressEvent</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">footer_menu</span><span class="o">.</span><span class="n">select_prev</span><span class="p">()</span>
 
@@ -394,7 +505,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
 
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">AppMode</span><span class="o">.</span><span class="n">STANDARD</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">footer_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">footer_default</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">selected_node</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">footer_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_footer_text</span>
 
         <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">AppMode</span><span class="o">.</span><span class="n">CONFIRM_EXIT</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">footer_text</span> <span class="o">=</span> <span class="s2">&quot;Shutdown nodes and quit?&quot;</span>
@@ -404,7 +516,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">footer_text</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
 
             <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">nodes_snapshot</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nodes_snapshot</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">get_nodes</span><span class="p">(</span>
                 <span class="n">include_components</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">include_launch_service</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">include_foreign</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">manage_foreign_nodes</span><span class="p">,</span>
@@ -423,7 +535,7 @@
             <span class="n">node</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">selected_node</span> <span class="o">=</span> <span class="n">node</span>
 
-            <span class="n">choices</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;info&quot;</span><span class="p">]</span>
+            <span class="n">choices</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;info&quot;</span><span class="p">,</span> <span class="s2">&quot;log level&quot;</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">is_running</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">is_lifecycle_node</span><span class="p">():</span>
                     <span class="n">choices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;lifecycle&quot;</span><span class="p">)</span>
@@ -444,8 +556,9 @@
             <span class="c1"># Simply print to our captured stdout</span>
             <span class="n">cols</span> <span class="o">=</span> <span class="n">get_app</span><span class="p">()</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">get_size</span><span class="p">()</span><span class="o">.</span><span class="n">columns</span>
             <span class="n">bar</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="n">cols</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="c1"># NOTE we should not use html formatting as some node params may be html-like</span>
             <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected_node</span><span class="o">.</span><span class="n">get_info_sheet</span><span class="p">()</span>
-            <span class="n">print_formatted_text</span><span class="p">(</span><span class="n">bar</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">HTML</span><span class="p">(</span><span class="n">text</span><span class="p">),</span> <span class="n">bar</span><span class="p">)</span>
+            <span class="n">print_formatted_text</span><span class="p">(</span><span class="n">bar</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ANSI</span><span class="p">(</span><span class="n">text</span><span class="p">),</span> <span class="n">bar</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">_menu_cancel</span><span class="p">()</span>
 
@@ -475,6 +588,10 @@
             <span class="n">active</span> <span class="o">=</span> <span class="n">levels</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_level</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">footer_menu</span><span class="o">.</span><span class="n">set_items</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">active</span><span class="p">)</span>
 
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">AppMode</span><span class="o">.</span><span class="n">NODE_LOG_LEVEL</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">footer_text</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Node </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_node</span><span class="o">.</span><span class="n">fullname</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">footer_menu</span><span class="o">.</span><span class="n">set_items</span><span class="p">([</span><span class="s2">&quot;mute&quot;</span><span class="p">,</span> <span class="s2">&quot;mute others&quot;</span><span class="p">,</span> <span class="s2">&quot;unmute&quot;</span><span class="p">,</span> <span class="s2">&quot;unmute all&quot;</span><span class="p">])</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_handle_menu_accept</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Decide what to do when a menu item is activated by the user. Usually this will result in a state transition (via :py:meth:`_switch_mode`) and some side effects.</span>
 
@@ -501,6 +618,9 @@
 
             <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;info&quot;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_switch_mode</span><span class="p">(</span><span class="n">AppMode</span><span class="o">.</span><span class="n">NODE_INFO</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;log level&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_switch_mode</span><span class="p">(</span><span class="n">AppMode</span><span class="o">.</span><span class="n">NODE_LOG_LEVEL</span><span class="p">)</span>
 
             <span class="k">elif</span> <span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;lifecycle&quot;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_switch_mode</span><span class="p">(</span><span class="n">AppMode</span><span class="o">.</span><span class="n">NODE_LIFECYCLE</span><span class="p">)</span>
@@ -549,6 +669,19 @@
 
             <span class="n">level</span> <span class="o">=</span> <span class="n">_log_levels</span><span class="p">[</span><span class="n">item</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_set_log_level</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_menu_cancel</span><span class="p">()</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">AppMode</span><span class="o">.</span><span class="n">NODE_LOG_LEVEL</span><span class="p">:</span>
+            <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected_node</span><span class="o">.</span><span class="n">fullname</span>
+
+            <span class="k">if</span> <span class="n">item</span> <span class="o">==</span> <span class="s2">&quot;mute&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log_filter</span><span class="o">.</span><span class="n">mute</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">item</span> <span class="o">==</span> <span class="s2">&quot;mute others&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log_filter</span><span class="o">.</span><span class="n">set_hermit</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">item</span> <span class="o">==</span> <span class="s2">&quot;unmute&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log_filter</span><span class="o">.</span><span class="n">unmute</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">item</span> <span class="o">==</span> <span class="s2">&quot;unmute all&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log_filter</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_menu_cancel</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_make_layout</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Layout</span><span class="p">:</span>

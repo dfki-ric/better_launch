@@ -1,4 +1,4 @@
-__version__ = "1.0.2"
+__version__ = "1.2.0"
 
 __all__ = [
     "launch_this",
@@ -8,6 +8,7 @@ __all__ = [
 
 from .launcher import BetterLaunch
 from .wrapper import launch_this
+from .declarative import launch_toml
 from .elements import LifecycleStage
 from .ros.logging import LaunchConfig as LogConfig
 from . import elements

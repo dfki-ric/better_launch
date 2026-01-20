@@ -12,6 +12,14 @@ better\_launch.utils.better\_logging module
    :undoc-members:
    :show-inheritance:
 
+better\_launch.utils.click module
+---------------------------------
+
+.. automodule:: better_launch.utils.click
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 better\_launch.utils.colors module
 ----------------------------------
 
@@ -28,10 +36,10 @@ better\_launch.utils.introspection module
    :undoc-members:
    :show-inheritance:
 
-better\_launch.utils.substitutions module
+better\_launch.utils.random\_names module
 -----------------------------------------
 
-.. automodule:: better_launch.utils.substitutions
+.. automodule:: better_launch.utils.random_names
    :members:
    :undoc-members:
    :show-inheritance:

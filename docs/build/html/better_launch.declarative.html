@@ -1,0 +1,293 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>better_launch.declarative package &mdash; better_launch 1.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="_static/logo.svg"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=1ed6394b"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            better_launch
+              <img src="_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="better_launch_custom.html">better_launch package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">better_launch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">better_launch.declarative package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/better_launch.declarative.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="better-launch-declarative-package">
+<h1>better_launch.declarative package<a class="headerlink" href="#better-launch-declarative-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-better_launch.declarative.declarative">
+<span id="better-launch-declarative-declarative-module"></span><h2>better_launch.declarative.declarative module<a class="headerlink" href="#module-better_launch.declarative.declarative" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.declarative.declarative.launch_toml">
+<span class="sig-prename descclassname"><span class="pre">better_launch.declarative.declarative.</span></span><span class="sig-name descname"><span class="pre">launch_toml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">launch_args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ui</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">join</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">screen_log_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_log_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manage_foreign_nodes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_alive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/declarative.html#launch_toml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.declarative.launch_toml" title="Link to this definition"></a></dt>
+<dd><p>Execute a TOML better_launch launchfile.</p>
+<p>In better_launch TOML launch files, most tables will be <cite>call tables</cite>. A call table is a dict that has a <cite>func</cite> key referring to one of the public <code class="xref py py-class docutils literal notranslate"><span class="pre">BetterLaunch</span></code> member functions. All other attributes will be treated as keyword arguments to that function. Call tables are executed in the order they appear in the launch file, and the result of calling their associated function will be stored under the call table’s name.</p>
+<p>For example:</p>
+<p>This launch file declares a launch argument <cite>max_respawns</cite>. It then creates a new node and passes the launch argument to it using a substitution. The returned <code class="xref py py-class docutils literal notranslate"><span class="pre">Node</span></code> instance is stored in the launch context under the <cite>my_awesome_node</cite> key, and could be referred to by later call tables.</p>
+<p>An example launchfile with more explanations can be found in the examples folder.</p>
+<p>Substitutions in better_launch take heavy inspiration from those found in ROS1 and should be familiar to many. However, as the TOML launchfile format is much more powerful, only the following substitutions were deemed necessary for now:
+- <cite>${&lt;K&gt;}</cite> this will resolve to a launch arg or call table result named &lt;K&gt;
+- <cite>${param &lt;N&gt; &lt;P&gt;}</cite> will retrieve a parameter &lt;P&gt; from the <em>full</em> nodename &lt;N&gt;
+- <cite>${env &lt;E&gt; [D]}</cite> will get the environment variable &lt;E&gt; (default to &lt;D&gt; if specified)
+- <cite>${eval &lt;X&gt;}</cite> will treat &lt;X&gt; as a python expression to evaluate (see <cite>eval_mode</cite> below)</p>
+<p>Substitutions can also be nested, in which case the innermost ones will be resolved first.</p>
+<p>For those functions in <code class="xref py py-class docutils literal notranslate"><span class="pre">BetterLaunch</span></code> which are used as context objects (e.g. <code class="xref py py-meth docutils literal notranslate"><span class="pre">BetterLaunch.group()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">BetterLaunch.compose()</span></code>) you may provide a <cite>children</cite> attribute, which must be a dict of dicts. It’s possible to use TOML’s subtables for this like so:</p>
+<p>In addition, any call table may contain an <cite>if</cite> and <cite>unless</cite> attribute to tie execution to a condition (which of course may contain substitutions). These will be evaluated according to
+python truthiness.
+- if     -&gt; execute only if condition is true
+- unless -&gt; execute only if condition is false</p>
+<p>Lastly, there are a couple of special keys that may be declared in the TOML:
+- <cite>bl_toml_format</cite>: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don’t want to update your launch file. The current version is <code class="xref py py-data docutils literal notranslate"><span class="pre">toml_format_version</span></code>.
+- <cite>bl_eval_mode</cite>: if and how <cite>$(eval …)</cite> substitutions should be supported.
+- <cite>bl_ui</cite>: default value for starting the UI
+- <cite>bl_join</cite>: whether to join the processes better_launch starts
+- <cite>bl_colormode</cite>: default colormode
+- <cite>bl_screen_log_format</cite>: default terminal output format
+- <cite>bl_file_log_format</cite>: default file log format
+- <cite>bl_manage_foreign_nodes</cite>: whether to show foreign nodes in the UI
+- <cite>bl_keep_alive</cite>: whether to keep running after the last node exits
+- <cite>bl_allow_kwargs</cite>: whether additional launch arguments are allowed</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<em>str</em>) – Path to the TOML launchfile to execute.</p></li>
+<li><p><strong>launch_args</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>str</em><em>]</em><em>, </em><em>optional</em>) – values for launch arguments declared by the launchfile.</p></li>
+<li><p><strong>eval_mode</strong> (<em>Literal</em><em>[</em><em>&amp;quot;full&amp;quot;</em><em>, </em><em>&amp;quot;literal&amp;quot;</em><em>, </em><em>&amp;quot;none&amp;quot;</em><em>]</em><em>, </em><em>optional</em>) – How to treat <cite>eval</cite> substitutions.</p></li>
+<li><p><strong>ui</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to start the better_launch TUI. Superseded by the <cite>BL_UI_OVERRIDE</cite> environment variable and the <cite>–bl_ui_override</cite> argument.</p></li>
+<li><p><strong>join</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, join the better_launch process. Has no effect when ui == True.</p></li>
+<li><p><strong>screen_log_format</strong> (<em>str</em><em>, </em><em>optional</em>) – Customize how log output will be formatted when printing it to the screen. Will be overridden by the <cite>BL_SCREEN_LOG_FORMAT_OVERRIDE</cite> environment variable. See <code class="xref py py-class docutils literal notranslate"><span class="pre">PrettyLogFormatter</span></code> for details.</p></li>
+<li><p><strong>file_log_format</strong> (<em>str</em><em>, </em><em>optional</em>) – Customize how log output will be formatted when writing it to a file. Will be overridden by the <cite>BL_FILE_LOG_FORMAT_OVERRIDE</cite> environment variable. See <code class="xref py py-class docutils literal notranslate"><span class="pre">PrettyLogFormatter</span></code> for details.</p></li>
+<li><p><strong>colormode</strong> (<a class="reference internal" href="better_launch.utils.html#better_launch.utils.better_logging.Colormode" title="better_launch.utils.better_logging.Colormode"><em>Colormode</em></a><em>, </em><em>optional</em>) – Decides what colors will be used for:
+* default: one color per log severity level and a single color for all message sources
+* severity: one color per log severity, don’t colorize message sources
+* source: one color per message source, don’t colorize log severity
+* none: don’t colorize anything
+* rainbow: colorize log severity and give each message source its own color
+Superseded by the <cite>BL_COLORMODE_OVERRIDE</cite> environment variable and the <cite>–bl_colormode_override</cite> argument.</p></li>
+<li><p><strong>manage_foreign_nodes</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, the TUI will also include node processes not started by this process. Has no effect if the TUI is not started.</p></li>
+<li><p><strong>keep_alive</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, keep the process alive even when all nodes have stopped.</p></li>
+<li><p><strong>allow_kwargs</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether additional launch arguments are allowed.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-better_launch.declarative.substitutions">
+<span id="better-launch-declarative-substitutions-module"></span><h2>better_launch.declarative.substitutions module<a class="headerlink" href="#module-better_launch.declarative.substitutions" title="Link to this heading"></a></h2>
+<dl class="py exception">
+<dt class="sig sig-object py" id="better_launch.declarative.substitutions.SubstitutionError">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.declarative.substitutions.</span></span><span class="sig-name descname"><span class="pre">SubstitutionError</span></span><a class="reference internal" href="_modules/better_launch/declarative/substitutions.html#SubstitutionError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.substitutions.SubstitutionError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ValueError</span></code></p>
+<p>Exception type that will be thrown by substitution handlers.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.declarative.substitutions.sub_param">
+<span class="sig-prename descclassname"><span class="pre">better_launch.declarative.substitutions.</span></span><span class="sig-name descname"><span class="pre">sub_param</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">full_node_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/substitutions.html#sub_param"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.substitutions.sub_param" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.declarative.substitutions.sub_env">
+<span class="sig-prename descclassname"><span class="pre">better_launch.declarative.substitutions.</span></span><span class="sig-name descname"><span class="pre">sub_env</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default=&lt;object</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/substitutions.html#sub_env"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.substitutions.sub_env" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.declarative.substitutions.sub_eval">
+<span class="sig-prename descclassname"><span class="pre">better_launch.declarative.substitutions.</span></span><span class="sig-name descname"><span class="pre">sub_eval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/substitutions.html#sub_eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.substitutions.sub_eval" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.declarative.substitutions.apply_substitutions">
+<span class="sig-prename descclassname"><span class="pre">better_launch.declarative.substitutions.</span></span><span class="sig-name descname"><span class="pre">apply_substitutions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">substitutions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/substitutions.html#apply_substitutions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.substitutions.apply_substitutions" title="Link to this definition"></a></dt>
+<dd><p>Applies substitutions to a string.</p>
+<p>Substitution strings are expected to follow the pattern: <cite>${key *args}</cite>, where <cite>key</cite> is a
+substitution type and <cite>*args</cite> are additional arguments to the substitution handler.</p>
+<p>If no other substitutions are specified, this function will handle the following ones:
+- ${param …}
+- ${env …}
+- ${eval …}</p>
+<p>Substitutions other than those above will be looked up in the provided <cite>context</cite> dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>value</strong> (<em>str</em>) – A string that may contain substitution tokens.</p></li>
+<li><p><strong>substitutions</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Callable</em><em>]</em><em>, </em><em>optional</em>) – Custom substitution handlers. If None, defaults to param, env, and eval.</p></li>
+<li><p><strong>context</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – A dict containing additional values the substitution may use.</p></li>
+<li><p><strong>eval_type</strong> (<em>Literal</em><em>[</em><em>&quot;full&quot;</em><em>, </em><em>&quot;literal&quot;</em><em>, </em><em>&quot;none&quot;</em><em>]</em><em>, </em><em>optional</em>) – If and to what extent <cite>eval</cite> should be allowed. Default is “full”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The input string with all substitution tokens handled.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>ValueError</strong> – If the input string contains unbalanced braces or quotes.</p></li>
+<li><p><a class="reference internal" href="#better_launch.declarative.substitutions.SubstitutionError" title="better_launch.declarative.substitutions.SubstitutionError"><strong>SubstitutionError</strong></a> – If a substitution handler fails.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-better_launch.declarative.toml_parser">
+<span id="better-launch-declarative-toml-parser-module"></span><h2>better_launch.declarative.toml_parser module<a class="headerlink" href="#module-better_launch.declarative.toml_parser" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="better_launch.declarative.toml_parser.TomlReader">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.declarative.toml_parser.</span></span><span class="sig-name descname"><span class="pre">TomlReader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/toml_parser.html#TomlReader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.toml_parser.TomlReader" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.declarative.toml_parser.TomlReader.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/toml_parser.html#TomlReader.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.toml_parser.TomlReader.__init__" title="Link to this definition"></a></dt>
+<dd><p>TOML parser with better comment handling compared to existing ones.</p>
+<p>Noticably, this parser will preserve and associate comments that appear <em>before</em> the key they are describing. Comments appear in the same dict as their associated key under the key <cite>__comment_&lt;key&gt;__</cite>. In addition, a comment at the start of the file will be retained as well. This root comment has the key <cite>__comment__</cite>.</p>
+<p>Some standard features are not supported right now:
+- octal integers (0oXXXX)
+- dates and times remain strings
+- arrays of tables ([[my-aot]])</p>
+<p>The following non-standard features are supported:
+- write <cite>key = &lt;base-type&gt;</cite> to set its value to the corresponding class. Base types are int, float, str, bool, list, dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>text</strong> (<em>str</em><em> | </em><em>list</em><em>[</em><em>str</em><em>]</em>) – The toml content to be parsed.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.declarative.toml_parser.TomlReader.parse">
+<span class="sig-name descname"><span class="pre">parse</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/toml_parser.html#TomlReader.parse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.toml_parser.TomlReader.parse" title="Link to this definition"></a></dt>
+<dd><p>Parse TOML text and return a dictionary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.declarative.toml_parser.loads">
+<span class="sig-prename descclassname"><span class="pre">better_launch.declarative.toml_parser.</span></span><span class="sig-name descname"><span class="pre">loads</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/toml_parser.html#loads"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.toml_parser.loads" title="Link to this definition"></a></dt>
+<dd><p>Parse TOML text and return a dictionary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.declarative.toml_parser.load">
+<span class="sig-prename descclassname"><span class="pre">better_launch.declarative.toml_parser.</span></span><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/declarative/toml_parser.html#load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.declarative.toml_parser.load" title="Link to this definition"></a></dt>
+<dd><p>Read the contents of a TOML file and parse them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-better_launch.declarative">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-better_launch.declarative" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Nikolas Dahn.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

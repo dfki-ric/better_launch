@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.elements.composer &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.elements.composer &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
 
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" href="../../../_static/logo.svg"/>
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
       <script src="../../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -77,11 +77,12 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">threading</span><span class="w"> </span><span class="kn">import</span> <span class="n">Event</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">rclpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parameter</span>
-<span class="c1"># NOTE messages are imported late because the composer is not always used</span>
+<span class="c1"># NOTE message types are imported late because the composer is not always used</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.better_logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogSink</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.abstract_node</span><span class="w"> </span><span class="kn">import</span> <span class="n">AbstractNode</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.live_params_mixin</span><span class="w"> </span><span class="kn">import</span> <span class="n">LiveParamsMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.lifecycle_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">LifecycleStage</span>
 
 
 <div class="viewcode-block" id="Component">
@@ -103,9 +104,11 @@
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Representation of a component, a composable object that can be loaded into a running process. Components will always use their composer&#39;s namespace.</span>
 
-<span class="sd">        Note that in ROS2 launch files you can reference existing composers by name when creating components. This is a clutch because you ROS2 you can never obtain a reference to a meaningful object to refer to. Since we have actual instances in better_launch, referring to composers by name is not supported. Use :py:meth:`BetterLaunch.component` or construct your own component and pass a :py:class:`Composer` instance.</span>
+<span class="sd">        Note that in ROS2 launch files you can reference existing composers by name when creating components. This is a clutch because ROS2 does not have a way to retrieve a reference to an already existing node. Since in better_launch we have actual node instances, referring to composers by name is not supported. Use :py:meth:`BetterLaunch.component` or construct your own component and pass a :py:class:`Composer` instance.</span>
 
 <span class="sd">        Also note that since components are loaded via a service call there are some additional restrictions on the types of `params`. In particular, they must be compatible with the `ROS2 Parameter message type &lt;https://github.com/ros2/rcl_interfaces/blob/rolling/rcl_interfaces/msg/ParameterValue.msg&gt;`_. This is *not* verified on construction.</span>
+
+<span class="sd">        In addition, note that new nodes created by a component are using the composer&#39;s remaps. See the `related issue &lt;https://github.com/ros2/rclcpp/issues/2404&gt;`_ in rclcpp.</span>
 
 <span class="sd">        .. seealso::</span>
 
@@ -219,6 +222,12 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_loaded</span><span class="p">:</span>
             <span class="k">return</span>
 
+        <span class="k">if</span> <span class="n">signum</span> <span class="o">==</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGTERM</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lifecycle_manager</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_lifecycle_manager</span><span class="o">.</span><span class="n">transition</span><span class="p">(</span><span class="n">LifecycleStage</span><span class="o">.</span><span class="n">FINALIZED</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Lifecycle transition to FINALIZED failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unloading component </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">composer</span><span class="o">.</span><span class="n">unload_component</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_component_id</span> <span class="o">=</span> <span class="kc">None</span>
@@ -286,6 +295,8 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;A composer is a special ROS2 node that can host other nodes (:py:class:`Component`) within the same process, reducing overhead and enabling efficient intra process communication for message exchange.</span>
 
 <span class="sd">        As it is possible to reuse already running composers (even without a reference to the actual process), this is merely a wrapper around another :py:class:`AbstractNode` providing additional functionality. The wrapped node instance is typically a :py:class:`Node` or :py:class:`ForeignNode`. See :py:meth:`BetterLaunch.compose` for the most common use cases. </span>
+
+<span class="sd">        Note that new nodes created by a component are using the composer&#39;s remaps. See the `related issue &lt;https://github.com/ros2/rclcpp/issues/2404&gt;`_ in rclcpp.</span>
 
 <span class="sd">        .. seealso::</span>
 
@@ -429,6 +440,13 @@
 <span class="sd">        TimeoutError</span>
 <span class="sd">            If a timeout &gt; 0 was set and any of the components or the composer did not shutdown before then.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped_node</span><span class="o">.</span><span class="n">is_running</span><span class="p">:</span>
+            <span class="c1"># Clear up internal states</span>
+            <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">managed_components</span><span class="p">:</span>
+                <span class="n">comp</span><span class="o">.</span><span class="n">_component_id</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">managed_components</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="k">return</span>
+
         <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">managed_components</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">comp</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">reason</span><span class="p">,</span> <span class="n">signum</span><span class="p">,</span> <span class="n">timeout</span><span class="p">)</span>
@@ -436,7 +454,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to unload component </span><span class="si">{</span><span class="n">comp</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped_node</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">reason</span><span class="p">,</span> <span class="n">signum</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped_node</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">reason</span><span class="p">,</span> <span class="n">signum</span><span class="p">,</span> <span class="n">timeout</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">NotImplementedError</span><span class="p">:</span>
             <span class="k">pass</span>
         
@@ -456,6 +474,8 @@
 <span class="sd">        Additional keyword arguments will be passed as ROS parameters to the component. If the component is not associated with this composer yet, a warning will be logged and its association will be updated.</span>
 
 <span class="sd">        Note that since components are loaded via a service call that there are some additional restrictions on the types of :py:meth:`Component.params` and `composer_extra_params`. In particular, they must be compatible with the `ROS2 Parameter message type &lt;https://github.com/ros2/rcl_interfaces/blob/rolling/rcl_interfaces/msg/ParameterValue.msg&gt;`_.</span>
+
+<span class="sd">        Also note that new nodes created by a component are using the composer&#39;s remaps. See the `related issue &lt;https://github.com/ros2/rclcpp/issues/2404&gt;`_ in rclcpp.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -613,27 +633,9 @@
             <span class="n">UnloadNode</span><span class="p">,</span>
             <span class="n">req</span><span class="p">,</span>
             <span class="n">timeout</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
-            <span class="n">call_async</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="c1"># ROS2 has its own implementation of a future that doesn&#39;t support timeouts...</span>
-        <span class="k">if</span> <span class="n">timeout</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">True</span>
-
-        <span class="k">elif</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">while</span> <span class="ow">not</span> <span class="n">res</span><span class="o">.</span><span class="n">done</span><span class="p">():</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>
-
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-            <span class="k">while</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span> <span class="o">&lt;</span> <span class="n">timeout</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">done</span><span class="p">():</span>
-                    <span class="k">break</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span><span class="s2">&quot;Component did not unload within the specified timeout&quot;</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
             <span class="c1"># Usually Component.shutdown() takes care of this, but the user can call </span>
             <span class="c1"># unload_component() directly</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">Component</span><span class="p">):</span>
@@ -644,7 +646,7 @@
             <span class="k">return</span> <span class="kc">True</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Unloading component </span><span class="si">{</span><span class="n">cid</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">cname</span><span class="si">}</span><span class="s2">) failed: </span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">error_message</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Unloading component </span><span class="si">{</span><span class="n">cid</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">cname</span><span class="si">}</span><span class="s2">) failed: </span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">error_message</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="kc">False</span></div>
 
@@ -657,7 +659,7 @@
         <span class="k">return</span> <span class="p">(</span>
             <span class="n">info</span>
             <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">&lt;bold&gt;Components&lt;/bold&gt;</span>
+<span class="se">\x1b</span><span class="s2">[1mComponents</span><span class="se">\x1b</span><span class="s2">[0m</span>
 <span class="si">{</span><span class="n">components</span><span class="si">}</span>
 <span class="s2">&quot;&quot;&quot;</span>
         <span class="p">)</span></div>

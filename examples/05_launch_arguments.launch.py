@@ -9,7 +9,7 @@ def handle_with_care(enable: bool = False):
 
     .. code:: bash
 
-        bl better_launch 04_launch_arguments.py --enable True
+        bl better_launch 05_launch_arguments.py --enable True
 
     These arguments can be used directly in your launch code without the need for conditions and substitutions. And in case you want to know what your launch file can actually do, you can always pass `--help` to it - try it out!
 
@@ -21,7 +21,12 @@ def handle_with_care(enable: bool = False):
     bl = BetterLaunch()
 
     if not enable:
-        print("This launch file must be run with `--enable True`!")
+        # Can also pass logging.ERROR instead of a string for the severity
+        bl.log("error", "This launch file must be run with `--enable True`!")
+
+    if bl.is_included():
+        # For example 06
+        bl.log("warning", f"I was included by {bl.launchfile}")
 
     if enable:
         bl.node(

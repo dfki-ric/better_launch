@@ -1,0 +1,414 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>better_launch.declarative.declarative &mdash; better_launch 1.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/logo.svg"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            better_launch
+              <img src="../../../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../better_launch_custom.html">better_launch package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">better_launch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">better_launch.declarative.declarative</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for better_launch.declarative.declarative</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch</span><span class="w"> </span><span class="kn">import</span> <span class="n">BetterLaunch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">_exec_launch_func</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.better_logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">Colormode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.click</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeclaredArg</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.toml_parser</span><span class="w"> </span><span class="kn">import</span> <span class="n">load</span> <span class="k">as</span> <span class="n">load_toml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.substitutions</span><span class="w"> </span><span class="kn">import</span> <span class="n">apply_substitutions</span>
+
+
+<span class="n">current_toml_format_version</span> <span class="o">=</span> <span class="mi">1</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_execute_toml</span><span class="p">(</span>
+    <span class="n">toml</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">eval_mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;full&quot;</span><span class="p">,</span> <span class="s2">&quot;literal&quot;</span><span class="p">,</span> <span class="s2">&quot;none&quot;</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Execute each call table and apply substitutions.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;BetterLaunch has already been initialized&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Initialize the launcher instance</span>
+    <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="p">()</span>
+    <span class="n">valid_funcs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="vm">__dict__</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">))</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">bl</span><span class="o">.</span><span class="n">launch_args</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">substitute_all</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">value</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">substitute_all</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+                <span class="n">value</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">substitute_all</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">apply_substitutions</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">results</span><span class="p">,</span> <span class="n">eval_type</span><span class="o">=</span><span class="n">eval_mode</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">exec_request</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">req</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">&quot;func&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">req</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">substitute_all</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">req</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;if&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">req</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;unless&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="c1"># If not specified assume we&#39;re creating a node</span>
+        <span class="n">func_name</span> <span class="o">=</span> <span class="n">req</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;func&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">func_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_funcs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;func=&#39;</span><span class="si">{</span><span class="n">func_name</span><span class="si">}</span><span class="s2">&#39; is not a valid request&quot;</span><span class="p">)</span>
+
+        <span class="n">func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">bl</span><span class="p">,</span> <span class="n">func_name</span><span class="p">)</span>
+        <span class="n">func_sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+        <span class="c1"># Where accepted the table key can be used as the name (e.g. of a node)</span>
+        <span class="k">if</span> <span class="s2">&quot;name&quot;</span> <span class="ow">in</span> <span class="n">func_sig</span><span class="o">.</span><span class="n">parameters</span> <span class="ow">and</span> <span class="s2">&quot;name&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">req</span><span class="p">:</span>
+            <span class="n">req</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">key</span>
+
+        <span class="c1"># Call the function and store the result</span>
+        <span class="n">children</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s2">&quot;children&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">func_sig</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="n">children</span> <span class="o">=</span> <span class="n">req</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="n">res</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">**</span><span class="n">req</span><span class="p">)</span>
+        <span class="n">results</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">res</span>
+
+        <span class="k">if</span> <span class="n">children</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">AbstractContextManager</span><span class="p">):</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">req</span><span class="si">}</span><span class="s2"> has &#39;children&#39; key, but did not result in a context object - children will be ignored&quot;</span>
+                <span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="k">with</span> <span class="n">res</span><span class="p">:</span>
+                <span class="c1"># Must be a proper TOML subtable, we don&#39;t accept arrays of tables here</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">children</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Children of </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> must be specified as a dict&quot;</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">subkey</span><span class="p">,</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">children</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">exec_request</span><span class="p">(</span><span class="n">subkey</span><span class="p">,</span> <span class="n">child</span><span class="p">)</span>
+
+    <span class="c1"># Sanitize the launch file</span>
+    <span class="n">toml</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;__comment__&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">toml</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;__comment_&quot;</span><span class="p">):</span>
+                    <span class="k">del</span> <span class="n">val</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="c1"># Execute the call tables</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">toml</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">exec_request</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+
+    <span class="k">return</span> <span class="n">results</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_toml_args</span><span class="p">(</span><span class="n">toml</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">DeclaredArg</span><span class="p">]:</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">toml</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;func&quot;</span> <span class="ow">in</span> <span class="n">val</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+            <span class="c1"># no default value</span>
+            <span class="n">ptype</span> <span class="o">=</span> <span class="n">val</span>
+            <span class="n">default</span> <span class="o">=</span> <span class="n">DeclaredArg</span><span class="o">.</span><span class="n">_undefined</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ptype</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+            <span class="n">default</span> <span class="o">=</span> <span class="n">val</span>
+
+        <span class="n">description</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;__comment_</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">__&quot;</span><span class="p">)</span>
+
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">DeclaredArg</span><span class="p">(</span>
+                <span class="n">key</span><span class="p">,</span>
+                <span class="n">ptype</span><span class="p">,</span>
+                <span class="n">default</span><span class="p">,</span>
+                <span class="n">description</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">args</span>
+
+
+<div class="viewcode-block" id="launch_toml">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.declarative.launch_toml">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">launch_toml</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">launch_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">eval_mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;full&quot;</span><span class="p">,</span> <span class="s2">&quot;literal&quot;</span><span class="p">,</span> <span class="s2">&quot;none&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">ui</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">join</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">screen_log_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">file_log_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">colormode</span><span class="p">:</span> <span class="n">Colormode</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">manage_foreign_nodes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">keep_alive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">allow_kwargs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Execute a TOML better_launch launchfile.</span>
+
+<span class="sd">    In better_launch TOML launch files, most tables will be `call tables`. A call table is a dict that has a `func` key referring to one of the public :py:class:`BetterLaunch` member functions. All other attributes will be treated as keyword arguments to that function. Call tables are executed in the order they appear in the launch file, and the result of calling their associated function will be stored under the call table&#39;s name.</span>
+
+<span class="sd">    For example:</span>
+
+<span class="sd">    .. code-block:: toml</span>
+<span class="sd">        max_respawns = 3</span>
+
+<span class="sd">        [my_awesome_node]</span>
+<span class="sd">        func = &quot;node&quot;</span>
+<span class="sd">        package = &quot;my-package&quot;</span>
+<span class="sd">        executable = &quot;my-node&quot;</span>
+<span class="sd">        name = &quot;my-node&quot;</span>
+<span class="sd">        max_respawns = &quot;${max_respawns}&quot;</span>
+
+<span class="sd">    This launch file declares a launch argument `max_respawns`. It then creates a new node and passes the launch argument to it using a substitution. The returned :py:class:`Node` instance is stored in the launch context under the `my_awesome_node` key, and could be referred to by later call tables.</span>
+
+<span class="sd">    An example launchfile with more explanations can be found in the examples folder.</span>
+
+<span class="sd">    Substitutions in better_launch take heavy inspiration from those found in ROS1 and should be familiar to many. However, as the TOML launchfile format is much more powerful, only the following substitutions were deemed necessary for now:</span>
+<span class="sd">    - `${&lt;K&gt;}` this will resolve to a launch arg or call table result named &lt;K&gt;</span>
+<span class="sd">    - `${param &lt;N&gt; &lt;P&gt;}` will retrieve a parameter &lt;P&gt; from the *full* nodename &lt;N&gt;</span>
+<span class="sd">    - `${env &lt;E&gt; [D]}` will get the environment variable &lt;E&gt; (default to &lt;D&gt; if specified)</span>
+<span class="sd">    - `${eval &lt;X&gt;}` will treat &lt;X&gt; as a python expression to evaluate (see `eval_mode` below)</span>
+
+<span class="sd">    Substitutions can also be nested, in which case the innermost ones will be resolved first.</span>
+
+<span class="sd">    For those functions in :py:class:`BetterLaunch` which are used as context objects (e.g. :py:meth:`BetterLaunch.group`, :py:meth:`BetterLaunch.compose`) you may provide a `children` attribute, which must be a dict of dicts. It&#39;s possible to use TOML&#39;s subtables for this like so:</span>
+
+<span class="sd">    .. code-block:: toml</span>
+<span class="sd">        [my_composer]</span>
+<span class="sd">        func = &quot;compose&quot;</span>
+
+<span class="sd">        [my_composer.children.talker]</span>
+<span class="sd">        func = &quot;component&quot;</span>
+<span class="sd">        package = &quot;composition&quot;</span>
+<span class="sd">        plugin = &quot;composition::Talker&quot;</span>
+
+<span class="sd">    In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions). These will be evaluated according to </span>
+<span class="sd">    python truthiness.</span>
+<span class="sd">    - if     -&gt; execute only if condition is true</span>
+<span class="sd">    - unless -&gt; execute only if condition is false</span>
+
+<span class="sd">    Lastly, there are a couple of special keys that may be declared in the TOML:</span>
+<span class="sd">    - `bl_toml_format`: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don&#39;t want to update your launch file. The current version is :py:data:`toml_format_version`.</span>
+<span class="sd">    - `bl_eval_mode`: if and how `$(eval ...)` substitutions should be supported.</span>
+<span class="sd">    - `bl_ui`: default value for starting the UI</span>
+<span class="sd">    - `bl_join`: whether to join the processes better_launch starts</span>
+<span class="sd">    - `bl_colormode`: default colormode</span>
+<span class="sd">    - `bl_screen_log_format`: default terminal output format</span>
+<span class="sd">    - `bl_file_log_format`: default file log format</span>
+<span class="sd">    - `bl_manage_foreign_nodes`: whether to show foreign nodes in the UI</span>
+<span class="sd">    - `bl_keep_alive`: whether to keep running after the last node exits</span>
+<span class="sd">    - `bl_allow_kwargs`: whether additional launch arguments are allowed</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    path : str</span>
+<span class="sd">        Path to the TOML launchfile to execute.</span>
+<span class="sd">    launch_args : dict[str, str], optional</span>
+<span class="sd">        values for launch arguments declared by the launchfile.</span>
+<span class="sd">    eval_mode : Literal[&amp;quot;full&amp;quot;, &amp;quot;literal&amp;quot;, &amp;quot;none&amp;quot;], optional</span>
+<span class="sd">        How to treat `eval` substitutions.</span>
+<span class="sd">    ui : bool, optional</span>
+<span class="sd">        Whether to start the better_launch TUI. Superseded by the `BL_UI_OVERRIDE` environment variable and the `--bl_ui_override` argument.</span>
+<span class="sd">    join : bool, optional</span>
+<span class="sd">        If True, join the better_launch process. Has no effect when ui == True.</span>
+<span class="sd">    screen_log_format : str, optional</span>
+<span class="sd">        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.</span>
+<span class="sd">    file_log_format : str, optional</span>
+<span class="sd">        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.</span>
+<span class="sd">    colormode : Colormode, optional</span>
+<span class="sd">        Decides what colors will be used for:</span>
+<span class="sd">        * default: one color per log severity level and a single color for all message sources</span>
+<span class="sd">        * severity: one color per log severity, don&#39;t colorize message sources</span>
+<span class="sd">        * source: one color per message source, don&#39;t colorize log severity</span>
+<span class="sd">        * none: don&#39;t colorize anything</span>
+<span class="sd">        * rainbow: colorize log severity and give each message source its own color</span>
+<span class="sd">        Superseded by the `BL_COLORMODE_OVERRIDE` environment variable and the `--bl_colormode_override` argument.</span>
+<span class="sd">    manage_foreign_nodes : bool, optional</span>
+<span class="sd">        If True, the TUI will also include node processes not started by this process. Has no effect if the TUI is not started.</span>
+<span class="sd">    keep_alive : bool, optional</span>
+<span class="sd">        If True, keep the process alive even when all nodes have stopped.</span>
+<span class="sd">    allow_kwargs : bool, optional</span>
+<span class="sd">        Whether additional launch arguments are allowed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">toml</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">load_toml</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">declared_args</span> <span class="o">=</span> <span class="n">_get_toml_args</span><span class="p">(</span><span class="n">toml</span><span class="p">)</span>
+    <span class="n">docstring</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;__comment__&quot;</span><span class="p">)</span>
+
+    <span class="n">toml_format</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_toml_format&quot;</span><span class="p">,</span> <span class="n">current_toml_format_version</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">toml_format</span> <span class="o">!=</span> <span class="n">current_toml_format_version</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: TOML launch file has unexpected format version </span><span class="si">{</span><span class="n">toml_format</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">toml_format</span> <span class="o">==</span> <span class="n">current_toml_format_version</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="c1">#elif toml_format == some_previous_version: ...</span>
+
+    <span class="c1"># TODO establish and verify argument precedence:</span>
+    <span class="c1"># CLI &gt; env &gt; launchfile &gt; default</span>
+
+    <span class="k">if</span> <span class="n">eval_mode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">eval_mode</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_eval_mode&quot;</span><span class="p">,</span> <span class="s2">&quot;literal&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ui</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ui</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_ui&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;enable&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">join</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">join</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_join&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">colormode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">colormode</span> <span class="o">=</span> <span class="n">Colormode</span><span class="p">[</span><span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_colormode&quot;</span><span class="p">,</span> <span class="n">Colormode</span><span class="o">.</span><span class="n">DEFAULT</span><span class="o">.</span><span class="n">name</span><span class="p">)]</span>
+
+    <span class="k">if</span> <span class="n">screen_log_format</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">screen_log_format</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_screen_log_format&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">file_log_format</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">file_log_format</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_file_log_format&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">manage_foreign_nodes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">manage_foreign_nodes</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_manage_foreign_nodes&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">keep_alive</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">keep_alive</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_keep_alive&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">allow_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">allow_kwargs</span> <span class="o">=</span> <span class="n">toml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bl_allow_kwargs&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">argv</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">launch_args</span><span class="p">:</span>
+        <span class="n">argv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">launch_args</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">argv</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;--</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">arg</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">launch_func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">toml</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">_execute_toml</span><span class="p">(</span><span class="n">toml</span><span class="p">,</span> <span class="n">eval_mode</span><span class="o">=</span><span class="n">eval_mode</span><span class="p">)</span>
+
+    <span class="n">_exec_launch_func</span><span class="p">(</span>
+        <span class="n">launch_func</span><span class="p">,</span>
+        <span class="n">declared_args</span><span class="p">,</span>
+        <span class="n">docstring</span><span class="p">,</span>
+        <span class="n">ui</span><span class="o">=</span><span class="n">ui</span><span class="p">,</span>
+        <span class="n">join</span><span class="o">=</span><span class="n">join</span><span class="p">,</span>
+        <span class="n">colormode</span><span class="o">=</span><span class="n">colormode</span><span class="p">,</span>
+        <span class="n">screen_log_format</span><span class="o">=</span><span class="n">screen_log_format</span><span class="p">,</span>
+        <span class="n">file_log_format</span><span class="o">=</span><span class="n">file_log_format</span><span class="p">,</span>
+        <span class="n">manage_foreign_nodes</span><span class="o">=</span><span class="n">manage_foreign_nodes</span><span class="p">,</span>
+        <span class="n">keep_alive</span><span class="o">=</span><span class="n">keep_alive</span><span class="p">,</span>
+        <span class="c1"># Not useful for the launchfile, but some node may consume the extra args</span>
+        <span class="n">allow_kwargs</span><span class="o">=</span><span class="n">allow_kwargs</span><span class="p">,</span>
+        <span class="n">_argv</span><span class="o">=</span><span class="n">argv</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Nikolas Dahn.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

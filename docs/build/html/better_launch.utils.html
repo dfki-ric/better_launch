@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.utils package &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.utils package &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
@@ -14,7 +14,7 @@
     <link rel="shortcut icon" href="_static/logo.svg"/>
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/documentation_options.js?v=1ed6394b"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
@@ -55,9 +55,10 @@
 <li class="toctree-l3 current"><a class="current reference internal" href="#">better_launch.utils package</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#submodules">Submodules</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#module-better_launch.utils.better_logging">better_launch.utils.better_logging module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-better_launch.utils.click">better_launch.utils.click module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#module-better_launch.utils.colors">better_launch.utils.colors module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#module-better_launch.utils.introspection">better_launch.utils.introspection module</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#module-better_launch.utils.substitutions">better_launch.utils.substitutions module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-better_launch.utils.random_names">better_launch.utils.random_names module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#module-better_launch.utils">Module contents</a></li>
 </ul>
 </li>
@@ -100,8 +101,40 @@
 <section id="module-better_launch.utils.better_logging">
 <span id="better-launch-utils-better-logging-module"></span><h2>better_launch.utils.better_logging module<a class="headerlink" href="#module-better_launch.utils.better_logging" title="Link to this heading"></a></h2>
 <dl class="py class">
+<dt class="sig sig-object py" id="better_launch.utils.better_logging.Colormode">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.utils.better_logging.</span></span><span class="sig-name descname"><span class="pre">Colormode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/better_logging.html#Colormode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.better_logging.Colormode" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>An enumeration.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.better_logging.Colormode.DEFAULT">
+<span class="sig-name descname"><span class="pre">DEFAULT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#better_launch.utils.better_logging.Colormode.DEFAULT" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.better_logging.Colormode.SEVERITY">
+<span class="sig-name descname"><span class="pre">SEVERITY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#better_launch.utils.better_logging.Colormode.SEVERITY" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.better_logging.Colormode.SOURCE">
+<span class="sig-name descname"><span class="pre">SOURCE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#better_launch.utils.better_logging.Colormode.SOURCE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.better_logging.Colormode.NONE">
+<span class="sig-name descname"><span class="pre">NONE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#better_launch.utils.better_logging.Colormode.NONE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.better_logging.Colormode.RAINBOW">
+<span class="sig-name descname"><span class="pre">RAINBOW</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5</span></em><a class="headerlink" href="#better_launch.utils.better_logging.Colormode.RAINBOW" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="better_launch.utils.better_logging.PrettyLogFormatter">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.utils.better_logging.</span></span><span class="sig-name descname"><span class="pre">PrettyLogFormatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'[{levelcolor_start}{levelname}{levelcolor_end}]</span> <span class="pre">[{sourcecolor_start}{name}{sourcecolor_end}]</span> <span class="pre">[{asctime}]\\n{message}'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S.%f'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">defaults</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roslog_pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%%(\\\\w+)%%([\\\\d.]+)%%(.*)'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pattern_info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('levelname',</span> <span class="pre">'created',</span> <span class="pre">'msg')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">222</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/better_logging.html#PrettyLogFormatter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.better_logging.PrettyLogFormatter" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.utils.better_logging.</span></span><span class="sig-name descname"><span class="pre">PrettyLogFormatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'[{levelcolor_start}{levelname}{levelcolor_end}]</span> <span class="pre">[{sourcecolor_start}{name}{sourcecolor_end}]</span> <span class="pre">[{asctime}]\\n{message}'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S.%f'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">defaults</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roslog_pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">222</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/better_logging.html#PrettyLogFormatter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.better_logging.PrettyLogFormatter" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Formatter</span></code></p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_launch.utils.better_logging.PrettyLogFormatter.default_screen_format">
@@ -115,7 +148,7 @@
 
 <dl class="py method">
 <dt class="sig sig-object py" id="better_launch.utils.better_logging.PrettyLogFormatter.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'[{levelcolor_start}{levelname}{levelcolor_end}]</span> <span class="pre">[{sourcecolor_start}{name}{sourcecolor_end}]</span> <span class="pre">[{asctime}]\\n{message}'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S.%f'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">defaults</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roslog_pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%%(\\\\w+)%%([\\\\d.]+)%%(.*)'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pattern_info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('levelname',</span> <span class="pre">'created',</span> <span class="pre">'msg')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">222</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/better_logging.html#PrettyLogFormatter.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.better_logging.PrettyLogFormatter.__init__" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'[{levelcolor_start}{levelname}{levelcolor_end}]</span> <span class="pre">[{sourcecolor_start}{name}{sourcecolor_end}]</span> <span class="pre">[{asctime}]\\n{message}'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S.%f'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">defaults</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roslog_pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">222</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/better_logging.html#PrettyLogFormatter.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.better_logging.PrettyLogFormatter.__init__" title="Link to this definition"></a></dt>
 <dd><p>A specialized formatter that will try to extract various details from messages logged by ROS2 nodes and reformat them.</p>
 <p>The following additional keys can be used for formatting messages:
 * {sourcecolor_start}: colors subsequent characters based on the message’s source until a {sourcecolor_end} is encountered.
@@ -130,8 +163,7 @@
 <li><p><strong>format</strong> (<em>str</em><em>, </em><em>optional</em>) – The format this instance will use when formatting messages.</p></li>
 <li><p><strong>timestamp_format</strong> (<em>_type_</em><em>, </em><em>optional</em>) – The format to use for timestamps (we like human readable here).</p></li>
 <li><p><strong>defaults</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Defaults the formatter may use when formatting strings.</p></li>
-<li><p><strong>roslog_pattern</strong> (<em>str</em><em>, </em><em>optional</em>) – The pattern used for matching incoming log messages. The pattern’s regex groups will be associated with <cite>pattern_info</cite>.</p></li>
-<li><p><strong>pattern_info</strong> (<em>list</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – Formatting keys that can be extracted from incoming log messages using <cite>roslog_pattern</cite>, one for each regex group.</p></li>
+<li><p><strong>roslog_pattern</strong> (<em>str</em><em>, </em><em>optional</em>) – The pattern used for matching incoming log messages. The pattern should define named groups that will be matched to logging.Record attributes via their names.</p></li>
 <li><p><strong>source_colors</strong> (<em>str</em><em> | </em><em>int</em><em> | </em><em>Iterable</em><em>[</em><em>int</em><em>] </em><em>| </em><em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Colors to use when formatting <cite>sourcecolor_start</cite> tags based on the source of the log report. If a string, integer or iterable, use this as the color for all sources. If None, use a different color for every source. Pass a dict to specify custom colors for a set of sources.</p></li>
 <li><p><strong>log_colors</strong> (<em>str</em><em> | </em><em>int</em><em> | </em><em>Iterable</em><em>[</em><em>int</em><em>] </em><em>| </em><em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Colors to use when formatting <cite>levelcolor_start</cite> tags based on the log report’s severity. If a string, integer or iterable, use this as the color for all sources. If None, use the default log colors from <cite>default_log_colormap</cite>. Pass a dict to override the colors for select log levels identified by name.</p></li>
 <li><p><strong>no_colors</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, all colors will be disabled.</p></li>
@@ -188,6 +220,11 @@ instance, set the ‘converter’ attribute to a function with the same
 signature as time.localtime() or time.gmtime(). To change it for all
 formatters, for example if you want all logging times to be shown in GMT,
 set the ‘converter’ attribute in the Formatter class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> | <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -202,6 +239,11 @@ using LogRecord.getMessage(). If the formatting string uses the
 time (as determined by a call to usesTime(), formatTime() is
 called to format the event time. If there is exception information,
 it is formatted using formatException() and appended to the message.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+</dl>
 </dd></dl>
 
 </dd></dl>
@@ -283,10 +325,95 @@ for the module.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="better_launch.utils.better_logging.init_logging">
-<span class="sig-prename descclassname"><span class="pre">better_launch.utils.better_logging.</span></span><span class="sig-name descname"><span class="pre">init_logging</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">screen_log_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_log_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/better_logging.html#init_logging"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.better_logging.init_logging" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">better_launch.utils.better_logging.</span></span><span class="sig-name descname"><span class="pre">init_logging</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">screen_log_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_log_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">Colormode.DEFAULT</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/better_logging.html#init_logging"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.better_logging.init_logging" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-better_launch.utils.click">
+<span id="better-launch-utils-click-module"></span><h2>better_launch.utils.click module<a class="headerlink" href="#module-better_launch.utils.click" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="better_launch.utils.click.DeclaredArg">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.utils.click.</span></span><span class="sig-name descname"><span class="pre">DeclaredArg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ptype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default=&lt;object</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/click.html#DeclaredArg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.click.DeclaredArg" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.click.DeclaredArg.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#better_launch.utils.click.DeclaredArg.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.click.DeclaredArg.ptype">
+<span class="sig-name descname"><span class="pre">ptype</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code></em><a class="headerlink" href="#better_launch.utils.click.DeclaredArg.ptype" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.click.DeclaredArg.default">
+<span class="sig-name descname"><span class="pre">default</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;object</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#better_launch.utils.click.DeclaredArg.default" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.click.DeclaredArg.description">
+<span class="sig-name descname"><span class="pre">description</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_launch.utils.click.DeclaredArg.description" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="better_launch.utils.click.Overrides">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.utils.click.</span></span><span class="sig-name descname"><span class="pre">Overrides</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ui</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">Colormode.DEFAULT</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">screen_log_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_log_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/click.html#Overrides"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.click.Overrides" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.click.Overrides.ui">
+<span class="sig-name descname"><span class="pre">ui</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#better_launch.utils.click.Overrides.ui" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.click.Overrides.colormode">
+<span class="sig-name descname"><span class="pre">colormode</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#better_launch.utils.click.Overrides.colormode" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.click.Overrides.screen_log_format">
+<span class="sig-name descname"><span class="pre">screen_log_format</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_launch.utils.click.Overrides.screen_log_format" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_launch.utils.click.Overrides.file_log_format">
+<span class="sig-name descname"><span class="pre">file_log_format</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_launch.utils.click.Overrides.file_log_format" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.utils.click.get_click_options">
+<span class="sig-prename descclassname"><span class="pre">better_launch.utils.click.</span></span><span class="sig-name descname"><span class="pre">get_click_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">declared_args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/click.html#get_click_options"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.click.get_click_options" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Option</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.utils.click.get_click_overrides">
+<span class="sig-prename descclassname"><span class="pre">better_launch.utils.click.</span></span><span class="sig-name descname"><span class="pre">get_click_overrides</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">overrides</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/click.html#get_click_overrides"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.click.get_click_overrides" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Option</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.utils.click.get_click_launch_command">
+<span class="sig-prename descclassname"><span class="pre">better_launch.utils.click.</span></span><span class="sig-name descname"><span class="pre">get_click_launch_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cmd_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">launch_func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmd_help</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/click.html#get_click_launch_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.click.get_click_launch_command" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Command</span></code></span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -437,63 +564,59 @@ function. This is useful to e.g. identify the python file a function is imported
 </dd></dl>
 
 </section>
-<section id="module-better_launch.utils.substitutions">
-<span id="better-launch-utils-substitutions-module"></span><h2>better_launch.utils.substitutions module<a class="headerlink" href="#module-better_launch.utils.substitutions" title="Link to this heading"></a></h2>
-<dl class="py exception">
-<dt class="sig sig-object py" id="better_launch.utils.substitutions.SubstitutionError">
-<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.utils.substitutions.</span></span><span class="sig-name descname"><span class="pre">SubstitutionError</span></span><a class="reference internal" href="_modules/better_launch/utils/substitutions.html#SubstitutionError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.substitutions.SubstitutionError" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ValueError</span></code></p>
-<p>Exception type that will be thrown by substitution handlers.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="better_launch.utils.substitutions.default_substitution_handlers">
-<span class="sig-prename descclassname"><span class="pre">better_launch.utils.substitutions.</span></span><span class="sig-name descname"><span class="pre">default_substitution_handlers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eval_type</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/substitutions.html#default_substitution_handlers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.substitutions.default_substitution_handlers" title="Link to this definition"></a></dt>
-<dd><p>Returns the default substitution handlers.</p>
-<p>Right now the following substitution handlers will be returned:
-* <cite>$(find &lt;filename&gt; &lt;package&gt; &lt;subdir&gt;)</cite>: return the result of <code class="xref py py-meth docutils literal notranslate"><span class="pre">find()</span></code>. Note that substitution arguments are always sequential (not kwargs).
-* <cite>$(arg &lt;name&gt; &lt;default&gt;)</cite>: return the value of an argument passed to the launch function or <cite>&lt;default&gt;</cite> if it doesn’t exist. Raises KeyError if no default is provided and no default was provided.
-* <cite>$(param &lt;full-node-name&gt; &lt;param&gt;)</cite>: retrieves the value of the ROS parameter <cite>&lt;param&gt;</cite> from the <cite>&lt;full-node-name&gt;</cite> (i.e. namespace + node name). Raises KeyError if the node does not exist or ValueError if the node does not have the specified parameter.
-* <cite>$(env &lt;key&gt; &lt;default&gt;)</cite>: return the value of the environment variable <cite>&lt;key&gt;</cite> or <cite>&lt;default&gt;</cite> if it doesn’t exist. Raises KeyError if no default is provided and no default was provided.
-* <cite>$(eval &lt;python-snippet&gt;)</cite>: returns the result from evaluating the provided <cite>&lt;python-snippet&gt;</cite>. Typical use cases include simple math and assembling strings. <strong>Note</strong> that this indeed uses python’s <code class="xref py py-func docutils literal notranslate"><span class="pre">eval()</span></code>.</p>
-<p><strong>NOTE</strong> this function will most likely be deprecated in the future.</p>
+<section id="module-better_launch.utils.random_names">
+<span id="better-launch-utils-random-names-module"></span><h2>better_launch.utils.random_names module<a class="headerlink" href="#module-better_launch.utils.random_names" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="better_launch.utils.random_names.UniqueWordGenerator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">better_launch.utils.random_names.</span></span><span class="sig-name descname"><span class="pre">UniqueWordGenerator</span></span><a class="reference internal" href="_modules/better_launch/utils/random_names.html#UniqueWordGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.random_names.UniqueWordGenerator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.utils.random_names.UniqueWordGenerator.get_unique_word">
+<span class="sig-name descname"><span class="pre">get_unique_word</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/random_names.html#UniqueWordGenerator.get_unique_word"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.random_names.UniqueWordGenerator.get_unique_word" title="Link to this definition"></a></dt>
+<dd><p>Generate the next unique word</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>eval_type</strong> (<em>Literal</em><em>[</em><em>&quot;full&quot;</em><em>, </em><em>&quot;literal&quot;</em><em>, </em><em>&quot;none&quot;</em><em>]</em>) – How eval substitutions should be handled: <cite>eval</cite>, <cite>ast.literal_eval</cite> or not at all.</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>A dict mapping substitution keys to handler functions. Note that handler functions are allowed to throw instances of <a class="reference internal" href="#better_launch.utils.substitutions.SubstitutionError" title="better_launch.utils.substitutions.SubstitutionError"><code class="xref py py-class docutils literal notranslate"><span class="pre">SubstitutionError</span></code></a> when invalid parameters are passed.</p>
-</dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>dict[str, Callable]</p>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="py function">
-<dt class="sig sig-object py" id="better_launch.utils.substitutions.substitute_tokens">
-<span class="sig-prename descclassname"><span class="pre">better_launch.utils.substitutions.</span></span><span class="sig-name descname"><span class="pre">substitute_tokens</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">substitutions</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/substitutions.html#substitute_tokens"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.substitutions.substitute_tokens" title="Link to this definition"></a></dt>
-<dd><p>Parses a string and replaces all substitution strings according to the provided handler functions.</p>
-<p>Substitution strings are expected to follow the “ROS1 pattern”: <cite>$(key *args)</cite>, where <cite>key</cite> is a substitution type and <cite>*args</cite> are additional arguments passed to the substitution handler.</p>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#better_launch.utils.substitutions.default_substitution_handlers" title="better_launch.utils.substitutions.default_substitution_handlers"><code class="xref py py-meth docutils literal notranslate"><span class="pre">default_substitution_handlers()</span></code></a></p>
-</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.utils.random_names.UniqueWordGenerator.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/random_names.html#UniqueWordGenerator.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.random_names.UniqueWordGenerator.reset" title="Link to this definition"></a></dt>
+<dd><p>Shuffle and reset the generator</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.utils.random_names.UniqueWordGenerator.remaining">
+<span class="sig-name descname"><span class="pre">remaining</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/random_names.html#UniqueWordGenerator.remaining"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.random_names.UniqueWordGenerator.remaining" title="Link to this definition"></a></dt>
+<dd><p>Return number of words still available</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>text</strong> (<em>str</em>) – A string that may contain substitution tokens.</p></li>
-<li><p><strong>substitutions</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Callable</em><em>[</em><em>...</em><em>, </em><em>str</em><em>]</em><em>]</em>) – A dict mapping substitution tokens to handler functions.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The input string with all substitution tokens handled.</p>
-</dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>str</p>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
 </dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>ValueError</strong> – If the input string contains unbalanced parentheses or quotes.</p>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_launch.utils.random_names.UniqueWordGenerator.total_available">
+<span class="sig-name descname"><span class="pre">total_available</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/random_names.html#UniqueWordGenerator.total_available"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.random_names.UniqueWordGenerator.total_available" title="Link to this definition"></a></dt>
+<dd><p>Return total number of unique words possible</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="better_launch.utils.random_names.get_unique_word">
+<span class="sig-prename descclassname"><span class="pre">better_launch.utils.random_names.</span></span><span class="sig-name descname"><span class="pre">get_unique_word</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/utils/random_names.html#get_unique_word"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.utils.random_names.get_unique_word" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
 </dd>
 </dl>
 </dd></dl>

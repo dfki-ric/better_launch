@@ -581,7 +581,7 @@ class GazeboBridge:
         ValueError
             If the bridge string doesn't match the expected pattern.
         """
-        m = re.match(r"(.+)@(.+)[\[\]@](.+)", bridge)
+        m = re.match(r"(.+)@(.+)([\[\]@])(.+)", bridge)
 
         if not m:
             raise ValueError(bridge + " is not a valid bridge string")

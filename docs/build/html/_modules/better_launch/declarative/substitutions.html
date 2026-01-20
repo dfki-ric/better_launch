@@ -1,0 +1,504 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>better_launch.declarative.substitutions &mdash; better_launch 1.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/logo.svg"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            better_launch
+              <img src="../../../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../better_launch_custom.html">better_launch package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">better_launch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">better_launch.declarative.substitutions</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for better_launch.declarative.substitutions</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ast</span><span class="w"> </span><span class="kn">import</span> <span class="n">literal_eval</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch</span><span class="w"> </span><span class="kn">import</span> <span class="n">BetterLaunch</span>
+
+
+<span class="n">_sentinel</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="SubstitutionError">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.substitutions.SubstitutionError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SubstitutionError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Exception type that will be thrown by substitution handlers.&quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_parse_substitutions</span><span class="p">(</span><span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span> <span class="o">|</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parses a string containing substitution tokens into a list of lists and strings.</span>
+
+<span class="sd">    Supports ${key args} syntax.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    s : str</span>
+<span class="sd">        The input string to parse.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list[list | str]</span>
+<span class="sd">        A list containing unchanged strings and nested lists of strings/lists. These nested lists</span>
+<span class="sd">        will consist of the substitution key and its arguments, which again may be lists.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the input string contains unbalanced braces or quotes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">tokenize</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">isspace</span><span class="p">():</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">continue</span>
+            <span class="k">elif</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;$&quot;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">n</span> <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;{&quot;</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="s2">&quot;${&quot;</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Just a dollar sign, not a substitution - treat as regular text</span>
+                    <span class="n">start</span> <span class="o">=</span> <span class="n">i</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">isspace</span><span class="p">()</span> <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="s2">&quot;$</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">:</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">yield</span> <span class="n">s</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;}&quot;</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="s2">&quot;}&quot;</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">elif</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">in</span> <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">&#39;&quot;</span><span class="p">:</span>
+                <span class="n">quote</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="n">escaped</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">escaped</span><span class="p">:</span>
+                        <span class="n">escaped</span> <span class="o">=</span> <span class="kc">False</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">:</span>
+                        <span class="n">escaped</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">quote</span><span class="p">:</span>
+                        <span class="k">break</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing closing quote at position </span><span class="si">{</span><span class="n">start</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">yield</span> <span class="n">s</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>  <span class="c1"># skip closing quote</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">isspace</span><span class="p">()</span> <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="s2">&quot;$</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">:</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">yield</span> <span class="n">s</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse</span><span class="p">(</span><span class="n">tokens</span><span class="p">):</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">current</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">is_key</span> <span class="o">=</span> <span class="kc">False</span>
+        
+        <span class="k">for</span> <span class="n">tok</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tok</span> <span class="o">==</span> <span class="s2">&quot;${&quot;</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">is_key</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">tok</span> <span class="o">==</span> <span class="s2">&quot;}&quot;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">stack</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unbalanced &#39;}&#39; - no matching &#39;${&#39;&quot;</span><span class="p">)</span>
+                <span class="n">completed</span> <span class="o">=</span> <span class="n">current</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                <span class="n">current</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">completed</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">is_key</span><span class="p">:</span>
+                    <span class="n">tok</span> <span class="o">=</span> <span class="s2">&quot;$&quot;</span> <span class="o">+</span> <span class="n">tok</span>
+                    <span class="n">is_key</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">current</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tok</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">stack</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unbalanced &#39;${&#39; - missing closing &#39;}&#39;&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">current</span>
+
+    <span class="k">return</span> <span class="n">parse</span><span class="p">(</span><span class="n">tokenize</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+
+
+<span class="c1"># ${param /myrobot/my_node rate}</span>
+<div class="viewcode-block" id="sub_param">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.substitutions.sub_param">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sub_param</span><span class="p">(</span><span class="n">full_node_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="c1"># Try to delay ROS2 imports until we actually need them</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">rcl_interfaces.srv</span><span class="w"> </span><span class="kn">import</span> <span class="n">GetParameters</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">rcl_interfaces.msg</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParameterType</span>
+
+    <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
+
+    <span class="n">srv</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">shared_node</span><span class="o">.</span><span class="n">create_client</span><span class="p">(</span>
+        <span class="n">GetParameters</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">full_node_name</span><span class="si">}</span><span class="s2">/get_parameters&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">srv</span><span class="o">.</span><span class="n">wait_for_service</span><span class="p">(</span><span class="mf">5.0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">SubstitutionError</span><span class="p">(</span><span class="s2">&quot;Failed to wait for node parameter service&quot;</span><span class="p">)</span>
+
+    <span class="n">req</span> <span class="o">=</span> <span class="n">GetParameters</span><span class="o">.</span><span class="n">Request</span><span class="p">()</span>
+    <span class="n">req</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">param</span><span class="p">]</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">srv</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">values</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">SubstitutionError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Failed to retrieve parameter </span><span class="si">{</span><span class="n">param</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">full_node_name</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">value</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Importing get_value from ros2param will increase memory footprint by ~5MB, so diy</span>
+    <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_BOOL</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">bool_value</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_INTEGER</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">integer_value</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_DOUBLE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">double_value</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_STRING</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">string_value</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_BYTE_ARRAY</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">byte_array_value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_BOOL_ARRAY</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">bool_array_value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_INTEGER_ARRAY</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">integer_array_value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_DOUBLE_ARRAY</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">double_array_value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_STRING_ARRAY</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">string_array_value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">ParameterType</span><span class="o">.</span><span class="n">PARAMETER_NOT_SET</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<span class="c1"># ${env ROS_DISTRO}</span>
+<div class="viewcode-block" id="sub_env">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.substitutions.sub_env">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sub_env</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="n">_sentinel</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">default</span> <span class="o">!=</span> <span class="n">_sentinel</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="n">key</span><span class="p">]</span></div>
+
+
+
+<span class="c1"># ${eval ${arg x} * 5}</span>
+<div class="viewcode-block" id="sub_eval">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.substitutions.sub_eval">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sub_eval</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">eval_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;full&quot;</span><span class="p">,</span> <span class="s2">&quot;literal&quot;</span><span class="p">,</span> <span class="s2">&quot;none&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;full&quot;</span><span class="p">):</span>
+    <span class="n">expr</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">eval_type</span> <span class="o">==</span> <span class="s2">&quot;full&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">eval</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="p">{},</span> <span class="nb">dict</span><span class="p">(</span><span class="n">context</span><span class="p">)</span> <span class="k">if</span> <span class="n">context</span> <span class="k">else</span> <span class="p">{})</span>
+    <span class="k">elif</span> <span class="n">eval_type</span> <span class="o">==</span> <span class="s2">&quot;literal&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">literal_eval</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># eval was disabled</span>
+        <span class="k">return</span> <span class="n">expr</span></div>
+
+
+
+<div class="viewcode-block" id="apply_substitutions">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.substitutions.apply_substitutions">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_substitutions</span><span class="p">(</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">substitutions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">eval_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;full&quot;</span><span class="p">,</span> <span class="s2">&quot;literal&quot;</span><span class="p">,</span> <span class="s2">&quot;none&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;full&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Applies substitutions to a string.</span>
+
+<span class="sd">    Substitution strings are expected to follow the pattern: `${key *args}`, where `key` is a </span>
+<span class="sd">    substitution type and `*args` are additional arguments to the substitution handler.</span>
+
+<span class="sd">    If no other substitutions are specified, this function will handle the following ones:</span>
+<span class="sd">    - ${param ...}</span>
+<span class="sd">    - ${env ...}</span>
+<span class="sd">    - ${eval ...}</span>
+
+<span class="sd">    Substitutions other than those above will be looked up in the provided `context` dict.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    value : str</span>
+<span class="sd">        A string that may contain substitution tokens.</span>
+<span class="sd">    substitutions : dict[str, Callable], optional</span>
+<span class="sd">        Custom substitution handlers. If None, defaults to param, env, and eval.</span>
+<span class="sd">    context : dict[str, Any], optional</span>
+<span class="sd">        A dict containing additional values the substitution may use.</span>
+<span class="sd">    eval_type : Literal[&quot;full&quot;, &quot;literal&quot;, &quot;none&quot;], optional</span>
+<span class="sd">        If and to what extent `eval` should be allowed. Default is &quot;full&quot;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        The input string with all substitution tokens handled.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the input string contains unbalanced braces or quotes.</span>
+<span class="sd">    SubstitutionError</span>
+<span class="sd">        If a substitution handler fails.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Value is not a string (</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">context</span><span class="p">:</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">substitutions</span><span class="p">:</span>
+        <span class="n">_eval</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">sub_eval</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span> <span class="n">eval_type</span><span class="o">=</span><span class="n">eval_type</span><span class="p">)</span>
+
+        <span class="n">substitutions</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;param&quot;</span><span class="p">:</span> <span class="n">sub_param</span><span class="p">,</span>
+            <span class="s2">&quot;env&quot;</span><span class="p">:</span> <span class="n">sub_env</span><span class="p">,</span>
+            <span class="s2">&quot;eval&quot;</span><span class="p">:</span> <span class="n">_eval</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="c1"># Handle empty strings early</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">value</span>
+    
+    <span class="c1"># This should only raise if the value contains &quot;${&quot; AND has invalid syntax</span>
+    <span class="n">parsed</span> <span class="o">=</span> <span class="n">_parse_substitutions</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="c1"># Evaluate the substitutions</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delve</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="c1"># Empty list means empty substitution like ${}</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">node</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SubstitutionError</span><span class="p">(</span><span class="s2">&quot;Empty substitution token&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Evaluate nested elements first</span>
+            <span class="n">evaluated</span> <span class="o">=</span> <span class="p">[</span><span class="n">delve</span><span class="p">(</span><span class="n">token</span><span class="p">)</span> <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">node</span><span class="p">]</span>
+            
+            <span class="n">sub_key</span><span class="p">,</span> <span class="o">*</span><span class="n">sub_args</span> <span class="o">=</span> <span class="n">evaluated</span>
+
+            <span class="c1"># Substitution keys will start with a $ (see parse() above)</span>
+            <span class="k">if</span> <span class="n">sub_key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;$&quot;</span><span class="p">):</span>
+                <span class="n">sub_key</span> <span class="o">=</span> <span class="n">sub_key</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+                <span class="k">if</span> <span class="n">sub_key</span> <span class="ow">in</span> <span class="n">substitutions</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">substitutions</span><span class="p">[</span><span class="n">sub_key</span><span class="p">](</span><span class="o">*</span><span class="n">sub_args</span><span class="p">))</span>
+
+                <span class="c1"># If the key is not a substitution key, assume it&#39;s the name of a launch</span>
+                <span class="c1"># arg or call result</span>
+                <span class="k">if</span> <span class="n">sub_key</span> <span class="ow">in</span> <span class="n">context</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">context</span><span class="p">[</span><span class="n">sub_key</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">SubstitutionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown substitution key: </span><span class="si">{</span><span class="n">sub_key</span><span class="si">}</span><span class="s2"> (substitutions: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">substitutions</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">, context: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">evaluated</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+
+    <span class="c1"># Handle the case where the entire input is just plain text (no substitutions)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parsed</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parsed</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">parsed</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parsed</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">parsed</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">delve</span><span class="p">(</span><span class="n">item</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">parsed</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">delve</span><span class="p">(</span><span class="n">parsed</span><span class="p">))</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># Test cases</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Testing Substitution Parser&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+    
+    <span class="c1"># Mock context and substitutions for testing</span>
+    <span class="n">test_context</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;robot_name&quot;</span><span class="p">:</span> <span class="s2">&quot;my_robot&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;port&quot;</span><span class="p">:</span> <span class="mi">8080</span><span class="p">,</span>
+        <span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="p">}</span>
+    
+    <span class="n">test_substitutions</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;env&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">_sentinel</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span> <span class="k">if</span> <span class="n">default</span> <span class="o">!=</span> <span class="n">_sentinel</span> <span class="k">else</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;MOCK_</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;eval&quot;</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="n">sub_eval</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">test_context</span><span class="p">,</span> <span class="n">eval_type</span><span class="o">=</span><span class="s2">&quot;full&quot;</span><span class="p">),</span>
+    <span class="p">}</span>
+    
+    <span class="n">test_cases</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="c1"># (description, input_string, should_succeed)</span>
+        <span class="p">(</span><span class="s2">&quot;Plain text&quot;</span><span class="p">,</span> <span class="s2">&quot;hello world&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Simple substitution&quot;</span><span class="p">,</span> <span class="s2">&quot;$</span><span class="si">{robot_name}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Substitution with text&quot;</span><span class="p">,</span> <span class="s2">&quot;Robot: $</span><span class="si">{robot_name}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Multiple substitutions&quot;</span><span class="p">,</span> <span class="s2">&quot;$</span><span class="si">{robot_name}</span><span class="s2"> on port $</span><span class="si">{port}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Nested substitution&quot;</span><span class="p">,</span> <span class="s2">&quot;${eval $</span><span class="si">{x}</span><span class="s2"> * 2}&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Environment variable&quot;</span><span class="p">,</span> <span class="s2">&quot;${env HOME}&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Env with default&quot;</span><span class="p">,</span> <span class="s2">&quot;${env NONEXISTENT default_value}&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Quoted argument&quot;</span><span class="p">,</span> <span class="s2">&quot;$</span><span class="si">{robot_name}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Complex eval&quot;</span><span class="p">,</span> <span class="s2">&quot;${eval $</span><span class="si">{x}</span><span class="s2"> + $</span><span class="si">{port}</span><span class="s2">}&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Empty string&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Dollar sign alone&quot;</span><span class="p">,</span> <span class="s2">&quot;Price: $5&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        
+        <span class="c1"># Failure cases</span>
+        <span class="p">(</span><span class="s2">&quot;Unbalanced opening&quot;</span><span class="p">,</span> <span class="s2">&quot;${robot_name&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Unbalanced closing&quot;</span><span class="p">,</span> <span class="s2">&quot;robot_name}&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Empty substitution&quot;</span><span class="p">,</span> <span class="s2">&quot;$</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Unclosed quote&quot;</span><span class="p">,</span> <span class="s2">&quot;${arg &#39;unclosed}&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Unknown key&quot;</span><span class="p">,</span> <span class="s2">&quot;$</span><span class="si">{unknown_key}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Nested unbalanced&quot;</span><span class="p">,</span> <span class="s2">&quot;${eval $</span><span class="si">{x}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+    <span class="p">]</span>
+    
+    <span class="n">passed</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">failed</span> <span class="o">=</span> <span class="mi">0</span>
+    
+    <span class="k">for</span> <span class="n">desc</span><span class="p">,</span> <span class="n">test_str</span><span class="p">,</span> <span class="n">should_succeed</span> <span class="ow">in</span> <span class="n">test_cases</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">apply_substitutions</span><span class="p">(</span>
+                <span class="n">test_str</span><span class="p">,</span>
+                <span class="n">substitutions</span><span class="o">=</span><span class="n">test_substitutions</span><span class="p">,</span>
+                <span class="n">context</span><span class="o">=</span><span class="n">test_context</span><span class="p">,</span>
+                <span class="n">eval_type</span><span class="o">=</span><span class="s2">&quot;full&quot;</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">should_succeed</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ </span><span class="si">{</span><span class="n">desc</span><span class="si">:</span><span class="s2">25</span><span class="si">}</span><span class="s2"> | &#39;</span><span class="si">{</span><span class="n">test_str</span><span class="si">}</span><span class="s2">&#39; -&gt; &#39;</span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                <span class="n">passed</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✗ </span><span class="si">{</span><span class="n">desc</span><span class="si">:</span><span class="s2">25</span><span class="si">}</span><span class="s2"> | Expected failure but got: &#39;</span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                <span class="n">failed</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">SubstitutionError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">should_succeed</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ </span><span class="si">{</span><span class="n">desc</span><span class="si">:</span><span class="s2">25</span><span class="si">}</span><span class="s2"> | Correctly failed: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">passed</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✗ </span><span class="si">{</span><span class="n">desc</span><span class="si">:</span><span class="s2">25</span><span class="si">}</span><span class="s2"> | Unexpected error: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">failed</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✗ </span><span class="si">{</span><span class="n">desc</span><span class="si">:</span><span class="s2">25</span><span class="si">}</span><span class="s2"> | Unexpected exception: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">failed</span> <span class="o">+=</span> <span class="mi">1</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Results: </span><span class="si">{</span><span class="n">passed</span><span class="si">}</span><span class="s2"> passed, </span><span class="si">{</span><span class="n">failed</span><span class="si">}</span><span class="s2"> failed&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+    
+    <span class="c1"># Additional edge case tests</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Edge Case Tests:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+    
+    <span class="n">edge_cases</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">&quot;Escaped quotes&quot;</span><span class="p">,</span> <span class="s2">&quot;${arg </span><span class="se">\&quot;</span><span class="s2">test</span><span class="se">\\\&quot;</span><span class="s2">value</span><span class="se">\&quot;</span><span class="s2">}&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Multiple dollars&quot;</span><span class="p">,</span> <span class="s2">&quot;$100&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Whitespace in sub&quot;</span><span class="p">,</span> <span class="s2">&quot;${  robot_name  }&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Number in context&quot;</span><span class="p">,</span> <span class="s2">&quot;$</span><span class="si">{port}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+    <span class="p">]</span>
+    
+    <span class="k">for</span> <span class="n">desc</span><span class="p">,</span> <span class="n">test_str</span><span class="p">,</span> <span class="n">should_succeed</span> <span class="ow">in</span> <span class="n">edge_cases</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">apply_substitutions</span><span class="p">(</span>
+                <span class="n">test_str</span><span class="p">,</span>
+                <span class="n">substitutions</span><span class="o">=</span><span class="n">test_substitutions</span><span class="p">,</span>
+                <span class="n">context</span><span class="o">=</span><span class="n">test_context</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">desc</span><span class="si">:</span><span class="s2">20</span><span class="si">}</span><span class="s2"> | &#39;</span><span class="si">{</span><span class="n">test_str</span><span class="si">}</span><span class="s2">&#39; -&gt; &#39;</span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">desc</span><span class="si">:</span><span class="s2">20</span><span class="si">}</span><span class="s2"> | Error: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Nikolas Dahn.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

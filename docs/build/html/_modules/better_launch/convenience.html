@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.convenience &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.convenience &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
 
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" href="../../_static/logo.svg"/>
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/documentation_options.js?v=1ed6394b"></script>
       <script src="../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
@@ -82,8 +82,9 @@
 <span class="p">]</span>
 
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Any</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch</span><span class="w"> </span><span class="kn">import</span> <span class="n">BetterLaunch</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Node</span>
@@ -136,8 +137,8 @@
 <div class="viewcode-block" id="read_robot_description">
 <a class="viewcode-back" href="../../better_launch.html#better_launch.convenience.read_robot_description">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">read_robot_description</span><span class="p">(</span>
-    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">description_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">description_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">subdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">xacro_args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -148,9 +149,9 @@
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    package : str, optional</span>
-<span class="sd">        The package where the robot description file is located. May be `None` (see :py:meth:`BetterLaunch.find`)</span>
-<span class="sd">    description_file : str, optional</span>
+<span class="sd">    package : str</span>
+<span class="sd">        The package where the robot description file is located. May be `None` to use this launch file&#39;s package (see :py:meth:`BetterLaunch.find`).</span>
+<span class="sd">    description_file : str</span>
 <span class="sd">        The name of the robot description file (URDF or XACRO).</span>
 <span class="sd">    subdir : str, optional</span>
 <span class="sd">        A path fragment the description file must be located in.</span>
@@ -188,12 +189,14 @@
 
 <div class="viewcode-block" id="joint_state_publisher">
 <a class="viewcode-back" href="../../better_launch.html#better_launch.convenience.joint_state_publisher">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">joint_state_publisher</span><span class="p">(</span><span class="n">use_gui</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">node_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">joint_state_publisher</span><span class="p">(</span>
+    <span class="n">use_gui</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">node_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Starts a `joint_state_publisher` or `joint_state_publisher_gui` node.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    use_gui : bool</span>
+<span class="sd">    use_gui : bool, optional</span>
 <span class="sd">        Whether to use the GUI version of the `joint_state_publisher`.</span>
 <span class="sd">    node_name : str, optional</span>
 <span class="sd">        The name of the node. If not provided the name of the executable will be used. Will be anonymized unless `anonymous=False` is passed.</span>
@@ -229,8 +232,8 @@
 <div class="viewcode-block" id="robot_state_publisher">
 <a class="viewcode-back" href="../../better_launch.html#better_launch.convenience.robot_state_publisher">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">robot_state_publisher</span><span class="p">(</span>
-    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">description_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">description_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">subdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">xacro_args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -241,9 +244,9 @@
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    package : str, optional</span>
-<span class="sd">        The name of the package containing the robot description file.</span>
-<span class="sd">    description_file : str, optional</span>
+<span class="sd">    package : str</span>
+<span class="sd">        The name of the package containing the robot description file. May be `None` to use this launch file&#39;s package (see :py:meth:`BetterLaunch.find`).</span>
+<span class="sd">    description_file : str</span>
 <span class="sd">        The name of the robot description for the robot. Typically a .sdf, .urdf or .xacro file.</span>
 <span class="sd">    subdir : str, optional</span>
 <span class="sd">        A path fragment the description file must be located in.</span>
@@ -344,33 +347,298 @@
         <span class="s2">&quot;static_transform_publisher&quot;</span><span class="p">,</span>
         <span class="s2">&quot;gazebo_world_tf&quot;</span><span class="p">,</span>
         <span class="n">cmd_args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span>
-        <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">log_level</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span></div>
 
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">spawn_controller</span><span class="p">(</span><span class="n">controller</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">manager</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;controller_manager&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Spawn the specified controller. </span>
+<span class="k">def</span><span class="w"> </span><span class="nf">spawn_controller_manager</span><span class="p">(</span>
+    <span class="n">params</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">robot_description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">remaps</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">cmd_args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;controller_manager&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Spawn a new controller manager.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    robot_description : str, optional</span>
+<span class="sd">        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by :py:meth:`read_robot_description`, however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.</span>
+<span class="sd">    params : str | dict[str, Any], optional</span>
+<span class="sd">        The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via :py:meth:`BetterLaunch.load_params`.</span>
+<span class="sd">    remaps : dict[str, str], optional</span>
+<span class="sd">        Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.</span>
+<span class="sd">    cmd_args: list[str], optional</span>
+<span class="sd">        Additional CLI arguments to pass to the spawner command (e.g. `--load-only`).</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        The name the controller manager node should use. The rename is qualified and so won&#39;t affect controllers spawned later (see `this document &lt;https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process&gt;`_ for details). Note however that many nodes and CLI programs (e.g. `ros2 control`) expect the manager to be named `controller_manager` and won&#39;t work properly otherwise.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Node</span>
+<span class="sd">        The node running the controller manager process.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
+
+    <span class="c1"># In ROS2 there isn&#39;t a central parameter server anymore. However, each ROS2 process stores</span>
+    <span class="c1"># context object with all ros args passed to it. If the process creates new nodes their</span>
+    <span class="c1"># startup arguments are populated from this context object. This way the controller manager</span>
+    <span class="c1"># can store parameters for other controllers even if they are only spawned later.</span>
+    <span class="c1"># See this very helpful summary for details:</span>
+    <span class="c1"># https://github.com/ros-controls/ros2_control/issues/335</span>
+
+    <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># In theory one could pass the config and then change it before a controller is loaded, </span>
+        <span class="c1"># but that seems debatable at best. If you truly want this, either pass the file path as</span>
+        <span class="c1"># a cmd arg, or keep the manager and controller configs separate and pass the later to </span>
+        <span class="c1"># spawn_controller below.</span>
+        <span class="c1"># process_args.extend([&quot;--param-file&quot;, params])</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">load_params</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">matching_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">robot_description</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">robot_description</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;&lt;?xml&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">bl</span><span class="o">.</span><span class="n">ros_distro</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="s2">&quot;j&quot;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Passing a robot description by value is deprecated in ROS Jazzy and beyond&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;robot_description&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">robot_description</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Assume it&#39;s a topic</span>
+            <span class="k">if</span> <span class="n">remaps</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">remaps</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">remaps</span><span class="p">[</span><span class="s2">&quot;robot_description&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">robot_description</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">bl</span><span class="o">.</span><span class="n">ros_distro</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">&lt;</span> <span class="s2">&quot;j&quot;</span><span class="p">:</span>
+            <span class="n">bl</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Note that in distros before Jazzy the controller_manager is subscribing to &#39;~/robot_description&#39; by default!&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">bl</span><span class="o">.</span><span class="n">node</span><span class="p">(</span>
+        <span class="n">package</span><span class="o">=</span><span class="s2">&quot;controller_manager&quot;</span><span class="p">,</span>
+        <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;ros2_control_node&quot;</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+        <span class="n">remaps</span><span class="o">=</span><span class="n">remaps</span><span class="p">,</span>
+        <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+        <span class="n">cmd_args</span><span class="o">=</span><span class="n">cmd_args</span><span class="p">,</span>
+        <span class="c1"># Prevent renaming nodes spawned by the manager</span>
+        <span class="c1"># See https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process</span>
+        <span class="n">remap_qualifier</span><span class="o">=</span><span class="s2">&quot;controller_manager&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">spawn_controller</span><span class="p">(</span>
+    <span class="n">controller</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">params</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">remaps</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">cmd_args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">manager</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;controller_manager&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># TODO find a way to return an interactable object</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Spawn the specified controller.</span>
+
+<span class="sd">    Note that right now there is no way to directly interact with the loaded controller&#39;s node due to the limited API ROS2 provides. I will find a way...</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    controller : str</span>
 <span class="sd">        The controller to spwawn.</span>
-<span class="sd">    manager : str</span>
+<span class="sd">    params : str | list[str] | dict[str, Any], optional</span>
+<span class="sd">        Additional parameters for the controller node. Can be a path to a ROS2 config, a list of paths, or a dict with the actual key-value pairs. Note that passing a dict is only </span>
+<span class="sd">        supported for ROS Jazzy and newer.</span>
+<span class="sd">    remaps : dict[str, str], optional</span>
+<span class="sd">        Additional remaps specific to the controller. These will be qualified with the controller&#39;s name to avoid conflicts.</span>
+<span class="sd">    cmd_args: list[str], optional</span>
+<span class="sd">        Additional CLI arguments to pass to the spawner command (e.g. `--load-only`).</span>
+<span class="sd">    manager : str, optional</span>
 <span class="sd">        The name of the controller_manager node.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    Node</span>
-<span class="sd">        The node running the spawner process.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">bl</span><span class="o">.</span><span class="n">node</span><span class="p">(</span>
-        <span class="n">package</span><span class="o">=</span><span class="s2">&quot;controller_manager&quot;</span><span class="p">,</span>
-        <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;spawner&quot;</span><span class="p">,</span>
-        <span class="n">cmd_args</span><span class="o">=</span><span class="p">[</span><span class="n">controller</span><span class="p">,</span> <span class="s2">&quot;--controller-manager&quot;</span><span class="p">,</span> <span class="n">manager</span><span class="p">],</span>
-        <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="p">)</span>
+    <span class="n">process_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">controller</span><span class="p">,</span> <span class="s2">&quot;--controller-manager&quot;</span><span class="p">,</span> <span class="n">manager</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">cmd_args</span><span class="p">:</span>
+        <span class="n">process_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cmd_args</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">load_params</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">params</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">bl</span><span class="o">.</span><span class="n">ros_distro</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">&lt;</span> <span class="s2">&quot;j&quot;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Passing controller params directly is only supported in Jazzy and newer&quot;</span>
+                <span class="p">)</span>
+            
+            <span class="n">manager_node</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">query_node</span><span class="p">(</span><span class="n">manager</span><span class="p">,</span> <span class="n">include_foreign</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">manager_node</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Could not find controller manager &quot;</span><span class="si">{</span><span class="n">manager</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+            <span class="c1"># In theory we could pass --controller-ros-args to the spawner and let the spawner </span>
+            <span class="c1"># handle these, but it unfortunately does some very naive string splitting which </span>
+            <span class="c1"># messes up more complex arguments containing e.g. lists. </span>
+            <span class="n">manager_node</span><span class="o">.</span><span class="n">set_live_params</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">controller</span><span class="si">}</span><span class="s2">.node_options_args&quot;</span><span class="p">:</span> <span class="p">[</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:=</span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                    <span class="p">]</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="c1"># Usually we&#39;d load the parameters here and pass them to the controller manager, </span>
+            <span class="c1"># but this functionality only exists from jazzy onwards</span>
+            <span class="n">process_args</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;--param-file&quot;</span><span class="p">,</span> <span class="n">params</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+                <span class="n">process_args</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;--param-file&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Controller params of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> not supported&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">remaps</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">bl</span><span class="o">.</span><span class="n">ros_distro</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">&lt;</span> <span class="s2">&quot;j&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Passing controller params directly is only supported in Jazzy and newer&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">remaps</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Qualify remaps to avoid accidental remaps for other controllers </span>
+            <span class="n">process_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                <span class="p">[</span><span class="s2">&quot;--controller-ros-args&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;-r </span><span class="si">{</span><span class="n">controller</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+
+    <span class="c1"># This is NOT a node! Could also use the spawner python implementation directly, but that</span>
+    <span class="c1"># would just introduce another dependency with little benefit.</span>
+    <span class="n">spawner</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;controller_manager&quot;</span><span class="p">,</span> <span class="s2">&quot;controller_manager/spawner&quot;</span><span class="p">)</span>
+    <span class="n">bl</span><span class="o">.</span><span class="n">exec</span><span class="p">([</span><span class="s2">&quot;python3&quot;</span><span class="p">,</span> <span class="n">spawner</span><span class="p">]</span> <span class="o">+</span> <span class="n">process_args</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">record_topics</span><span class="p">(</span>
+    <span class="n">topics</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">bagfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">camera_topic</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;image_rect&quot;</span><span class="p">,</span>
+    <span class="n">include_image_topics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_compressed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">max_bag_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">max_bag_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mcap&quot;</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Record a rosbag. </span>
+<span class="sd">    </span>
+<span class="sd">    Will record the specified topics, or automatically select topics based on currently available topics and arguments.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    bagfile : str, optional</span>
+<span class="sd">        Where to record the bagfile. If not specified it will use the rosbag default.</span>
+<span class="sd">    camera_image_topic : str, optional</span>
+<span class="sd">        If specified, only record camera topics if they contain this string. Assumes that the word &quot;camera&quot; appears in the topic path. If specified it is independent from `include_image_topics`. Ignored if topics are specified.</span>
+<span class="sd">    include_image_topics : bool, optional</span>
+<span class="sd">        Whether to include non-camera image topics. Ignored if topics are specified.</span>
+<span class="sd">    include_compressed : bool, optional</span>
+<span class="sd">        Whether to include compressed image topics. Ignored if topics are specified.</span>
+<span class="sd">    max_bag_duration : int, optional</span>
+<span class="sd">        Start recording a new bagfile after recording for X seconds.</span>
+<span class="sd">    max_bag_size : int, optional</span>
+<span class="sd">        Start recording a new bagfile after recording X MB.</span>
+<span class="sd">    format : str, optional</span>
+<span class="sd">        Rosbag format, should be mcap or sqlite3.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="p">()</span>
+
+    <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;ros2&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;bag&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;record&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;--storage&quot;</span><span class="p">,</span>
+        <span class="nb">format</span><span class="p">,</span>
+        <span class="s2">&quot;--max-bag-duration&quot;</span><span class="p">,</span>
+        <span class="n">max_bag_duration</span><span class="p">,</span>
+        <span class="s2">&quot;--max-bag-size&quot;</span><span class="p">,</span>
+        <span class="n">max_bag_size</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">bagfile</span><span class="p">:</span>
+        <span class="n">cmd</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="n">bagfile</span><span class="p">])</span>
+
+    <span class="k">if</span> <span class="n">topics</span><span class="p">:</span>
+        <span class="n">cmd</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">topics</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">topics</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">shared_node</span><span class="o">.</span><span class="n">get_topic_names_and_types</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">topic</span><span class="p">,</span> <span class="n">types</span> <span class="ow">in</span> <span class="n">topics</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="s2">&quot;sensor_msgs/msg/Image&quot;</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s2">&quot;camera&quot;</span> <span class="ow">in</span> <span class="n">topic</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">camera_topic</span> <span class="ow">and</span> <span class="n">camera_topic</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">topic</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                <span class="k">elif</span> <span class="ow">not</span> <span class="n">include_image_topics</span><span class="p">:</span>
+                    <span class="c1"># Not the camera topic we want and we don&#39;t want other image topics either</span>
+                    <span class="k">continue</span>
+
+                <span class="k">if</span> <span class="s2">&quot;/compressed/&quot;</span> <span class="ow">in</span> <span class="n">topic</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">include_compressed</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+            <span class="n">cmd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">topic</span><span class="p">)</span>
+
+    <span class="n">bl</span><span class="o">.</span><span class="n">exec</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">record_topics_from_file</span><span class="p">(</span>
+    <span class="n">topic_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">bagfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_bag_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">max_bag_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mcap&quot;</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Record a rosbag. </span>
+<span class="sd">    </span>
+<span class="sd">    Reads topics to record from a text-file. Empty lines and lines starting with &quot;#&quot; will be ignored.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    bagfile : str, optional</span>
+<span class="sd">        Where to record the bagfile. If not specified it will use the rosbag default.</span>
+<span class="sd">    topic_file : str, optional</span>
+<span class="sd">        Text file with topics to record. Lines starting with &quot;#&quot; will be ignored.</span>
+<span class="sd">    max_bag_duration : int, optional</span>
+<span class="sd">        Start recording a new bagfile after recording for X seconds.</span>
+<span class="sd">    max_bag_size : int, optional</span>
+<span class="sd">        Start recording a new bagfile after recording X MB.</span>
+<span class="sd">    format : str, optional</span>
+<span class="sd">        Rosbag format, should be mcap or sqlite3.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="p">()</span>
+
+    <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;ros2&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;bag&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;record&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;--storage&quot;</span><span class="p">,</span>
+        <span class="nb">format</span><span class="p">,</span>
+        <span class="s2">&quot;--max-bag-duration&quot;</span><span class="p">,</span>
+        <span class="n">max_bag_duration</span><span class="p">,</span>
+        <span class="s2">&quot;--max-bag-size&quot;</span><span class="p">,</span>
+        <span class="n">max_bag_size</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">bagfile</span><span class="p">:</span>
+        <span class="n">cmd</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="n">bagfile</span><span class="p">])</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">topic_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+    
+    <span class="n">topics</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">trim</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span> <span class="ow">or</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="n">topics</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+    <span class="n">bl</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">topics</span><span class="p">)</span><span class="si">}</span><span class="s2"> topics will be recorded&quot;</span><span class="p">)</span>
+    <span class="n">bl</span><span class="o">.</span><span class="n">exec</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
 </pre></div>
 
            </div>

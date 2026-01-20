@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.launcher &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.launcher &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
 
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" href="../../_static/logo.svg"/>
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/documentation_options.js?v=1ed6394b"></script>
       <script src="../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
@@ -78,14 +78,15 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">signal</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fnmatch</span><span class="w"> </span><span class="kn">import</span> <span class="n">fnmatch</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">concurrent.futures</span><span class="w"> </span><span class="kn">import</span> <span class="n">Future</span><span class="p">,</span> <span class="n">CancelledError</span><span class="p">,</span> <span class="ne">TimeoutError</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">secrets</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">rclpy.node</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Node</span> <span class="k">as</span> <span class="n">RosNode</span><span class="p">,</span>
@@ -104,20 +105,6 @@
         <span class="n">ActionClient</span> <span class="k">as</span> <span class="n">RosActionClient</span><span class="p">,</span>
     <span class="p">)</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="c1"># For anonymous nodes</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">wonderwords</span>
-
-    <span class="n">_uuid_source</span> <span class="o">=</span> <span class="n">wonderwords</span><span class="o">.</span><span class="n">RandomWord</span><span class="p">(</span><span class="n">exclude_with_spaces</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_generate_uuid</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">_uuid_source</span><span class="o">.</span><span class="n">word</span><span class="p">()</span>
-
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_generate_uuid</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.elements</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Group</span><span class="p">,</span>
@@ -132,16 +119,13 @@
     <span class="n">find_process_for_node</span><span class="p">,</span>
     <span class="n">find_foreign_nodes</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.substitutions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">default_substitution_handlers</span><span class="p">,</span>
-    <span class="n">substitute_tokens</span><span class="p">,</span>
-<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.introspection</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">find_function_frame</span><span class="p">,</span>
     <span class="n">find_calling_frame</span><span class="p">,</span>
     <span class="n">find_launchthis_function</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.better_logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogSink</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.random_names</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_unique_word</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.ros.ros_adapter</span><span class="w"> </span><span class="kn">import</span> <span class="n">ROSAdapter</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.ros</span><span class="w"> </span><span class="kn">import</span> <span class="n">logging</span> <span class="k">as</span> <span class="n">roslog</span>
 
@@ -216,6 +200,8 @@
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">launch_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">root_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">short_unique_names</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Note that BetterLaunch is a singleton: only the first invocation to `__init__` will succeed. All subsequent calls will return the previous instance. If you need access to the BetterLaunch instance outside your launch function, consider using one of the following classmethods instead:</span>
 <span class="sd">        * :py:meth:`BetterLaunch.instance &lt;_BetterLaunchMeta.instance&gt;`</span>
@@ -229,6 +215,8 @@
 <span class="sd">            Override the launch arguments BetterLaunch has access to. By default this will be the launch function&#39;s arguments. These will mainly be used for passing to included launch files.</span>
 <span class="sd">        root_namespace : str, optional</span>
 <span class="sd">            The namespace of the root group.</span>
+<span class="sd">        short_unique_names : bool, optional</span>
+<span class="sd">            If True, use short random hex strings for unique names instead of random words.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">_launchfile</span><span class="p">:</span>
@@ -261,6 +249,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_sigterm_received</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_shutdown_future</span> <span class="o">=</span> <span class="n">Future</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_shutdown_callbacks</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">short_unique_names</span> <span class="o">=</span> <span class="n">short_unique_names</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">hello</span><span class="p">()</span></div>
 
@@ -317,10 +307,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">exit_with_last_node</span><span class="p">:</span>
             <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shutdown_future</span><span class="o">.</span><span class="n">done</span><span class="p">():</span>
-                <span class="n">nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
-                        <span class="n">include_components</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="n">include_launch_service</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="n">include_foreign</span><span class="o">=</span><span class="kc">False</span>
+                <span class="n">nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_nodes</span><span class="p">(</span>
+                    <span class="n">include_components</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">include_launch_service</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">include_foreign</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="p">)</span>
 
                 <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="ow">not</span> <span class="n">n</span><span class="o">.</span><span class="n">is_running</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">):</span>
@@ -334,25 +324,44 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_shutdown_future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
             <span class="k">except</span> <span class="p">(</span><span class="n">CancelledError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">):</span>
-                <span class="k">pass</span></div>
+                <span class="k">pass</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reminder: log files are at </span><span class="si">{</span><span class="n">roslog</span><span class="o">.</span><span class="n">launch_config</span><span class="o">.</span><span class="n">log_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="BetterLaunch.get_unique_name">
 <a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.get_unique_name">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_unique_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Adds a unique suffix to the provided string.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_unique_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">check_running_nodes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a unique name. If a name is provided it will be prepended with an underscore.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        name : str, optional</span>
 <span class="sd">            The string to use as the base.</span>
+<span class="sd">        check_running_nodes : bool, optional</span>
+<span class="sd">            If true, check the currently running ROS2 nodes for name collisions.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        str</span>
-<span class="sd">            The passed in string with a unique suffix.</span>
+<span class="sd">            A unique name.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">_generate_uuid</span><span class="p">()</span></div>
+        <span class="n">node_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">check_running_nodes</span><span class="p">:</span>
+            <span class="n">nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_nodes</span><span class="p">(</span><span class="n">include_components</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_foreign</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">node_names</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">short_unique_names</span><span class="p">:</span>
+                <span class="n">u</span> <span class="o">=</span> <span class="n">secrets</span><span class="o">.</span><span class="n">token_hex</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">u</span> <span class="o">=</span> <span class="n">get_unique_word</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+                <span class="n">u</span> <span class="o">=</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">u</span>
+
+            <span class="k">if</span> <span class="n">u</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node_names</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">u</span></div>
 
 
 <div class="viewcode-block" id="BetterLaunch.get_groups">
@@ -378,25 +387,27 @@
         <span class="k">return</span> <span class="n">groups</span></div>
 
 
-<div class="viewcode-block" id="BetterLaunch.get_bl_nodes">
-<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.get_bl_nodes">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_bl_nodes</span><span class="p">(</span>
+<div class="viewcode-block" id="BetterLaunch.get_nodes">
+<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.get_nodes">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_nodes</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">include_components</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">include_launch_service</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">include_foreign</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">AbstractNode</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a list of all nodes in the order they were added. Components will be added right after their composers. If a ROS2 launch service has been started it will be added at the very end.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a list of all nodes in the order they were added. Components will be added right after their composers.</span>
+
+<span class="sd">        Note that this will only return nodes that can be managed by better_launch. If a node process creates multiple nodes only the first node can be discovered, as ROS2 does not provide an API linking a node to its process (or even just its package).</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        include_components : bool, optional</span>
-<span class="sd">            Whether to include :py:class:`Component` instances.</span>
+<span class="sd">            Whether to include :py:class:`Component` instances. This will *not* include components that have been loaded from outside (e.g. `ros2 component load`).</span>
 <span class="sd">        include_launch_service : bool, optional</span>
-<span class="sd">            Whether to include the ROS2 launch service wrapper if it was created.</span>
+<span class="sd">            Whether to include the ROS2 launch service wrapper if it was created. Will be included after the regular nodes and before the foreign nodes.</span>
 <span class="sd">        include_foreign : bool, optional</span>
-<span class="sd">            Whether to include foreign nodes that have not been started by this launcher instance.</span>
+<span class="sd">            Whether to include foreign nodes that have not been started by this launcher instance. Will be appended at the end of the returned nodes. However, take heed of the above warning regarding node discovery.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -410,33 +421,80 @@
             <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
                 <span class="n">nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">include_components</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">Composer</span><span class="p">):</span>
+                    <span class="c1"># Components may have been added from outside (e.g. ros2 control load)</span>
                     <span class="n">nodes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">managed_components</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">include_launch_service</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ros2_launcher</span><span class="p">:</span>
             <span class="n">nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ros2_launcher</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">include_foreign</span><span class="p">:</span>
-            <span class="n">nodes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">find_foreign_nodes</span><span class="p">())</span>
+            <span class="c1"># Note that self.shared_node.get_node_names_and_namespaces() will only give us the </span>
+            <span class="c1"># names and namespaces, but no handle on the actual processes, not even a package</span>
+
+            <span class="c1"># TODO should check if it&#39;s a composer and has subnodes, but we won&#39;t know the </span>
+            <span class="c1"># components&#39; handles or plugins...</span>
+            <span class="c1"># if include_components:</span>
+            <span class="c1">#     for f in foreign:</span>
+            <span class="c1">#         if Composer.is_composer(f):</span>
+            <span class="c1">#             composer = Composer(f)</span>
+            <span class="c1">#             for cid, component in composer.get_live_components().items():</span>
+            <span class="c1">#                 nodes.append(Component(...))</span>
+            
+            <span class="n">foreign</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_foreign_nodes</span><span class="p">()</span>
+            <span class="n">nodes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">foreign</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">nodes</span></div>
+
+
+<div class="viewcode-block" id="BetterLaunch.get_foreign_nodes">
+<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.get_foreign_nodes">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_foreign_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">ForeignNode</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Lists all running nodes that have a process but have not been started by this better_launch process.</span>
+
+<span class="sd">        Note however that if a process starts multiple nodes, only the first node can be discovered. This is because ROS2 does not provide an API for getting the process parameters from a node.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list[ForeignNode]</span>
+<span class="sd">            All nodes with a process that have not been started by this better_launch process.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">find_foreign_nodes</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="BetterLaunch.all_ros2_node_names">
+<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.all_ros2_node_names">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">all_ros2_node_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a list of all currently registered node&#39;s full names (namespace + name).</span>
+
+<span class="sd">        This list is guaranteed to be complete as far as ROS2 is concerned. If you require a node object you can actually interact with consider using :py:meth:`query_node` or :py:meth:`get_nodes` instead.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list[str]</span>
+<span class="sd">            A list of all running nodes&#39; full names.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">n</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_node</span><span class="o">.</span><span class="n">get_node_names_and_namespaces</span><span class="p">()</span>
+        <span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="BetterLaunch.query_node">
 <a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.query_node">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">query_node</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">fullname_regex</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">include_components</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">include_launch_service</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">include_foreign</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AbstractNode</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve the first node whos :py:meth:`AbstractNode.fullname` matches the provided regex.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve the first node matching the provided pattern.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        name_regex : str</span>
-<span class="sd">            The regex to match the nodes&#39; full names against.</span>
+<span class="sd">        pattern : str</span>
+<span class="sd">            Either the name of a node, or a qualified node name (i.e. namespace + name). If a namespace is included it must be absolute, but may include `*` or `**` wildcards to skip one or more groups (via :py:meth:`fnmatch`).</span>
 <span class="sd">        include_components : bool, optional</span>
 <span class="sd">            Whether to include components in the results, if any.</span>
 <span class="sd">        include_launch_service : bool, optional</span>
@@ -447,15 +505,14 @@
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        AbstractNode</span>
-<span class="sd">            The first node matching the provided regex, or None if none matched.</span>
+<span class="sd">            The first node matching the provided pattern, or None if none matched.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">reg</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">fullname_regex</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_nodes</span><span class="p">(</span>
             <span class="n">include_components</span><span class="o">=</span><span class="n">include_components</span><span class="p">,</span>
             <span class="n">include_launch_service</span><span class="o">=</span><span class="n">include_launch_service</span><span class="p">,</span>
             <span class="n">include_foreign</span><span class="o">=</span><span class="n">include_foreign</span><span class="p">,</span>
         <span class="p">):</span>
-            <span class="k">if</span> <span class="n">reg</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">fullname</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">pattern</span> <span class="ow">or</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">fullname</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
                 <span class="k">return</span> <span class="n">node</span>
 
         <span class="k">return</span> <span class="kc">None</span></div>
@@ -465,18 +522,18 @@
 <a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.query_nodes">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">query_nodes</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">name_regex</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">include_components</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">include_launch_service</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">include_foreign</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">AbstractNode</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve all nodes whos :py:meth:`AbstractNode.fullname` matches the provided regex.</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">AbstractNode</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Yield all nodes matching the provided pattern.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        name_regex : str</span>
-<span class="sd">            The regex to match the nodes&#39; full names against.</span>
+<span class="sd">        pattern : str</span>
+<span class="sd">            Either the name of a node, or a qualified node name (i.e. namespace + name). If a namespace is included it must be absolute, but may include `*` or `**` wildcards to skip one or more groups (via :py:meth:`fnmatch`).</span>
 <span class="sd">        include_components : bool, optional</span>
 <span class="sd">            Whether to include components in the results, if any.</span>
 <span class="sd">        include_launch_service : bool, optional</span>
@@ -486,26 +543,23 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        list[AbstractNode]</span>
-<span class="sd">            A list of all nodes matching the regex.</span>
+<span class="sd">        Generator[AbstractNode, None, None]</span>
+<span class="sd">            The nodes matching the pattern.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">reg</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">name_regex</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">[</span>
-            <span class="n">node</span>
-            <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
-                <span class="n">include_components</span><span class="o">=</span><span class="n">include_components</span><span class="p">,</span>
-                <span class="n">include_launch_service</span><span class="o">=</span><span class="n">include_launch_service</span><span class="p">,</span>
-                <span class="n">include_foreign</span><span class="o">=</span><span class="n">include_foreign</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="k">if</span> <span class="n">reg</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">fullname</span><span class="p">)</span>
-        <span class="p">]</span></div>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_nodes</span><span class="p">(</span>
+            <span class="n">include_components</span><span class="o">=</span><span class="n">include_components</span><span class="p">,</span>
+            <span class="n">include_launch_service</span><span class="o">=</span><span class="n">include_launch_service</span><span class="p">,</span>
+            <span class="n">include_foreign</span><span class="o">=</span><span class="n">include_foreign</span><span class="p">,</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">pattern</span> <span class="ow">or</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">fullname</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">node</span></div>
 
 
-<div class="viewcode-block" id="BetterLaunch.ros_version">
-<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.ros_version">[docs]</a>
+<div class="viewcode-block" id="BetterLaunch.ros_distro">
+<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.ros_distro">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">ros_version</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the name of the currently sourced ros version (i.e. *$ROS_VERSION*).&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ros_distro</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the name of the currently sourced ros distro (i.e. *$ROS_DISTRO*).&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;ROS_DISTRO&quot;</span><span class="p">]</span></div>
 
 
@@ -542,6 +596,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;The most recent group.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_group_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
+    <span class="c1"># TODO remove?</span>
 <div class="viewcode-block" id="BetterLaunch.find_group_for_namespace">
 <a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.find_group_for_namespace">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">find_group_for_namespace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">create</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Group</span><span class="p">:</span>
@@ -647,7 +702,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Shutdown: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="c1"># Tell all nodes to shut down</span>
-        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_nodes</span><span class="p">(</span>
             <span class="n">include_components</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_launch_service</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_foreign</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
@@ -697,9 +752,7 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">package</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">subdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
-        <span class="n">substitutions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">subdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;**&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve a path to a file or package.</span>
 
@@ -721,8 +774,6 @@
 <span class="sd">            Name of a file to look for.</span>
 <span class="sd">        subdir : str, optional</span>
 <span class="sd">            A glob pattern to locate subdirectories and files. See the `pathlib pattern language &lt;https://docs.python.org/3/library/pathlib.html#pathlib-pattern-language&gt;`_ for details.</span>
-<span class="sd">        substitutions : bool, optional</span>
-<span class="sd">            If True, text substitution strings within the package and base path will be resolved (see :py:meth:`resolve_strin​g`).</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -734,22 +785,17 @@
 <span class="sd">        ValueError</span>
 <span class="sd">            If `package` contains path separators, or if a `filename` is provided but could not be found within base path.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">resolve</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">substitutions</span><span class="p">:</span>
-            <span class="n">resolve</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_string</span>
-
-        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">resolve</span><span class="p">:</span>
-                <span class="n">filename</span> <span class="o">=</span> <span class="n">resolve</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
-
-            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-                <span class="k">return</span> <span class="n">filename</span>
+        <span class="k">if</span> <span class="n">filename</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;find(</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">subdir</span><span class="si">}</span><span class="s2">):1 -&gt; </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">filename</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">package</span><span class="p">:</span>
             <span class="n">package</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_package_for_path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">launchfile</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">package</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">package</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">pathsep</span> <span class="ow">in</span> <span class="n">package</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">package</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span> <span class="ow">in</span> <span class="n">package</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Package must be a single name, not a path (</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">)&quot;</span>
                 <span class="p">)</span>
@@ -757,10 +803,8 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">base_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="n">resolve</span><span class="p">:</span>
-            <span class="n">base_path</span> <span class="o">=</span> <span class="n">resolve</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">subdir</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span> <span class="ow">and</span> <span class="n">subdir</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;**&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;find(</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">subdir</span><span class="si">}</span><span class="s2">):2 -&gt; </span><span class="si">{</span><span class="n">base_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">base_path</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">subdir</span><span class="p">:</span>
@@ -769,70 +813,42 @@
         <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">subdir</span><span class="p">):</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="p">:</span>
                 <span class="c1"># Return the first candidate</span>
-                <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">candidate</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">absolute</span><span class="p">())</span>
+                <span class="n">ret</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">candidate</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">absolute</span><span class="p">())</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;find(</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">subdir</span><span class="si">}</span><span class="s2">):3 -&gt; </span><span class="si">{</span><span class="n">ret</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">ret</span>
 
             <span class="k">if</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span> <span class="ow">and</span> <span class="n">candidate</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;**/</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">):</span>
                 <span class="c1"># We found a match</span>
-                <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">candidate</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">absolute</span><span class="p">())</span>
+                <span class="n">ret</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">candidate</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">absolute</span><span class="p">())</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;find(</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">subdir</span><span class="si">}</span><span class="s2">):4 -&gt; </span><span class="si">{</span><span class="n">ret</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">ret</span>
 
             <span class="k">elif</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
                 <span class="c1"># Candidate is a dir, search the filename within</span>
                 <span class="n">ret</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">candidate</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;**/</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">ret</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">ret</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">absolute</span><span class="p">())</span>
+                    <span class="n">ret</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">ret</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">absolute</span><span class="p">())</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;find(</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">subdir</span><span class="si">}</span><span class="s2">):5 -&gt; </span><span class="si">{</span><span class="n">ret</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+                    <span class="k">return</span> <span class="n">ret</span>
 
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Could not find file or directory (filename=</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">, package=</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">, glob=</span><span class="si">{</span><span class="n">subdir</span><span class="si">}</span><span class="s2">)&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Could not find file or directory (package=</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">, filename=</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">, subdir=</span><span class="si">{</span><span class="n">subdir</span><span class="si">}</span><span class="s2">), searched path was </span><span class="si">{</span><span class="n">base_path</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="p">)</span></div>
 
-
-<div class="viewcode-block" id="BetterLaunch.resolve_string">
-<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.resolve_string">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Replaces a variety of special strings in the provided string, usually a path.</span>
-
-<span class="sd">        This is similar to what ROS1 could do when resolving paths in XML launch files. Substitutions always have the form `$(&lt;substitution-type&gt; &lt;substitution-args&gt;)`. Substitutions can also be nested, so the following is possible:</span>
-
-<span class="sd">        ``$(eval $(arg x) * 5)``  -&gt;  if x=2, this will be resolved to 10</span>
-
-<span class="sd">        Note that the underlying algorithm will likely fail if it encounters additional brackets within the string.</span>
-
-<span class="sd">        The following substitutions are supported:</span>
-<span class="sd">        * `$(find &lt;filename&gt; &lt;package&gt; &lt;subdir&gt;)`: return the result of :py:meth:`find`. Note that substitution arguments are always sequential (not kwargs).</span>
-<span class="sd">        * `$(arg &lt;name&gt; &lt;default&gt;)`: return the value of an argument passed to the launch function or `&lt;default&gt;` if it doesn&#39;t exist. Raises KeyError if no default is provided and no default was provided.</span>
-<span class="sd">        * `$(param &lt;full-node-name&gt; &lt;param&gt;)`: retrieves the value of the ROS parameter `&lt;param&gt;` from the `&lt;full-node-name&gt;` (i.e. namespace + node name). Raises KeyError if the node does not exist or ValueError if the node does not have the specified parameter.</span>
-<span class="sd">        * `$(env &lt;key&gt; &lt;default&gt;)`: return the value of the environment variable `&lt;key&gt;` or `&lt;default&gt;` if it doesn&#39;t exist. Raises KeyError if no default is provided and no default was provided.</span>
-<span class="sd">        * `$(eval &lt;python-snippet&gt;)`: returns the result from evaluating the provided `&lt;python-snippet&gt;`. Typical use cases include simple math and assembling strings. **Note** that this indeed uses python&#39;s :py:func:`eval`.</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        s : str</span>
-<span class="sd">            The string to apply substitutions to.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        str</span>
-<span class="sd">            The string with all substitutions involved.</span>
-<span class="sd">        Raises</span>
-<span class="sd">        ------</span>
-<span class="sd">        KeyError, ValueError</span>
-<span class="sd">            Depending on the substitution that failed.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s2">&quot;&quot;</span>
-
-        <span class="k">return</span> <span class="n">substitute_tokens</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">default_substitution_handlers</span><span class="p">(</span><span class="s2">&quot;full&quot;</span><span class="p">))</span></div>
 
 
 <div class="viewcode-block" id="BetterLaunch.load_params">
 <a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.load_params">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">load_params</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">configfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">package</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">configfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">subdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">qualifier</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Node</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">matching_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Load parameters from a yaml file located through :py:meth:`find`.</span>
 
@@ -858,6 +874,8 @@
 <span class="sd">            A path fragment that the config file must be located in.</span>
 <span class="sd">        qualifier : str | Node, optional</span>
 <span class="sd">            Used to specifiy which section of the config to return.</span>
+<span class="sd">        matching_only : bool, optional</span>
+<span class="sd">            If True, load only those params matching the qualifier. If no qualifier was given, only load global params (and those under `/**`).</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -874,61 +892,50 @@
         <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">configfile</span><span class="p">,</span> <span class="n">subdir</span><span class="p">)</span>
 
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">params</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="n">is_ros_params</span> <span class="o">=</span> <span class="s2">&quot;ros__parameters&quot;</span> <span class="ow">in</span> <span class="n">content</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
 
+        <span class="c1"># Return the entire config if it doesn&#39;t follow the ros pattern</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_ros_params</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">params</span>
+
+        <span class="c1"># No node- or namespace specific sections</span>
         <span class="k">if</span> <span class="s2">&quot;ros__parameters&quot;</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
-            <span class="c1"># Return the entire config if it doesn&#39;t contain sections for different nodes/namespaces</span>
             <span class="k">return</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;ros__parameters&quot;</span><span class="p">]</span>
 
         <span class="n">final_params</span> <span class="o">=</span> <span class="p">{}</span>
 
-        <span class="k">if</span> <span class="n">qualifier</span><span class="p">:</span>
-            <span class="n">ns</span> <span class="o">=</span> <span class="n">qualifier</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ns</span><span class="p">,</span> <span class="n">AbstractNode</span><span class="p">):</span>
-                <span class="n">ns</span> <span class="o">=</span> <span class="n">ns</span><span class="o">.</span><span class="n">fullname</span>
+        <span class="c1"># Depth-first search through the params to find any &quot;ros__parameters&quot; keys</span>
+        <span class="n">todo</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">params</span><span class="p">)]</span>
+        <span class="k">while</span> <span class="n">todo</span><span class="p">:</span>
+            <span class="n">path</span><span class="p">,</span> <span class="n">cur</span> <span class="o">=</span> <span class="n">todo</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
-            <span class="n">ns</span> <span class="o">=</span> <span class="n">ns</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">cur</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;**&quot;</span><span class="p">,</span> <span class="s2">&quot;/**&quot;</span><span class="p">,</span> <span class="s2">&quot;ros__parameters&quot;</span><span class="p">):</span>
+                    <span class="n">val</span> <span class="o">=</span> <span class="n">val</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ros__parameters&quot;</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
 
-            <span class="c1"># See https://github.com/ros2/design/blob/gh-pages/articles/160_ros_command_line_arguments.md</span>
-            <span class="k">def</span><span class="w"> </span><span class="nf">path_to_regex</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-                <span class="n">parts</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-                <span class="n">regex_parts</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="c1"># Global parameters should always be included</span>
+                    <span class="k">if</span> <span class="p">(</span>
+                        <span class="ow">not</span> <span class="n">path</span>
+                        <span class="ow">or</span> <span class="ow">not</span> <span class="n">matching_only</span>
+                        <span class="ow">or</span> <span class="p">(</span><span class="n">qualifier</span> <span class="ow">and</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">qualifier</span><span class="p">,</span> <span class="n">path</span><span class="p">))</span>
+                    <span class="p">):</span>
+                        <span class="k">for</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param_val</span> <span class="ow">in</span> <span class="n">val</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                            <span class="n">param_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">param_name</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">path</span> <span class="k">else</span> <span class="n">param_name</span>
+                            <span class="n">final_params</span><span class="p">[</span><span class="n">param_path</span><span class="p">]</span> <span class="o">=</span> <span class="n">param_val</span>
 
-                <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">part</span> <span class="o">==</span> <span class="s2">&quot;**&quot;</span><span class="p">:</span>
-                        <span class="c1"># Match any number of tokens</span>
-                        <span class="n">regex_parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;.*&quot;</span><span class="p">)</span>
-                    <span class="k">elif</span> <span class="n">part</span> <span class="o">==</span> <span class="s2">&quot;*&quot;</span><span class="p">:</span>
-                        <span class="c1"># Match a single token</span>
-                        <span class="n">regex_parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[^/]+&quot;</span><span class="p">)</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="c1"># Regular token</span>
-                        <span class="n">regex_parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">part</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">branch_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">path</span> <span class="k">else</span> <span class="n">key</span>
+                    <span class="n">todo</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">branch_path</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
 
-                <span class="c1"># We do NOT start with a slash as only the node name could be specified</span>
-                <span class="k">return</span> <span class="s2">&quot;^&quot;</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">regex_parts</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;$&quot;</span>
-
-            <span class="c1"># According to the above design document, params files are not allowed to have nesting,</span>
-            <span class="c1"># (e.g. my_namespace/: other_namespace/node: ros__parameters), so no need to delve</span>
-            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                <span class="n">pattern</span> <span class="o">=</span> <span class="n">path_to_regex</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">ns</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">final_params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
-                    <span class="c1"># Don&#39;t break as there can be multiple matching entries due to wildcards</span>
-                    <span class="c1"># See https://docs.ros.org/en/jazzy/How-To-Guides/Node-arguments.html</span>
-
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">final_params</span><span class="p">:</span>
-                <span class="c1"># We didn&#39;t find any matching parameters, so this either doesn&#39;t contain a section</span>
-                <span class="c1"># for this node, or it is not a ros parameters file</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No param section matching &#39;</span><span class="si">{</span><span class="n">ns</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># No node or namespace provided, so we don&#39;t know which section we should resolve</span>
-            <span class="n">final_params</span> <span class="o">=</span> <span class="n">params</span>
-
-        <span class="c1"># Discard the ros__parameters section if it&#39;s at the root</span>
-        <span class="k">if</span> <span class="s2">&quot;ros__parameters&quot;</span> <span class="ow">in</span> <span class="n">final_params</span><span class="p">:</span>
-            <span class="n">final_params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">final_params</span><span class="p">[</span><span class="s2">&quot;ros__parameters&quot;</span><span class="p">])</span>
-            <span class="n">final_params</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;ros__parameters&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Some value that&#39;s not a dict and not a ros__parameters, just add it</span>
+                    <span class="n">leaf_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">path</span> <span class="k">else</span> <span class="n">key</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">matching_only</span> <span class="ow">or</span> <span class="p">(</span>
+                        <span class="n">qualifier</span> <span class="ow">and</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">qualifier</span><span class="p">,</span> <span class="n">leaf_path</span><span class="p">)</span>
+                    <span class="p">):</span>
+                        <span class="n">final_params</span><span class="p">[</span><span class="n">leaf_path</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
 
         <span class="k">return</span> <span class="n">final_params</span></div>
 
@@ -961,6 +968,74 @@
         <span class="n">module_name</span><span class="p">,</span> <span class="n">message_name</span> <span class="o">=</span> <span class="n">message_string</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">module_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="s2">&quot;.&quot;</span><span class="p">))</span>
         <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">message_name</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BetterLaunch.wait_for_topic">
+<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.wait_for_topic">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_topic</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait for the specified topic to appear.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        topic : str</span>
+<span class="sd">            The full path of the topic to wait for.</span>
+<span class="sd">        timeout : float, optional</span>
+<span class="sd">            How long to wait for the topic. Wait forever if None.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if the topic appeared within the timeout, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">published</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_node</span><span class="o">.</span><span class="n">get_topic_names_and_types</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">published</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="n">topic</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">now</span> <span class="o">+</span> <span class="n">timeout</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BetterLaunch.wait_for_service">
+<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.wait_for_service">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_service</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">service</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait for the specified service to appear.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        service : str</span>
+<span class="sd">            The full path of the service to wait for.</span>
+<span class="sd">        timeout : float, optional</span>
+<span class="sd">            How long to wait for the service. Wait forever if None.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if the service appeared within the timeout, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">published</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_node</span><span class="o">.</span><span class="n">get_service_names_and_types</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">published</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="n">service</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">now</span> <span class="o">+</span> <span class="n">timeout</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="BetterLaunch.subscriber">
@@ -1061,8 +1136,10 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">message_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">message_type</span><span class="p">:</span> <span class="nb">type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_ros_message_type</span><span class="p">(</span><span class="n">message_type</span><span class="p">)</span>
 
-        <span class="n">pub</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">publisher</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">message_type</span><span class="p">,</span> <span class="n">qos_profile</span><span class="p">)</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="n">message_type</span><span class="p">(</span><span class="o">**</span><span class="n">message_args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Publishing single message to </span><span class="si">{</span><span class="n">topic</span><span class="si">}</span><span class="s2">:</span><span class="se">\n</span><span class="s2">   </span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">pub</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">publisher</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">message_type</span><span class="p">,</span> <span class="n">qos_profile</span><span class="p">)</span>
         <span class="n">pub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">time_to_publish</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">time_to_publish</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
@@ -1210,6 +1287,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">req</span> <span class="o">=</span> <span class="n">service_type</span><span class="o">.</span><span class="n">Request</span><span class="p">()</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Calling service </span><span class="si">{</span><span class="n">topic</span><span class="si">}</span><span class="s2">:</span><span class="se">\n</span><span class="s2">   </span><span class="si">{</span><span class="n">req</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">srv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">service_client</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">service_type</span><span class="p">,</span> <span class="n">timeout</span><span class="p">,</span> <span class="n">qos_profile</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">call_async</span><span class="p">:</span>
@@ -1423,9 +1501,25 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="p">(</span>
-            <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">STDOUT</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="p">)</span></div>
+        <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">bl</span><span class="p">:</span>
+            <span class="n">logger</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">logger</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;Exec&quot;</span><span class="p">)</span>
+
+        <span class="c1"># In case this is a ROS2 process we want it to use a different format</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">env</span><span class="p">[</span><span class="s2">&quot;RCUTILS_CONSOLE_OUTPUT_FORMAT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;  [EXEC] </span><span class="si">{message}</span><span class="s2">&quot;</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Executing command </span><span class="si">{</span><span class="n">cmd</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">STDOUT</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ret</span></div>
 
 
 <div class="viewcode-block" id="BetterLaunch.node">
@@ -1454,6 +1548,8 @@
         <span class="n">lifecycle_waittime</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span>
         <span class="n">lifecycle_target</span><span class="p">:</span> <span class="n">LifecycleStage</span> <span class="o">=</span> <span class="n">LifecycleStage</span><span class="o">.</span><span class="n">ACTIVE</span><span class="p">,</span>
         <span class="n">raw</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">remap_qualifier</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">qualify_all_remaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new ROS2 node process. The bread and butter of every ROS setup!</span>
 
@@ -1505,6 +1601,10 @@
 <span class="sd">            The lifecycle stage to bring the node into after starting. Has no effect if `autostart_process` is False or if the node does not appear to be a lifecycle node after waiting `ros_waittime + lifecycle_waittime`.</span>
 <span class="sd">        raw : bool, optional</span>
 <span class="sd">            If True, don&#39;t treat the executable as a ROS2 node and avoid passing it any command line arguments except those specified.</span>
+<span class="sd">        remap_qualifier : str, optional</span>
+<span class="sd">            Additional qualifier that will precede the node&#39;s `__ns` and `__name` remap rules. Should be the original name of the node (i.e. whatever its default name is) and can be qualified with a namespace. Useful to prevent multiple nodes with the same name when a process can have more than one node (e.g. `controller_manager`). See `this ROS2 design doc &lt;https://design.ros2.org/articles/static_remapping.html#how-the-syntax-works`_ for more information.</span>
+<span class="sd">        qualify_all_remaps : bool, optional</span>
+<span class="sd">            If True, apply the `remap_qualifier` to all remaps that are not already qualified.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1549,6 +1649,8 @@
             <span class="n">respawn_delay</span><span class="o">=</span><span class="n">respawn_delay</span><span class="p">,</span>
             <span class="n">use_shell</span><span class="o">=</span><span class="n">use_shell</span><span class="p">,</span>
             <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span>
+            <span class="n">remap_qualifier</span><span class="o">=</span><span class="n">remap_qualifier</span><span class="p">,</span>
+            <span class="n">qualify_all_remaps</span><span class="o">=</span><span class="n">qualify_all_remaps</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">group</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
@@ -1594,6 +1696,8 @@
 <span class="sd">            bl = BetterLaunch()</span>
 <span class="sd">            with bl.compose(&quot;my-composer&quot;):</span>
 <span class="sd">                bl.component(&quot;my_package&quot;, &quot;mystuff:TheComponentOfDreams&quot;, &quot;normal-component&quot;)</span>
+
+<span class="sd">        Note that new nodes created by a component are using the composer&#39;s remaps. This for example applies to transform listeners (but not transform publishers). See the `related issue &lt;https://github.com/ros2/rclcpp/issues/2404&gt;`_ in rclcpp.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -1700,7 +1804,7 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown container mode &#39;</span><span class="si">{</span><span class="n">variant</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-            <span class="n">node_ref</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">executable</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">)</span>
+            <span class="n">node_ref</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">executable</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">remaps</span><span class="o">=</span><span class="n">component_remaps</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node_ref</span><span class="p">,</span> <span class="n">Composer</span><span class="p">):</span>
             <span class="n">comp</span> <span class="o">=</span> <span class="n">node_ref</span>
@@ -1868,7 +1972,7 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
                     <span class="n">source</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-                    
+
                 <span class="n">code</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">launchfile</span><span class="p">,</span> <span class="s2">&quot;exec&quot;</span><span class="p">)</span>
 
                 <span class="c1"># Make sure the included launch file reuses our BetterLaunch instance</span>
@@ -1888,7 +1992,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_include_ros2_launchfile</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="o">**</span><span class="n">include_args</span><span class="p">)</span></div>
 
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_include_ros2_launchfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_include_ros2_launchfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="c1"># Delegate to ros2 launch service</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">launch.actions</span><span class="w"> </span><span class="kn">import</span> <span class="n">IncludeLaunchDescription</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">launch.launch_description_sources</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
@@ -1946,7 +2050,7 @@
                 <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
             <span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">start_immediately</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">start_immediately</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ros2_launcher</span><span class="o">.</span><span class="n">is_running</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ros2_launcher</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ros2_launcher</span></div>

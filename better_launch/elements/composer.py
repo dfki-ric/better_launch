@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Iterable
 import signal
 import time
 import re
@@ -21,7 +21,7 @@ class Component(AbstractNode, LiveParamsMixin):
         name: str,
         namespace: str,
         *,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
     ):
@@ -53,7 +53,7 @@ class Component(AbstractNode, LiveParamsMixin):
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
             Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using :py:meth:`BetterLaunch.load_params`.
-        output : LogSink | set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
 
         Raises
@@ -195,7 +195,7 @@ class Composer(AbstractNode):
         wrapped_node: AbstractNode,
         *,
         component_remaps: dict[str, str] = None,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ):
         """A composer is a special ROS2 node that can host other nodes (:py:class:`Component`) within the same process, reducing overhead and enabling efficient intra process communication for message exchange.
 
@@ -213,7 +213,7 @@ class Composer(AbstractNode):
             A representation of the actual ROS2 node that will be managed by this composer. This is usually a :py:class:`Node` or :py:class:`ForeignNode` instance.
         component_remaps : dict[str, str], optional
             Any remaps you want to apply to all *components* loaded into this composer.
-        output : LogSink | set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
 
         Raises

@@ -1,0 +1,244 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>better_launch.utils.click &mdash; better_launch 1.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/logo.svg"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            better_launch
+              <img src="../../../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../better_launch_custom.html">better_launch package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">better_launch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">better_launch.utils.click</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for better_launch.utils.click</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">click</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.better_logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">Colormode</span>
+
+
+<div class="viewcode-block" id="DeclaredArg">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.click.DeclaredArg">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DeclaredArg</span><span class="p">:</span>
+    <span class="n">_undefined</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ptype</span><span class="p">:</span> <span class="n">Type</span>
+    <span class="n">default</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="n">_undefined</span>
+    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="Overrides">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.click.Overrides">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Overrides</span><span class="p">:</span>
+    <span class="n">ui</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">colormode</span> <span class="o">=</span> <span class="n">Colormode</span><span class="o">.</span><span class="n">DEFAULT</span>
+    <span class="n">screen_log_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">file_log_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ui</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">colormode</span><span class="p">:</span> <span class="n">Colormode</span> <span class="o">=</span> <span class="n">Colormode</span><span class="o">.</span><span class="n">DEFAULT</span><span class="p">,</span>
+        <span class="n">screen_log_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">file_log_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">env_ui</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;BL_UI_OVERRIDE&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">ui</span><span class="p">))</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ui</span> <span class="o">=</span> <span class="n">env_ui</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;enable&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">)</span>
+
+        <span class="n">env_colormode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;BL_COLORMODE_OVERRIDE&quot;</span><span class="p">,</span> <span class="n">colormode</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">colormode</span> <span class="o">=</span> <span class="n">Colormode</span><span class="p">[</span><span class="n">env_colormode</span><span class="o">.</span><span class="n">upper</span><span class="p">()]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">screen_log_format</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s2">&quot;BL_SCREEN_LOG_FORMAT_OVERRIDE&quot;</span><span class="p">,</span> <span class="n">screen_log_format</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_log_format</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s2">&quot;BL_FILE_LOG_FORMAT_OVERRIDE&quot;</span><span class="p">,</span> <span class="n">file_log_format</span>
+        <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_click_options">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.click.get_click_options">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_click_options</span><span class="p">(</span><span class="n">declared_args</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">DeclaredArg</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">click</span><span class="o">.</span><span class="n">Option</span><span class="p">]:</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">declared_args</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">arg</span><span class="o">.</span><span class="n">default</span> <span class="o">!=</span> <span class="n">DeclaredArg</span><span class="o">.</span><span class="n">_undefined</span><span class="p">:</span>
+            <span class="n">default</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">default</span>
+            <span class="n">required</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">default</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">required</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">options</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span>
+                <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;--</span><span class="si">{</span><span class="n">arg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+                <span class="nb">type</span><span class="o">=</span><span class="n">arg</span><span class="o">.</span><span class="n">ptype</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="n">required</span><span class="p">,</span>
+                <span class="n">show_default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="n">arg</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">options</span></div>
+
+
+
+<div class="viewcode-block" id="get_click_overrides">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.click.get_click_overrides">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_click_overrides</span><span class="p">(</span><span class="n">overrides</span><span class="p">:</span> <span class="n">Overrides</span><span class="p">,</span> <span class="n">expose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">click</span><span class="o">.</span><span class="n">Option</span><span class="p">]:</span>
+    <span class="c1"># Additional overrides for launch arguments</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_override_ui</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">click</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">click</span><span class="o">.</span><span class="n">Parameter</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="o">!=</span> <span class="s2">&quot;unset&quot;</span><span class="p">:</span>
+            <span class="n">overrides</span><span class="o">.</span><span class="n">ui</span> <span class="o">=</span> <span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;enable&quot;</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_override_colormode</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">click</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">click</span><span class="o">.</span><span class="n">Parameter</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+            <span class="n">overrides</span><span class="o">.</span><span class="n">colormode</span> <span class="o">=</span> <span class="n">Colormode</span><span class="p">[</span><span class="n">value</span><span class="o">.</span><span class="n">upper</span><span class="p">()]</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="c1"># NOTE these should be mirrored in the bl script</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span>
+            <span class="p">[</span><span class="s2">&quot;--bl_ui_override&quot;</span><span class="p">],</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">Choice</span><span class="p">(</span>
+                <span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">,</span> <span class="s2">&quot;disable&quot;</span><span class="p">,</span> <span class="s2">&quot;unset&quot;</span><span class="p">],</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">show_choices</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="s2">&quot;unset&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Override to enable/disable the terminal UI&quot;</span><span class="p">,</span>
+            <span class="n">expose_value</span><span class="o">=</span><span class="n">expose</span><span class="p">,</span>  <span class="c1"># not passed to our run method</span>
+            <span class="n">callback</span><span class="o">=</span><span class="n">set_override_ui</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span>
+            <span class="p">[</span><span class="s2">&quot;--bl_colormode_override&quot;</span><span class="p">],</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">Choice</span><span class="p">([</span><span class="n">c</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">Colormode</span><span class="p">],</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="n">show_choices</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Override the logging color mode&quot;</span><span class="p">,</span>
+            <span class="n">expose_value</span><span class="o">=</span><span class="n">expose</span><span class="p">,</span>
+            <span class="n">callback</span><span class="o">=</span><span class="n">set_override_colormode</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">options</span></div>
+
+
+
+<div class="viewcode-block" id="get_click_launch_command">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.click.get_click_launch_command">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_click_launch_command</span><span class="p">(</span>
+    <span class="n">cmd_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">launch_func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">options</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">click</span><span class="o">.</span><span class="n">Option</span><span class="p">],</span>
+    <span class="n">cmd_help</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">allow_kwargs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">click</span><span class="o">.</span><span class="n">Command</span><span class="p">:</span>
+    <span class="n">click_cmd</span> <span class="o">=</span> <span class="n">click</span><span class="o">.</span><span class="n">Command</span><span class="p">(</span>
+        <span class="n">cmd_name</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="n">launch_func</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">options</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="n">cmd_help</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">allow_kwargs</span><span class="p">:</span>
+        <span class="n">click_cmd</span><span class="o">.</span><span class="n">allow_extra_args</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">click_cmd</span><span class="o">.</span><span class="n">ignore_unknown_options</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">return</span> <span class="n">click_cmd</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Nikolas Dahn.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

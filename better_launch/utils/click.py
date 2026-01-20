@@ -1,9 +1,8 @@
 from typing import Any, Type, Iterable, Callable
-import os
 from dataclasses import dataclass
 import click
 
-from better_launch.utils.better_logging import Colormode
+from better_launch.utils.settings import Colormode, _update_settings
 
 
 @dataclass
@@ -14,34 +13,6 @@ class DeclaredArg:
     ptype: Type
     default: Any = _undefined
     description: str = None
-
-
-@dataclass
-class Overrides:
-    ui: bool = False
-    colormode = Colormode.DEFAULT
-    screen_log_format: str = None
-    file_log_format: str = None
-
-    def __init__(
-        self,
-        ui: bool = False,
-        colormode: Colormode = Colormode.DEFAULT,
-        screen_log_format: str = None,
-        file_log_format: str = None,
-    ):
-        env_ui = os.environ.get("BL_UI_OVERRIDE", str(ui)).lower()
-        self.ui = env_ui in ("enable", "true", "1")
-
-        env_colormode = os.environ.get("BL_COLORMODE_OVERRIDE", colormode.name)
-        self.colormode = Colormode[env_colormode.upper()]
-
-        self.screen_log_format = os.environ.get(
-            "BL_SCREEN_LOG_FORMAT_OVERRIDE", screen_log_format
-        )
-        self.file_log_format = os.environ.get(
-            "BL_FILE_LOG_FORMAT_OVERRIDE", file_log_format
-        )
 
 
 def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option]:
@@ -68,39 +39,90 @@ def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option
     return options
 
 
-def get_click_overrides(overrides: Overrides, expose: bool = False) -> list[click.Option]:
-    # Additional overrides for launch arguments
-    def set_override_ui(ctx: click.Context, param: click.Parameter, value: str):
-        if value != "unset":
-            overrides.ui = value == "enable"
-        return value
+# TODO docstrings
+def get_click_bl_options(expose: bool = False) -> list[click.Option]:
+    """Get the click options specific to better_launch itself.
 
-    def set_override_colormode(ctx: click.Context, param: click.Parameter, value: str):
-        if value:
-            overrides.colormode = Colormode[value.upper()]
-        return value
+    Parameters
+    ----------
+    expose : bool, optional
+        If True, click will forward these options to the command callback.
 
-    # NOTE these should be mirrored in the bl script
+    Returns
+    -------
+    list[click.Option]
+        _description_
+    """
+    def update_value(ctx: click.Context, param: click.Parameter, value: Any):
+        key = param.name[3:].replace("-", "_")
+        _update_settings(**{key: value})
+
+    # XXX always keep these synchronized with our Settings class
     options = [
         click.Option(
-            ["--bl_ui_override"],
-            type=click.types.Choice(
-                ["enable", "disable", "unset"], case_sensitive=False
-            ),
-            show_choices=True,
-            default="unset",
-            help="Override to enable/disable the terminal UI",
+            ["--bl-ui"],
+            type=bool,
+            default=None,
+            help="Enforce or prevent starting the TUI",
             expose_value=expose,  # not passed to our run method
-            callback=set_override_ui,
+            callback=update_value,
         ),
         click.Option(
-            ["--bl_colormode_override"],
+            ["--bl-colormode"],
             type=click.types.Choice([c.name for c in Colormode], case_sensitive=False),
             show_choices=True,
             default=None,
-            help="Override the logging color mode",
+            help="Set the logging color mode",
             expose_value=expose,
-            callback=set_override_colormode,
+            callback=update_value,
+        ),
+        click.Option(
+            ["--bl-print-limit"],
+            type=int,
+            default=None,
+            help="Cut off messages longer than this when printing to the terminal",
+            expose_value=expose,
+            callback=update_value,
+        ),
+        click.Option(
+            ["--bl-screen-log-level"],
+            type=click.types.Choice(
+                ["debug", "info", "warning", "error", "critical", "fatal"],
+                case_sensitive=False,
+            ),
+            show_choices=True,
+            default=None,
+            help="Only print log messages with at least this severity",
+            expose_value=expose,
+            callback=update_value,
+        ),
+        click.Option(
+            ["--bl-screen-log-format"],
+            type=str,
+            default=None,
+            help="Format used for printing log messages to the terminal",
+            expose_value=expose,
+            callback=update_value,
+        ),
+        click.Option(
+            ["--bl-file-log-level"],
+            type=click.types.Choice(
+                ["debug", "info", "warning", "error", "critical", "fatal"],
+                case_sensitive=False,
+            ),
+            show_choices=True,
+            default=None,
+            help="Only log messages with at least this severity",
+            expose_value=expose,
+            callback=update_value,
+        ),
+        click.Option(
+            ["--bl-file-log-format"],
+            type=str,
+            default=None,
+            help="Format used for writing log messages to the log file",
+            expose_value=expose,
+            callback=update_value,
         ),
     ]
 

@@ -157,7 +157,7 @@ def generate_launch_description():
 </details>
 
 <details>
-  <summary>better_launch</summary>
+  <summary>better_launch (python)</summary>
 
 ```python
 from better_launch import BetterLaunch, launch_this
@@ -193,6 +193,49 @@ def my_start(
         if new_background_r == 200 and use_provided_red:
             turtle_node.is_ros2_connected(timeout=None)
             turtle_node.set_live_params({"background_r": new_background_r})
+```
+</details>
+
+<details>
+```toml
+bl_eval_mode = "full"
+
+turtlesim_ns = "turtlesim1"
+use_provided_red = False
+new_background_r = 200
+
+[turtle_group]
+func = "group"
+namespace = "${turtlesim_ns}"
+
+[turtle_group.children.turtle_node]
+func = "node"
+package="turtlesim"
+executable="turtlesim_node"
+name="turtle_node"
+params={"background_r": 120}
+
+[spawn_turtle]
+func = "call_service"
+topic = "/${turtlesim_ns}/spawn"
+service_type = "turtlesim/srv/Spawn"
+request_args = {"x": 2.0, "y": 2.0, "theta": 0.2}
+
+# TOML files are less powerful than python files, but you can still do a lot
+[update_params]
+if = "${eval new_background_r == 200 and use_provided_red}"
+func = "call_service"
+topic = "/${turtlesim_ns}/turtle_node/set_parameters"
+service_type = "rcl_interfaces/srv/SetParameters"
+request_args = {
+    "parameters": {
+        "name": "background_r",
+        "value": {
+            type: 2,
+            integer_value: "${new_background_r}"
+        }
+    }
+}
 ```
 </details>
 
@@ -234,7 +277,7 @@ See the single line of shortcuts at the bottom? That's the TUI, and it will neve
 
 ```bash
 # Run this line to see it in action!
-bl better_launch 02_ui.py
+bl better_launch 02_ui.launch.py
 ```
 
 The TUI is also able to manage nodes started from different shells and processes, even if they have been started by ROS2 or other means. To do so, pass the `manage_foreign_nodes` flag to the wrapper or command line. Be aware though that this will not capture their output - to get their output you will have to use the *takeover* action from the TUI, which will restart the node process with the original arguments.
@@ -328,16 +371,25 @@ I use [py-spy](https://github.com/benfred/py-spy) to see where *better_launch* i
 # 📥 Installation
 I'm working on getting a .deb package up and running. Until then you may follow the steps below!
 
-*better_launch* is a regular ROS2 package, which means you can install it in your workspace and then use it in all launch files within that workspace. Since ROS2 has no good way of handling python depencies yet you'll have to do a few things by hand.
+*better_launch* is a regular ROS2 package, which means you can install it in your workspace and then use it in all launch files within that workspace. 
+
+ROS2 is slowly [moving towards pixi](https://docs.ros.org/en/kilted/Installation/Windows-Install-Binary.html) as the main python3 environment, but I have not tested it yet. However, by now all the dependencies have been added into rosdep, so the following should get you up and running:
+
+```bash
+# Install dependencies
+sudo apt update
+rosdep update
+rosdep install --from-paths src --ignore-src -y
+```
 
 
 <details>
     <summary>Python venv</summary>
 
-A python *venv* or virtual environment is the preferred setup, as you have more control over its content, will not run into conflicts with other workspaces, and won't be influenced by e.g. OS updates. However, setting up a usable python environment for ROS2 is [surprisingly difficult](https://github.com/ros2/ros2/issues/1094). Here is a setup that works for us:
+If you prefer a python virtual environment instead, here is a setup that works for us:
 
 ```bash
-# Install some prerequisites (depends on your OS and distro)
+# Install some prerequisites
 sudo apt install python3-pip python3-venv
 
 # Create a virtual environment for your workspace
@@ -351,28 +403,9 @@ source ./venv/bin/activate
 
 # Activate your ROS2 workspace
 source ./install/setup.bash
-```
 
-Then run the following commands to install the dependencies into your *venv*.
-
-```bash
-# Can't use rosdep as it doesn't know most python packages
+# Install the dependencies into your venv
 pip install -r path/to/better_launch/requirements.txt
-```
-</details>
-
-<details>
-    <summary>System</summary>
-
-If you don't want to setup a *venv* you can install the dependencies as system packages. This can be done as follows:
-
-```bash
-# The package names will likely be different on non-Ubuntu systems
-sudo apt update
-sudo apt install python3-pip python3-click python3-yaml python3-setproctitle python3-psutil python3-prompt-toolkit python3-osrf-pycommon python3-psutil
-
-# Install any dependencies not offered by your package manager via pip
-sudo pip install --break-system-packages docstring_parser
 ```
 </details>
 
@@ -380,10 +413,19 @@ sudo pip install --break-system-packages docstring_parser
 No matter which path you choose, once all the dependencies are installed you should build *better_launch* / your workspace.
 
 ```bash
-cd your/ros2/workspace
+# Get better_launch into your workspace src folder
+cd <your/ros2/workspace>/src
+git clone https://github.com/dfki-ric/better_launch.git
+```
+
+```bash
+# Build the better_launch package
+cd <your/ros2/workspace>
 colcon build --packages-up-to better_launch
 source install/setup.bash
+```
 
+```bash
 # Verify installation
 bl --help
 ```

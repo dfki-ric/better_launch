@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.elements.node &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.elements.node &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
 
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" href="../../../_static/logo.svg"/>
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
       <script src="../../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -77,19 +77,19 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">traceback</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">fcntl</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">selectors</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">queue</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pprint</span><span class="w"> </span><span class="kn">import</span> <span class="n">pformat</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">textwrap</span><span class="w"> </span><span class="kn">import</span> <span class="n">indent</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.better_logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogSink</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.better_logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogSink</span><span class="p">,</span> <span class="n">ROSLOG_PATTERN_BL</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.abstract_node</span><span class="w"> </span><span class="kn">import</span> <span class="n">AbstractNode</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.live_params_mixin</span><span class="w"> </span><span class="kn">import</span> <span class="n">LiveParamsMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.lifecycle_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">LifecycleStage</span>
 
 
 <div class="viewcode-block" id="Node">
@@ -116,6 +116,8 @@
         <span class="n">respawn_delay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
         <span class="n">use_shell</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">raw</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">remap_qualifier</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">qualify_all_remaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;An object used for starting a ROS node and capturing its output.</span>
 
@@ -157,11 +159,10 @@
 <span class="sd">            If True, invoke the node executable via the system shell. While this gives access to the shell&#39;s builtins, this has the downside of running the node inside a &quot;mystery program&quot; which is platform and user dependent. Generally not advised.</span>
 <span class="sd">        raw : bool, optional</span>
 <span class="sd">            If True, don&#39;t treat the executable as a ROS2 node and avoid passing it any command line arguments except those specified.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        Node</span>
-<span class="sd">            The node object wrapping the node process.</span>
+<span class="sd">        remap_qualifier : str, optional</span>
+<span class="sd">            Additional qualifier that will precede the node&#39;s `__ns` and `__name` remap rules. Should be the original name of the node (i.e. whatever its default name is) and can be qualified with a namespace. Useful to prevent multiple nodes with the same name when a process can have more than one node (e.g. `controller_manager`). See `this ROS2 design doc &lt;https://design.ros2.org/articles/static_remapping.html#how-the-syntax-works`_ for more information.</span>
+<span class="sd">        qualify_all_remaps : bool, optional</span>
+<span class="sd">            If True, apply the `remap_qualifier` to all remaps that are not already qualified.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="n">package</span><span class="p">,</span> <span class="n">executable</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">remaps</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">output</span>
@@ -179,7 +180,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_respawn_retries</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_process</span><span class="p">:</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_on_exit_callback</span> <span class="o">=</span> <span class="n">on_exit</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">raw</span> <span class="o">=</span> <span class="n">raw</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw</span> <span class="o">=</span> <span class="n">raw</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remap_qualifier</span> <span class="o">=</span> <span class="n">remap_qualifier</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qualify_all_remaps</span> <span class="o">=</span> <span class="n">qualify_all_remaps</span></div>
 
 
     <span class="nd">@property</span>
@@ -216,7 +219,8 @@
         <span class="n">proc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process</span>
         <span class="k">if</span> <span class="n">proc</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">proc</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
+                <span class="c1"># Seems to work here despite setpgrp?</span>
+                <span class="k">return</span> <span class="n">proc</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">TimeoutExpired</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">TimeoutError</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
 
@@ -247,10 +251,10 @@
                 <span class="n">final_cmd</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cmd_args</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw</span><span class="p">:</span>
+                <span class="n">final_cmd</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--ros-args&quot;</span><span class="p">]</span>
+
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_log_level</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">final_cmd</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--log-level&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_log_level</span><span class="p">]</span>
-
-                <span class="n">final_cmd</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--ros-args&quot;</span><span class="p">]</span>
 
                 <span class="c1"># Attach node parameters</span>
                 <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flat_params</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -259,8 +263,21 @@
 
                 <span class="c1"># Special args and remaps</span>
                 <span class="c1"># launch_ros/actions/node.py:206</span>
+
+                <span class="c1"># Qualifier to create node-specific remaps</span>
+                <span class="n">qualifier</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">remap_qualifier</span><span class="p">:</span>
+                    <span class="n">qualifier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remap_qualifier</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">qualifier</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">):</span>
+                        <span class="n">qualifier</span> <span class="o">+=</span> <span class="s2">&quot;:&quot;</span>
+                
                 <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">dst</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ros_args</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                    <span class="c1"># launch_ros/actions/node.py:481</span>
+                    <span class="k">if</span> <span class="n">qualifier</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">src</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;__ns&quot;</span><span class="p">,</span> <span class="s2">&quot;__node&quot;</span><span class="p">,</span> <span class="s2">&quot;__name&quot;</span><span class="p">):</span>
+                            <span class="n">src</span> <span class="o">=</span> <span class="n">qualifier</span> <span class="o">+</span> <span class="n">src</span>
+                        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">qualify_all_remaps</span> <span class="ow">and</span> <span class="s2">&quot;:&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">src</span><span class="p">:</span>
+                            <span class="n">src</span> <span class="o">=</span> <span class="n">qualifier</span> <span class="o">+</span> <span class="n">src</span>
+                    
                     <span class="n">final_cmd</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">:=</span><span class="si">{</span><span class="n">dst</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">])</span>
 
             <span class="c1"># If an env is specified ROS2 lets it completely replace the host env. We cover this</span>
@@ -288,6 +305,8 @@
                 <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
                 <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
                 <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="c1"># start in separate process group so it doesn&#39;t react to our sigint immediately</span>
+                <span class="n">preexec_fn</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">setpgrp</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="c1"># Watch the process for output and react when it terminates</span>
@@ -306,48 +325,107 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_watch_process</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">process</span><span class="p">:</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">,</span>
-        <span class="n">gather</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">outbuf</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
-        <span class="n">errbuf</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="c1"># Non-blocking reads might miss some output, so we use blocking reads in</span>
+        <span class="c1"># separate threads instead</span>
+        <span class="n">stdout_queue</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+        <span class="n">stderr_queue</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
 
-        <span class="c1"># Set the io pipes to non-blocking mode, otherwise read will wait for data</span>
-        <span class="n">fcntl</span><span class="o">.</span><span class="n">fcntl</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span> <span class="n">fcntl</span><span class="o">.</span><span class="n">F_SETFL</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">O_NONBLOCK</span><span class="p">)</span>
-        <span class="n">fcntl</span><span class="o">.</span><span class="n">fcntl</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span> <span class="n">fcntl</span><span class="o">.</span><span class="n">F_SETFL</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">O_NONBLOCK</span><span class="p">)</span>
+        <span class="c1"># Same pattern as what our PrettyLogFormatter is looking for</span>
+        <span class="n">ros_message_pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">ROSLOG_PATTERN_BL</span><span class="p">)</span>
 
-        <span class="n">sel</span> <span class="o">=</span> <span class="n">selectors</span><span class="o">.</span><span class="n">DefaultSelector</span><span class="p">()</span>
-        <span class="n">sel</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span> <span class="n">selectors</span><span class="o">.</span><span class="n">EVENT_READ</span><span class="p">,</span> <span class="n">outbuf</span><span class="p">)</span>
-        <span class="n">sel</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="n">selectors</span><span class="o">.</span><span class="n">EVENT_READ</span><span class="p">,</span> <span class="n">errbuf</span><span class="p">)</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">read_stream</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">q</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="n">line</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>  <span class="c1"># EOF</span>
+                        <span class="k">break</span>
+                    <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\r</span><span class="s2">&quot;</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="c1"># Signal error/EOF</span>
+                <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">collect_bundle</span><span class="p">(</span><span class="n">q</span><span class="p">):</span>
+            <span class="k">nonlocal</span> <span class="n">active_streams</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">line</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">active_streams</span> <span class="o">-=</span> <span class="mi">1</span>
+                    <span class="k">return</span>
+
+                <span class="c1"># Collect any additional lines that arrive immediately</span>
+                <span class="n">bundle</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="p">]</span>
+                <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="c1"># Very short timeout to check for more lines</span>
+                        <span class="n">next_line</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">next_line</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># EOF</span>
+                            <span class="n">active_streams</span> <span class="o">-=</span> <span class="mi">1</span>
+                            <span class="k">break</span>
+
+                        <span class="n">bundle</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">next_line</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="n">queue</span><span class="o">.</span><span class="n">Empty</span><span class="p">:</span>
+                        <span class="c1"># No more lines immediately available</span>
+                        <span class="k">break</span>
+
+                <span class="k">return</span> <span class="n">bundle</span>
+            <span class="k">except</span> <span class="n">queue</span><span class="o">.</span><span class="n">Empty</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">log_bundle</span><span class="p">(</span><span class="n">bundle</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">level</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="c1"># When receiving multiple lines of text at ones it is not guaranteed that they belong</span>
+            <span class="c1"># together - we don&#39;t know if they were generated by a single log call or multiple. </span>
+            <span class="c1"># By looking for our special pattern we can identify new log calls and emit them as </span>
+            <span class="c1"># separate messages.</span>
+            <span class="n">seg</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">bundle</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">seg</span> <span class="ow">and</span> <span class="n">ros_message_pattern</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
+                    <span class="c1"># Emit and start a new record</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">level</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">seg</span><span class="p">))</span>
+                    <span class="n">seg</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">seg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">seg</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">level</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">seg</span><span class="p">))</span>
+
+        <span class="c1"># Output collection threads</span>
+        <span class="n">stdout_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+            <span class="n">target</span><span class="o">=</span><span class="n">read_stream</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span> <span class="n">stdout_queue</span><span class="p">),</span>
+            <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">stderr_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+            <span class="n">target</span><span class="o">=</span><span class="n">read_stream</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="n">stderr_queue</span><span class="p">),</span>
+            <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">stdout_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="n">stderr_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="n">active_streams</span> <span class="o">=</span> <span class="mi">2</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">while</span> <span class="n">process</span><span class="o">.</span><span class="n">poll</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">events</span> <span class="o">=</span> <span class="n">sel</span><span class="o">.</span><span class="n">select</span><span class="p">()</span>
+            <span class="c1"># No need to check whether the process is still running, the collection threads</span>
+            <span class="c1"># will terminate once no more data can be collected and reduce active_streams</span>
+            <span class="k">while</span> <span class="n">active_streams</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">out_bundle</span> <span class="o">=</span> <span class="n">collect_bundle</span><span class="p">(</span><span class="n">stdout_queue</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">out_bundle</span><span class="p">:</span>
+                    <span class="n">log_bundle</span><span class="p">(</span><span class="n">out_bundle</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
 
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">events</span><span class="p">:</span>
-                    <span class="c1"># events will be empty if the process received a signal</span>
-                    <span class="k">break</span>
+                <span class="n">err_bundle</span> <span class="o">=</span> <span class="n">collect_bundle</span><span class="p">(</span><span class="n">stderr_queue</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">err_bundle</span><span class="p">:</span>
+                    <span class="n">log_bundle</span><span class="p">(</span><span class="n">err_bundle</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
 
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
-                        <span class="n">buffer</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">data</span>
-                        <span class="k">if</span> <span class="n">gather</span><span class="p">:</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">_collect_output_bundled</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">fileobj</span><span class="p">,</span> <span class="n">buffer</span><span class="p">)</span>
-                        <span class="k">else</span><span class="p">:</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">_collect_output_linewise</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">fileobj</span><span class="p">,</span> <span class="n">buffer</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
-                    <span class="c1"># No data available despite the selector notifying us</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-                        <span class="s2">&quot;Failed to read process pipe, this should not happen&quot;</span><span class="p">,</span>
-                    <span class="p">)</span>
-
-            <span class="n">returncode</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+            <span class="n">returncode</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">poll</span><span class="p">()</span>
 
             <span class="k">if</span> <span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Process has finished cleanly&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Process has died with exit code </span><span class="si">{</span><span class="n">returncode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            
+
         <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Terminated: </span><span class="si">{</span><span class="bp">self</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_exit_callback</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_on_exit_callback</span><span class="p">()</span>
 
@@ -357,7 +435,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">is_shutdown</span> <span class="ow">and</span> <span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">max_respawns</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_respawn_retries</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_respawns</span>
             <span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Restarting </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> after unexpected shutdown&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Restarting </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> after unexpected shutdown&quot;</span><span class="p">)</span>
 
                 <span class="bp">self</span><span class="o">.</span><span class="n">_respawn_retries</span> <span class="o">+=</span> <span class="mi">1</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">respawn_delay</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
@@ -370,47 +448,6 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_on_shutdown</span><span class="p">()</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_collect_output_bundled</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">io</span><span class="o">.</span><span class="n">IOBase</span><span class="p">,</span> <span class="n">buffer</span><span class="p">:</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">buffer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
-        <span class="n">buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">last_line</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
-
-        <span class="c1"># Exhaust the buffer, then log whatever we collected as one message</span>
-        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">buffer</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">):</span>
-                <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">))</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">last_line</span> <span class="o">=</span> <span class="n">line</span>
-                <span class="k">break</span>
-
-        <span class="n">buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">buffer</span><span class="o">.</span><span class="n">truncate</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">last_line</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">buffer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">last_line</span><span class="p">)</span>
-
-        <span class="n">bundle</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">bundle</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">bundle</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_collect_output_linewise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">io</span><span class="o">.</span><span class="n">IOBase</span><span class="p">,</span> <span class="n">buffer</span><span class="p">:</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">buffer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
-        <span class="n">buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">last_line</span> <span class="o">=</span> <span class="kc">None</span>
-
-        <span class="c1"># Log every line immediately</span>
-        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">buffer</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">last_line</span> <span class="o">=</span> <span class="n">line</span>
-                <span class="k">break</span>
-
-        <span class="n">buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">buffer</span><span class="o">.</span><span class="n">truncate</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">last_line</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">buffer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">last_line</span><span class="p">)</span>
-
 <div class="viewcode-block" id="Node.shutdown">
 <a class="viewcode-back" href="../../../better_launch.elements.html#better_launch.elements.node.Node.shutdown">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">shutdown</span><span class="p">(</span>
@@ -421,13 +458,22 @@
 
         <span class="n">signame</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">Signals</span><span class="p">(</span><span class="n">signum</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Received shutdown request: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">signame</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">signum</span> <span class="o">==</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGTERM</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lifecycle_manager</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_lifecycle_manager</span><span class="o">.</span><span class="n">transition</span><span class="p">(</span><span class="n">LifecycleStage</span><span class="o">.</span><span class="n">FINALIZED</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Lifecycle transition to FINALIZED failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_on_signal</span><span class="p">(</span><span class="n">signum</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">timeout</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="k">return</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_process</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="c1"># Since introducing setpgrp above _process.wait hangs indefinitely</span>
+            <span class="c1">#self._process.wait(timeout)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">waitpid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">TimeoutExpired</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span><span class="s2">&quot;Node did not shutdown within the specified timeout&quot;</span><span class="p">)</span></div>
 
@@ -441,26 +487,27 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_running</span><span class="p">:</span>
             <span class="c1"># the process is done or is cleaning up, no need to signal</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">signame</span><span class="si">}</span><span class="s2">&#39; not set to &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; because it is already closing&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">signame</span><span class="si">}</span><span class="s2"> not sent to </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> because it is already closing&quot;</span>
             <span class="p">)</span>
             <span class="k">return</span>
 
         <span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;Windows&quot;</span> <span class="ow">and</span> <span class="n">signum</span> <span class="o">==</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">:</span>
             <span class="c1"># Windows doesn&#39;t handle sigterm correctly</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;&#39;SIGINT&#39; sent to process[</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">] not supported on Windows, escalating to &#39;SIGTERM&#39;&quot;</span>
+                <span class="s2">&quot;SIGINT not supported on Windows, escalating to &#39;SIGTERM&#39;&quot;</span>
             <span class="p">)</span>
 
             <span class="n">signum</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGTERM</span>
             <span class="n">signame</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGTERM</span><span class="o">.</span><span class="n">name</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sending signal &#39;</span><span class="si">{</span><span class="n">signame</span><span class="si">}</span><span class="s2">&#39; to process [</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sending signal </span><span class="si">{</span><span class="n">signame</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
+            <span class="c1">#os.killpg(self.pid, signum)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_process</span><span class="o">.</span><span class="n">send_signal</span><span class="p">(</span><span class="n">signum</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ProcessLookupError</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">signame</span><span class="si">}</span><span class="s2">&#39; not sent to &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; because it has closed already&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">signame</span><span class="si">}</span><span class="s2"> not sent to </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> because it has closed already&quot;</span>
             <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_on_shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -484,7 +531,7 @@
         <span class="k">return</span> <span class="p">(</span>
             <span class="n">info</span>
             <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">&lt;bold&gt;Process&lt;/bold&gt;</span>
+<span class="se">\x1b</span><span class="s2">[1mProcess</span><span class="se">\x1b</span><span class="s2">[0m</span>
 <span class="s2">  PID:       </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span>
 <span class="s2">  Respawns:  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_respawn_retries</span><span class="si">}</span><span class="s2"> / </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">max_respawns</span><span class="si">}</span>
 <span class="s2">  Cmd Args:  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cmd_args</span><span class="si">}</span>
@@ -493,7 +540,7 @@
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> [node </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">node_id</span><span class="si">}</span><span class="s2">, cmd </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">package</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">executable</span><span class="si">}</span><span class="s2">, pid </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s2">, running </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">is_running</span><span class="si">}</span><span class="s2">]&quot;</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Node [name=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, node=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">package</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">executable</span><span class="si">}</span><span class="s2">, pid=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s2">]&quot;</span></div>
 
 </pre></div>
 

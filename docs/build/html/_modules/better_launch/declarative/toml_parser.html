@@ -1,0 +1,692 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>better_launch.declarative.toml_parser &mdash; better_launch 1.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/logo.svg"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            better_launch
+              <img src="../../../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../better_launch_custom.html">better_launch package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">better_launch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">better_launch.declarative.toml_parser</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for better_launch.declarative.toml_parser</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+
+<div class="viewcode-block" id="TomlReader">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.toml_parser.TomlReader">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TomlReader</span><span class="p">:</span>
+<div class="viewcode-block" id="TomlReader.__init__">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.toml_parser.TomlReader.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;TOML parser with better comment handling compared to existing ones. </span>
+<span class="sd">        </span>
+<span class="sd">        Noticably, this parser will preserve and associate comments that appear *before* the key they are describing. Comments appear in the same dict as their associated key under the key `__comment_&lt;key&gt;__`. In addition, a comment at the start of the file will be retained as well. This root comment has the key `__comment__`.</span>
+
+<span class="sd">        Some standard features are not supported right now:</span>
+<span class="sd">        - octal integers (0oXXXX)</span>
+<span class="sd">        - dates and times remain strings</span>
+<span class="sd">        - arrays of tables ([[my-aot]])</span>
+
+<span class="sd">        The following non-standard features are supported:</span>
+<span class="sd">        - write `key = &lt;base-type&gt;` to set its value to the corresponding class. Base types are int, float, str, bool, list, dict.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        text : str | list[str]</span>
+<span class="sd">            The toml content to be parsed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lines</span> <span class="o">=</span> <span class="n">text</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lines</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">table_path</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+
+<div class="viewcode-block" id="TomlReader.parse">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.toml_parser.TomlReader.parse">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse TOML text and return a dictionary.&quot;&quot;&quot;</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">pending_comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">root_comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">root_comment_done</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">):</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+            <span class="c1"># Empty line resets pending comment (and marks end of root comment section)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">pending_comment</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">root_comment_done</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_path</span><span class="p">:</span>
+                    <span class="n">root_comment</span> <span class="o">=</span> <span class="n">pending_comment</span>
+                    <span class="n">root_comment_done</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">pending_comment</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Comment line</span>
+            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                <span class="n">comment_text</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">pending_comment</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">pending_comment</span> <span class="o">=</span> <span class="n">comment_text</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">pending_comment</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">comment_text</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Table header</span>
+            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;[[&quot;</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Array of tables [[...]] not supported&quot;</span><span class="p">)</span>
+
+                <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\[([^\]]+)\]&quot;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">match</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid table header: </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="n">table_name</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+                <span class="c1"># Save root comment if we haven&#39;t yet and no table has been set</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">root_comment_done</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_path</span> <span class="ow">and</span> <span class="n">pending_comment</span><span class="p">:</span>
+                    <span class="n">root_comment</span> <span class="o">=</span> <span class="n">pending_comment</span>
+                    <span class="n">root_comment_done</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">pending_comment</span> <span class="o">=</span> <span class="kc">None</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">_set_table</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">pending_comment</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span><span class="p">[</span><span class="s2">&quot;__comment__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pending_comment</span>
+                    <span class="n">pending_comment</span> <span class="o">=</span> <span class="kc">None</span>
+
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Key-value pair (check if line contains = but isn&#39;t inside a comment)</span>
+            <span class="k">if</span> <span class="s2">&quot;=&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">lines_consumed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_key_value</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_set_dotted_key</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+                <span class="c1"># Associate comment with key</span>
+                <span class="k">if</span> <span class="n">pending_comment</span><span class="p">:</span>
+                    <span class="c1"># For dotted keys, store comment with the final key</span>
+                    <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+                        <span class="n">parts</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+                        <span class="n">final_key</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_navigate_to_parent</span><span class="p">(</span><span class="n">parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                        <span class="n">target</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;__comment_</span><span class="si">{</span><span class="n">final_key</span><span class="si">}</span><span class="s2">__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pending_comment</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;__comment_</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pending_comment</span>
+                    <span class="n">pending_comment</span> <span class="o">=</span> <span class="kc">None</span>
+
+                <span class="n">i</span> <span class="o">+=</span> <span class="n">lines_consumed</span>
+                <span class="k">continue</span>
+
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected line: </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Set root comment at the end</span>
+        <span class="k">if</span> <span class="n">root_comment</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;__comment__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">root_comment</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the current table based on dot-separated path.&quot;&quot;&quot;</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">table_path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">table_path</span> <span class="o">=</span> <span class="n">parts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span>
+
+        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">part</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span><span class="p">[</span><span class="n">part</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span><span class="p">[</span><span class="n">part</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_dotted_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set a value using dotted key notation.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">return</span>
+
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span>
+
+        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">part</span> <span class="o">=</span> <span class="n">part</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">part</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">target</span><span class="p">:</span>
+                <span class="n">target</span><span class="p">[</span><span class="n">part</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">target</span><span class="p">[</span><span class="n">part</span><span class="p">]</span>
+
+        <span class="n">final_key</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+        <span class="n">target</span><span class="p">[</span><span class="n">final_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_navigate_to_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Navigate to parent table for dotted key.&quot;&quot;&quot;</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_table</span>
+        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">:</span>
+            <span class="n">part</span> <span class="o">=</span> <span class="n">part</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">part</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">target</span><span class="p">:</span>
+                <span class="n">target</span><span class="p">[</span><span class="n">part</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">target</span><span class="p">[</span><span class="n">part</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">target</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_key_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">line_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse a key-value pair, potentially spanning multiple lines.&quot;&quot;&quot;</span>
+        <span class="n">key</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">value_str</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">value_str</span> <span class="o">=</span> <span class="n">value_str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+        <span class="n">lines_consumed</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="c1"># Handle multi-line strings first</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;&quot;&quot;&quot;&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;&#39;&#39;&#39;&quot;</span><span class="p">):</span>
+            <span class="n">quote</span> <span class="o">=</span> <span class="s1">&#39;&quot;&quot;&quot;&#39;</span> <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;&quot;&quot;&quot;&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;&#39;&#39;&#39;&quot;</span>
+            <span class="c1"># Check if string closes on same line</span>
+            <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">quote</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="c1"># Closed on same line</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Multi-line string - read until closing quotes</span>
+                <span class="n">full_value</span> <span class="o">=</span> <span class="n">value_str</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="n">line_idx</span> <span class="o">+</span> <span class="mi">1</span>
+                <span class="k">while</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">):</span>
+                    <span class="n">full_value</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                    <span class="n">lines_consumed</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">if</span> <span class="n">quote</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">[</span><span class="n">idx</span><span class="p">]:</span>
+                        <span class="k">break</span>
+                    <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">value_str</span> <span class="o">=</span> <span class="n">full_value</span>
+        <span class="c1"># Check if we need to read multiple lines for arrays or inline dicts</span>
+        <span class="k">elif</span> <span class="p">(</span>
+            <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">)</span>
+        <span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_closed</span><span class="p">(</span><span class="n">value_str</span><span class="p">):</span>
+            <span class="n">full_value</span> <span class="o">=</span> <span class="n">value_str</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">line_idx</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">while</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_closed</span><span class="p">(</span><span class="n">full_value</span><span class="p">):</span>
+                <span class="n">full_value</span> <span class="o">+=</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="n">lines_consumed</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">value_str</span> <span class="o">=</span> <span class="n">full_value</span>
+
+        <span class="n">value_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remove_inline_comment</span><span class="p">(</span><span class="n">value_str</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_value</span><span class="p">(</span><span class="n">value_str</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">lines_consumed</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_closed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if brackets/braces are balanced.&quot;&quot;&quot;</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">in_string</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">string_char</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+            <span class="n">char</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">char</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                    <span class="n">in_string</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">string_char</span> <span class="o">=</span> <span class="n">char</span>
+                <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="n">string_char</span><span class="p">:</span>
+                    <span class="n">in_string</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="n">string_char</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">char</span> <span class="ow">in</span> <span class="s2">&quot;[{&quot;</span><span class="p">:</span>
+                    <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">char</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;]&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">stack</span> <span class="ow">or</span> <span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;[&quot;</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">False</span>
+                    <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;}&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">stack</span> <span class="ow">or</span> <span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;{&quot;</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">False</span>
+                    <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">stack</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_remove_inline_comment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove inline comments, respecting strings.&quot;&quot;&quot;</span>
+        <span class="n">in_string</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">string_char</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">value_str</span><span class="p">):</span>
+            <span class="n">char</span> <span class="o">=</span> <span class="n">value_str</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+            <span class="c1"># Handle triple-quoted strings</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">value_str</span><span class="p">):</span>
+                <span class="n">triple</span> <span class="o">=</span> <span class="n">value_str</span><span class="p">[</span><span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">triple</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;&quot;&quot;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&#39;&#39;&#39;&quot;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                        <span class="n">in_string</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="n">string_char</span> <span class="o">=</span> <span class="n">triple</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">3</span>
+                        <span class="k">continue</span>
+                    <span class="k">elif</span> <span class="n">string_char</span> <span class="o">==</span> <span class="n">triple</span><span class="p">:</span>
+                        <span class="n">in_string</span> <span class="o">=</span> <span class="kc">False</span>
+                        <span class="n">string_char</span> <span class="o">=</span> <span class="kc">None</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">3</span>
+                        <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">char</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">value_str</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                    <span class="n">in_string</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">string_char</span> <span class="o">=</span> <span class="n">char</span>
+                <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="n">string_char</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">string_char</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">in_string</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="n">string_char</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;#&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">value_str</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">value_str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse a TOML value.&quot;&quot;&quot;</span>
+        <span class="n">value_str</span> <span class="o">=</span> <span class="n">value_str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+        <span class="c1"># Type annotations: key = int, key = str, etc.</span>
+        <span class="n">type_map</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;int&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="s1">&#39;float&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+            <span class="s1">&#39;str&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="s1">&#39;bool&#39;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+            <span class="s1">&#39;list&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+            <span class="s1">&#39;dict&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="n">value_str</span> <span class="ow">in</span> <span class="n">type_map</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">type_map</span><span class="p">[</span><span class="n">value_str</span><span class="p">]</span>
+
+        <span class="c1"># Multi-line basic string</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;&quot;&quot;&quot;&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;&quot;&quot;&quot;&#39;</span><span class="p">):</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="n">value_str</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">content</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="n">content</span> <span class="o">=</span> <span class="n">content</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_escapes</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+
+        <span class="c1"># Multi-line literal string</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;&#39;&#39;&#39;&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;&#39;&#39;&#39;&quot;</span><span class="p">):</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="n">value_str</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">content</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="n">content</span> <span class="o">=</span> <span class="n">content</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="k">return</span> <span class="n">content</span>
+
+        <span class="c1"># Basic string</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_escapes</span><span class="p">(</span><span class="n">value_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># Literal string</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">value_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># Boolean</span>
+        <span class="k">if</span> <span class="n">value_str</span> <span class="o">==</span> <span class="s2">&quot;true&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">value_str</span> <span class="o">==</span> <span class="s2">&quot;false&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="c1"># Special float values</span>
+        <span class="k">if</span> <span class="n">value_str</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">,</span> <span class="s2">&quot;+inf&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value_str</span> <span class="o">==</span> <span class="s2">&quot;-inf&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;-inf&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value_str</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">,</span> <span class="s2">&quot;+nan&quot;</span><span class="p">,</span> <span class="s2">&quot;-nan&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Inline dict</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_inline_dict</span><span class="p">(</span><span class="n">value_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># Array</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;]&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_array</span><span class="p">(</span><span class="n">value_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># Hexadecimal integer</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;0x&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_str</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span>
+
+        <span class="c1"># Binary integer</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;0b&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_str</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># Octal integer</span>
+        <span class="k">if</span> <span class="n">value_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;0o&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_str</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+
+        <span class="c1"># Number with underscores</span>
+        <span class="n">value_str_clean</span> <span class="o">=</span> <span class="n">value_str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">value_str_clean</span> <span class="ow">or</span> <span class="s2">&quot;e&quot;</span> <span class="ow">in</span> <span class="n">value_str_clean</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_str_clean</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_str_clean</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">return</span> <span class="n">value_str</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_escapes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process escape sequences in strings.&quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+                <span class="n">next_char</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">next_char</span> <span class="o">==</span> <span class="s2">&quot;n&quot;</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+                <span class="k">elif</span> <span class="n">next_char</span> <span class="o">==</span> <span class="s2">&quot;t&quot;</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+                <span class="k">elif</span> <span class="n">next_char</span> <span class="o">==</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+                <span class="k">elif</span> <span class="n">next_char</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+                <span class="k">elif</span> <span class="n">next_char</span> <span class="o">==</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+                <span class="k">elif</span> <span class="n">next_char</span> <span class="o">==</span> <span class="s2">&quot;b&quot;</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\b</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+                <span class="k">elif</span> <span class="n">next_char</span> <span class="o">==</span> <span class="s2">&quot;f&quot;</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\f</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+                <span class="k">elif</span> <span class="n">next_char</span> <span class="o">==</span> <span class="s2">&quot;u&quot;</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">5</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+                    <span class="n">hex_code</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">2</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">6</span><span class="p">]</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">chr</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">hex_code</span><span class="p">,</span> <span class="mi">16</span><span class="p">)))</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">6</span>
+                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">elif</span> <span class="n">next_char</span> <span class="o">==</span> <span class="s2">&quot;U&quot;</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">9</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+                    <span class="n">hex_code</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">2</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">10</span><span class="p">]</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">chr</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">hex_code</span><span class="p">,</span> <span class="mi">16</span><span class="p">)))</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">10</span>
+                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_inline_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dict_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse an inline TOML dictionary.&quot;&quot;&quot;</span>
+        <span class="n">dict_str</span> <span class="o">=</span> <span class="n">dict_str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dict_str</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">current</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">depth</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">in_string</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">string_char</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">char</span> <span class="ow">in</span> <span class="n">dict_str</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">char</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">in_string</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">string_char</span> <span class="o">=</span> <span class="n">char</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="n">string_char</span> <span class="ow">and</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">in_string</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">string_char</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="ow">in</span> <span class="s2">&quot;[{&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">depth</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="ow">in</span> <span class="s2">&quot;]}&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">depth</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;,&quot;</span> <span class="ow">and</span> <span class="n">depth</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">and</span> <span class="s2">&quot;=&quot;</span> <span class="ow">in</span> <span class="n">current</span><span class="p">:</span>
+                    <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_inline_dict_pair</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                    <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+
+        <span class="k">if</span> <span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">and</span> <span class="s2">&quot;=&quot;</span> <span class="ow">in</span> <span class="n">current</span><span class="p">:</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_inline_dict_pair</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_inline_dict_pair</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pair_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse a key-value pair from an inline dict.&quot;&quot;&quot;</span>
+        <span class="n">key</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">value_str</span> <span class="o">=</span> <span class="n">pair_str</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+        <span class="n">value_str</span> <span class="o">=</span> <span class="n">value_str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_value</span><span class="p">(</span><span class="n">value_str</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_array</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse a TOML array.&quot;&quot;&quot;</span>
+        <span class="n">array_str</span> <span class="o">=</span> <span class="n">array_str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">array_str</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">elements</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">current</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">depth</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">in_string</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">string_char</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">char</span> <span class="ow">in</span> <span class="n">array_str</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">char</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">in_string</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">string_char</span> <span class="o">=</span> <span class="n">char</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="n">string_char</span> <span class="ow">and</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">in_string</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">string_char</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;[&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">depth</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;]&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">depth</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;{&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">depth</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;}&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="n">depth</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+            <span class="k">elif</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;,&quot;</span> <span class="ow">and</span> <span class="n">depth</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_string</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_value</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">()))</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">current</span> <span class="o">+=</span> <span class="n">char</span>
+
+        <span class="k">if</span> <span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_value</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">()))</span>
+
+        <span class="k">return</span> <span class="n">elements</span></div>
+
+
+
+<div class="viewcode-block" id="loads">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.toml_parser.loads">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">loads</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse TOML text and return a dictionary.&quot;&quot;&quot;</span>
+    <span class="n">reader</span> <span class="o">=</span> <span class="n">TomlReader</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">reader</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="load">
+<a class="viewcode-back" href="../../../better_launch.declarative.html#better_launch.declarative.toml_parser.load">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read the contents of a TOML file and parse them.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">loads</span><span class="p">(</span><span class="n">content</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># Example usage</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">toml_text</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# This is the root comment</span>
+<span class="s2"># It spans multiple lines</span>
+
+<span class="s2"># Database configuration</span>
+<span class="s2">[database]</span>
+<span class="s2">host = &quot;localhost&quot;</span>
+<span class="s2">port = 5432</span>
+
+<span class="s2"># Connection settings</span>
+<span class="s2">timeout = 30</span>
+<span class="s2">config = {retry = 3, delay = 100, }</span>
+
+<span class="s2">[server]</span>
+<span class="s2"># Server address</span>
+<span class="s2">address = &quot;0.0.0.0&quot;</span>
+<span class="s2">ports = [8080, 8081, 8082, ]</span>
+<span class="s2">multi_line = [</span>
+<span class="s2">    1, 2, 3,</span>
+<span class="s2">    4, 5, 6,</span>
+<span class="s2">]</span>
+
+<span class="s2"># Nested config using dotted keys</span>
+<span class="s2">[server.logging]</span>
+<span class="s2">server.logging.level = &quot;info&quot;</span>
+<span class="s2">server.logging.file = &quot;/var/log/app.log&quot;</span>
+
+<span class="s2">[numbers]</span>
+<span class="s2">hex = 0xDEADBEEF</span>
+<span class="s2">binary = 0b11010110</span>
+<span class="s2">with_underscores = 1_000_000</span>
+<span class="s2">special = inf</span>
+<span class="s2">neg_inf = -inf</span>
+<span class="s2">not_a_num = nan</span>
+
+<span class="s2">[strings]</span>
+<span class="s2">basic = &quot;Hello</span><span class="se">\\</span><span class="s2">nWorld&quot;</span>
+<span class="s2">literal = &#39;C:</span><span class="se">\\</span><span class="s2">Users</span><span class="se">\\</span><span class="s2">path&#39;</span>
+<span class="s2">unicode = &quot;Emoji: </span><span class="se">\\</span><span class="s2">u2764&quot;</span>
+<span class="s2">multiline = </span><span class="se">\&quot;</span><span class="s2">&quot;&quot;</span>
+<span class="s2">This is a</span>
+<span class="s2">multi-line string</span><span class="se">\&quot;</span><span class="s2">&quot;&quot;</span>
+<span class="s2">multiline_literal = &#39;&#39;&#39;</span>
+<span class="s2">No escapes here: </span><span class="se">\\</span><span class="s2">n stays literal&#39;&#39;&#39;</span>
+
+<span class="s2">[nested]</span>
+<span class="s2">inline = {</span>
+<span class="s2">    name = &quot;prod&quot;,</span>
+<span class="s2">    settings = {debug = false, level = 5, },</span>
+<span class="s2">}</span>
+
+<span class="s2">[types]</span>
+<span class="s2"># Type annotations - values are set to the type itself</span>
+<span class="s2">my_int_type = int</span>
+<span class="s2">my_float_type = float</span>
+<span class="s2">my_str_type = str</span>
+<span class="s2">my_bool_type = bool</span>
+<span class="s2">my_list_type = list</span>
+<span class="s2">my_dict_type = dict</span>
+<span class="s2">&quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">loads</span><span class="p">(</span><span class="n">toml_text</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="nb">str</span><span class="p">))</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Nikolas Dahn.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

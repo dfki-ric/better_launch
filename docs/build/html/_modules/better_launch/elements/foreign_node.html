@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.elements.foreign_node &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.elements.foreign_node &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
 
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" href="../../../_static/logo.svg"/>
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
       <script src="../../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -76,6 +76,8 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">psutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">signal</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fnmatch</span><span class="w"> </span><span class="kn">import</span> <span class="n">fnmatch</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
@@ -84,8 +86,10 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">ament_index_python.packages</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_packages_with_prefixes</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch.utils.better_logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogSink</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">AbstractNode</span><span class="p">,</span> <span class="n">Node</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">LiveParamsMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.abstract_node</span><span class="w"> </span><span class="kn">import</span> <span class="n">AbstractNode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.node</span><span class="w"> </span><span class="kn">import</span> <span class="n">Node</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.live_params_mixin</span><span class="w"> </span><span class="kn">import</span> <span class="n">LiveParamsMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.lifecycle_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">LifecycleStage</span>
 
 
 <div class="viewcode-block" id="find_ros2_node_processes">
@@ -148,7 +152,7 @@
 <span class="sd">        A list processes that match the above criteria.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">r_pkg</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">rf</span><span class="s2">&quot;__ns:=</span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">r_name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">rf</span><span class="s2">&quot;__node:=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">r_name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">rf</span><span class="s2">&quot;__(?:node|name):=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -202,7 +206,7 @@
         <span class="c1"># Not a package currently sourced, look for a package.xml somewhere on the path. This search</span>
         <span class="c1"># is somewhat expensive, but we expect it to be rare since usually packages should already</span>
         <span class="c1"># be sourced 99.9% of the time</span>
-        <span class="k">while</span> <span class="n">os</span><span class="o">.</span><span class="n">pathsep</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+        <span class="k">while</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
             <span class="c1"># The package.xml is usually found in install/&lt;package&gt;/share/&lt;package&gt;</span>
             <span class="n">package_candidate</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
             <span class="n">candidates</span> <span class="o">=</span> <span class="p">[</span>
@@ -226,7 +230,7 @@
                         <span class="k">return</span> <span class="n">name_tag</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">path</span>
 
             <span class="c1"># Go up one level</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">pathsep</span><span class="p">,</span> <span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">,</span> <span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span></div>
 
@@ -289,14 +293,38 @@
                     <span class="n">namespace</span> <span class="o">=</span> <span class="n">val</span>
                 <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;__name&quot;</span><span class="p">,</span> <span class="s2">&quot;__node&quot;</span><span class="p">]:</span>
                     <span class="n">node_name</span> <span class="o">=</span> <span class="n">val</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="s2">&quot;:&quot;</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
-                        <span class="c1"># ROS2 supports a pattern where the key is preceded by the</span>
-                        <span class="c1"># node&#39;s name to make node-specific remaps for e.g. components</span>
-                        <span class="n">name</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-                        <span class="k">if</span> <span class="n">node</span> <span class="ow">and</span> <span class="n">name</span> <span class="o">!=</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+                <span class="k">elif</span> <span class="s2">&quot;:&quot;</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+                    <span class="c1"># ROS2 supports a pattern where the key is preceded by the</span>
+                    <span class="c1"># node&#39;s name to make node-specific remaps for e.g. components</span>
+                    <span class="n">qualifier</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="c1"># TODO if we have the node we don&#39;t need the node name...?</span>
+                    <span class="k">if</span> <span class="n">node</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">qualifier</span> <span class="o">!=</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">fullname</span><span class="p">,</span> <span class="n">qualifier</span><span class="p">):</span>
                             <span class="k">continue</span>
-                    <span class="n">remaps</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+
+                    <span class="c1"># NOTE: an especially unhinged developer could write a node process creating</span>
+                    <span class="c1"># multiple nodes and then start them like</span>
+                    <span class="c1">#</span>
+                    <span class="c1">#   -r __name:=X -r node1:__name:=Y -r node2:__name:=Z ...</span>
+                    <span class="c1">#</span>
+                    <span class="c1"># In this case we will get multiple matches here unless we have a node name to</span>
+                    <span class="c1"># look for. Even if there is an unqualified __ns or __name we cannot tell if </span>
+                    <span class="c1"># it is overridden by a more specific remap rule unless we know the original </span>
+                    <span class="c1"># node name.</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;__ns&quot;</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">namespace</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">node</span><span class="p">:</span>
+                            <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                                <span class="sa">f</span><span class="s2">&quot;Node process </span><span class="si">{</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s2"> has ambivalent namespace arguments: </span><span class="si">{</span><span class="n">cmd_args</span><span class="si">}</span><span class="s2">&quot;</span>
+                            <span class="p">)</span>
+                        <span class="n">namespace</span> <span class="o">=</span> <span class="n">val</span>
+                    <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;__name&quot;</span><span class="p">,</span> <span class="s2">&quot;__node&quot;</span><span class="p">]:</span>
+                        <span class="k">if</span> <span class="n">node_name</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">node</span><span class="p">:</span>
+                            <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                                <span class="sa">f</span><span class="s2">&quot;Node process </span><span class="si">{</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s2"> has ambivalent node name arguments: </span><span class="si">{</span><span class="n">cmd_args</span><span class="si">}</span><span class="s2">&quot;</span>
+                            <span class="p">)</span>
+                        <span class="n">node_name</span> <span class="o">=</span> <span class="n">val</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">remaps</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
 
             <span class="k">elif</span> <span class="n">arg</span> <span class="o">==</span> <span class="s2">&quot;--params-file&quot;</span><span class="p">:</span>
                 <span class="n">skip</span> <span class="o">=</span> <span class="mi">1</span>
@@ -329,14 +357,21 @@
     <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
 
     <span class="c1"># bl.query_node would iterate over all nodes every time</span>
-    <span class="n">bln</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">my_nodes</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">n</span><span class="o">.</span><span class="n">fullname</span>
-        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">bl</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">bl</span><span class="o">.</span><span class="n">get_nodes</span><span class="p">(</span>
             <span class="n">include_components</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_launch_service</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_foreign</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
     <span class="p">}</span>
-    <span class="n">foreign</span> <span class="o">=</span> <span class="p">[</span><span class="n">ForeignNode</span><span class="o">.</span><span class="n">wrap_process</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">find_ros2_node_processes</span><span class="p">()]</span>
-    <span class="k">return</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="n">n</span><span class="o">.</span><span class="n">fullname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bln</span><span class="p">,</span> <span class="n">foreign</span><span class="p">)</span></div>
+    
+    <span class="n">foreign</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">find_ros2_node_processes</span><span class="p">():</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">foreign</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ForeignNode</span><span class="o">.</span><span class="n">wrap_process</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">bl</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not create foreign node: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="n">n</span><span class="o">.</span><span class="n">fullname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">my_nodes</span><span class="p">,</span> <span class="n">foreign</span><span class="p">)</span></div>
 
 
 
@@ -481,6 +516,7 @@
         <span class="n">proc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process</span>
         <span class="k">if</span> <span class="n">proc</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Seems to work here despite setpgrp?</span>
                 <span class="k">return</span> <span class="n">proc</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">psutil</span><span class="o">.</span><span class="n">TimeoutExpired</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">TimeoutError</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
@@ -489,10 +525,14 @@
 <div class="viewcode-block" id="ForeignNode.start">
 <a class="viewcode-back" href="../../../better_launch.elements.html#better_launch.elements.foreign_node.ForeignNode.start">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Usually a foreign node will already be running upon construction. However, this method can be used when restarting the process after it has terminated.</span>
+<span class="sd">        </span>
+<span class="sd">        See also :py:meth:`takeover`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">better_launch</span><span class="w"> </span><span class="kn">import</span> <span class="n">BetterLaunch</span>
 
-        <span class="n">launcher</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">launcher</span><span class="o">.</span><span class="n">is_shutdown</span><span class="p">:</span>
+        <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">bl</span><span class="o">.</span><span class="n">is_shutdown</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Node </span><span class="si">{</span><span class="bp">self</span><span class="si">}</span><span class="s2"> will not be started as the launcher has already shut down&quot;</span>
             <span class="p">)</span>
@@ -526,6 +566,7 @@
             <span class="n">cwd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">shell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">preexec_fn</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">setpgrp</span><span class="p">,</span>  <span class="c1"># start in separate process group</span>
         <span class="p">)</span>
 
         <span class="c1"># Watch the process and notify user when it terminates</span>
@@ -533,6 +574,13 @@
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_watch_process</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># TODO Capture process output!</span>
+        <span class="c1"># To capture output we can use `strace -p1234 -s9999 -e write` where 1234 is the process</span>
+        <span class="c1"># pid. However, this requires sudo rights unless we got the &quot;cap_sys_ptrace+ep&quot; capability</span>
+        <span class="c1"># granted. This can only be granted to binary programs, not to python scripts, so we&#39;d have</span>
+        <span class="c1"># to create a small C++ binary (bl?). Alternatively we need to request sudo permissions,</span>
+        <span class="c1"># but the input line might get swepped away by other node logs...</span>
+
         <span class="k">def</span><span class="w"> </span><span class="nf">wait</span><span class="p">():</span>
             <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
 
@@ -542,7 +590,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Process has finished cleanly&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Process has died with exit code </span><span class="si">{</span><span class="n">ret</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        
+
         <span class="c1"># TODO this is probably a great use case for asyncio</span>
         <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">wait</span><span class="p">,</span> <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 
@@ -555,6 +603,13 @@
             <span class="k">return</span>
 
         <span class="n">signame</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">Signals</span><span class="p">(</span><span class="n">signum</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+
+        <span class="k">if</span> <span class="n">signum</span> <span class="o">==</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGTERM</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lifecycle_manager</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_lifecycle_manager</span><span class="o">.</span><span class="n">transition</span><span class="p">(</span><span class="n">LifecycleStage</span><span class="o">.</span><span class="n">FINALIZED</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Lifecycle transition to FINALIZED failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;Forwarding shutdown signal to foreign process: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">signame</span><span class="si">}</span><span class="s2">)&quot;</span>
         <span class="p">)</span>
@@ -572,7 +627,7 @@
 <div class="viewcode-block" id="ForeignNode.takeover">
 <a class="viewcode-back" href="../../../better_launch.elements.html#better_launch.elements.foreign_node.ForeignNode.takeover">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">takeover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kill_after</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="o">**</span><span class="n">node_args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Turns a foreign node into a node belonging to this better_launch process. This allows</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Replaces a foreign node with a node belonging to this better_launch process. This allows</span>
 <span class="sd">        to e.g. capture the node&#39;s output and control a few additional runtime parameters. Any</span>
 <span class="sd">        interactions with this foreign node instance after this function returns are undefined</span>
 <span class="sd">        behavior.</span>
@@ -637,7 +692,7 @@
         <span class="k">return</span> <span class="p">(</span>
             <span class="n">info</span>
             <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">&lt;bold&gt;Process&lt;/bold&gt;</span>
+<span class="se">\x1b</span><span class="s2">[1mProcess</span><span class="se">\x1b</span><span class="s2">[0m</span>
 <span class="s2">  PID:       </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span>
 <span class="s2">  Cmd Args:  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cmd_args</span><span class="si">}</span>
 <span class="s2">&quot;&quot;&quot;</span>

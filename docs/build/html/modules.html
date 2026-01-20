@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
@@ -14,7 +14,7 @@
     <link rel="shortcut icon" href="_static/logo.svg"/>
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/documentation_options.js?v=1ed6394b"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
@@ -77,6 +77,14 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="better_launch.html">better_launch package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="better_launch.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="better_launch.declarative.html">better_launch.declarative package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.declarative.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.declarative.html#module-better_launch.declarative.declarative">better_launch.declarative.declarative module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.declarative.html#module-better_launch.declarative.substitutions">better_launch.declarative.substitutions module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.declarative.html#module-better_launch.declarative.toml_parser">better_launch.declarative.toml_parser module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.declarative.html#module-better_launch.declarative">Module contents</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="better_launch.elements.html">better_launch.elements package</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.elements.html#submodules">Submodules</a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.elements.html#module-better_launch.elements.abstract_node">better_launch.elements.abstract_node module</a></li>
@@ -108,9 +116,10 @@
 <li class="toctree-l3"><a class="reference internal" href="better_launch.utils.html">better_launch.utils package</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.utils.html#submodules">Submodules</a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.utils.html#module-better_launch.utils.better_logging">better_launch.utils.better_logging module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.utils.html#module-better_launch.utils.click">better_launch.utils.click module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.utils.html#module-better_launch.utils.colors">better_launch.utils.colors module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.utils.html#module-better_launch.utils.introspection">better_launch.utils.introspection module</a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_launch.utils.html#module-better_launch.utils.substitutions">better_launch.utils.substitutions module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.utils.html#module-better_launch.utils.random_names">better_launch.utils.random_names module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.utils.html#module-better_launch.utils">Module contents</a></li>
 </ul>
 </li>
@@ -151,10 +160,12 @@
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.spin"><code class="docutils literal notranslate"><span class="pre">spin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.get_unique_name"><code class="docutils literal notranslate"><span class="pre">get_unique_name()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.get_groups"><code class="docutils literal notranslate"><span class="pre">get_groups()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.get_bl_nodes"><code class="docutils literal notranslate"><span class="pre">get_bl_nodes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.get_nodes"><code class="docutils literal notranslate"><span class="pre">get_nodes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.get_foreign_nodes"><code class="docutils literal notranslate"><span class="pre">get_foreign_nodes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.all_ros2_node_names"><code class="docutils literal notranslate"><span class="pre">all_ros2_node_names()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.query_node"><code class="docutils literal notranslate"><span class="pre">query_node()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.query_nodes"><code class="docutils literal notranslate"><span class="pre">query_nodes()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.ros_version"><code class="docutils literal notranslate"><span class="pre">ros_version()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.ros_distro"><code class="docutils literal notranslate"><span class="pre">ros_distro()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.launchfile"><code class="docutils literal notranslate"><span class="pre">launchfile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.launch_args"><code class="docutils literal notranslate"><span class="pre">launch_args</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.ros_adapter"><code class="docutils literal notranslate"><span class="pre">ros_adapter</span></code></a></li>
@@ -166,9 +177,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.add_shutdown_callback"><code class="docutils literal notranslate"><span class="pre">add_shutdown_callback()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.shutdown"><code class="docutils literal notranslate"><span class="pre">shutdown()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.find"><code class="docutils literal notranslate"><span class="pre">find()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.resolve_string"><code class="docutils literal notranslate"><span class="pre">resolve_string()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.load_params"><code class="docutils literal notranslate"><span class="pre">load_params()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.get_ros_message_type"><code class="docutils literal notranslate"><span class="pre">get_ros_message_type()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.wait_for_topic"><code class="docutils literal notranslate"><span class="pre">wait_for_topic()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.wait_for_service"><code class="docutils literal notranslate"><span class="pre">wait_for_service()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.subscriber"><code class="docutils literal notranslate"><span class="pre">subscriber()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.publisher"><code class="docutils literal notranslate"><span class="pre">publisher()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.launcher.BetterLaunch.publish_message"><code class="docutils literal notranslate"><span class="pre">publish_message()</span></code></a></li>
@@ -202,10 +214,12 @@
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.spin"><code class="docutils literal notranslate"><span class="pre">spin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.get_unique_name"><code class="docutils literal notranslate"><span class="pre">get_unique_name()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.get_groups"><code class="docutils literal notranslate"><span class="pre">get_groups()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.get_bl_nodes"><code class="docutils literal notranslate"><span class="pre">get_bl_nodes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.get_nodes"><code class="docutils literal notranslate"><span class="pre">get_nodes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.get_foreign_nodes"><code class="docutils literal notranslate"><span class="pre">get_foreign_nodes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.all_ros2_node_names"><code class="docutils literal notranslate"><span class="pre">all_ros2_node_names()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.query_node"><code class="docutils literal notranslate"><span class="pre">query_node()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.query_nodes"><code class="docutils literal notranslate"><span class="pre">query_nodes()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.ros_version"><code class="docutils literal notranslate"><span class="pre">ros_version()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.ros_distro"><code class="docutils literal notranslate"><span class="pre">ros_distro()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.launchfile"><code class="docutils literal notranslate"><span class="pre">launchfile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.launch_args"><code class="docutils literal notranslate"><span class="pre">launch_args</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.ros_adapter"><code class="docutils literal notranslate"><span class="pre">ros_adapter</span></code></a></li>
@@ -217,9 +231,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.add_shutdown_callback"><code class="docutils literal notranslate"><span class="pre">add_shutdown_callback()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.shutdown"><code class="docutils literal notranslate"><span class="pre">shutdown()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.find"><code class="docutils literal notranslate"><span class="pre">find()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.resolve_string"><code class="docutils literal notranslate"><span class="pre">resolve_string()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.load_params"><code class="docutils literal notranslate"><span class="pre">load_params()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.get_ros_message_type"><code class="docutils literal notranslate"><span class="pre">get_ros_message_type()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.wait_for_topic"><code class="docutils literal notranslate"><span class="pre">wait_for_topic()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.wait_for_service"><code class="docutils literal notranslate"><span class="pre">wait_for_service()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.subscriber"><code class="docutils literal notranslate"><span class="pre">subscriber()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.publisher"><code class="docutils literal notranslate"><span class="pre">publisher()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_launch.html#better_launch.BetterLaunch.publish_message"><code class="docutils literal notranslate"><span class="pre">publish_message()</span></code></a></li>

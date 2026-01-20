@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>better_launch.gazebo &mdash; better_launch 1.0.0 documentation</title>
+  <title>better_launch.gazebo &mdash; better_launch 1.0.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
 
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" href="../../_static/logo.svg"/>
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/documentation_options.js?v=1ed6394b"></script>
       <script src="../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
@@ -447,7 +447,7 @@
 <div class="viewcode-block" id="spawn_topic_bridge">
 <a class="viewcode-back" href="../../better_launch.html#better_launch.gazebo.spawn_topic_bridge">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">spawn_topic_bridge</span><span class="p">(</span>
-    <span class="o">*</span><span class="n">topics</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;GazeboBridge&quot;</span><span class="p">],</span>
+    <span class="o">*</span><span class="n">bridges</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;GazeboBridge&quot;</span><span class="p">],</span>
     <span class="n">node_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gz_bridge&quot;</span><span class="p">,</span>
     <span class="n">remaps</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">cmd_args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -480,18 +480,19 @@
 
     <span class="n">all_remaps</span> <span class="o">=</span> <span class="p">{}</span>
 
-    <span class="n">topics</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">topics</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">topics</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">GazeboBridge</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">remaps</span><span class="p">:</span>
-                <span class="n">all_remaps</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">remaps</span><span class="p">)</span>
+    <span class="n">bridges</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">bridges</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bridges</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">GazeboBridge</span><span class="p">):</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="n">GazeboBridge</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+            <span class="n">bridges</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
 
-            <span class="n">topics</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">b</span><span class="o">.</span><span class="n">remaps</span><span class="p">:</span>
+            <span class="n">all_remaps</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">remaps</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">remaps</span><span class="p">:</span>
         <span class="n">all_remaps</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">remaps</span><span class="p">)</span>
 
-    <span class="n">args</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">topics</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bridges</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">cmd_args</span><span class="p">:</span>
         <span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cmd_args</span><span class="p">)</span>
 
@@ -501,7 +502,6 @@
         <span class="n">node_name</span><span class="p">,</span>
         <span class="n">cmd_args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span>
         <span class="n">remaps</span><span class="o">=</span><span class="n">all_remaps</span><span class="p">,</span>
-        <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span></div>
 
@@ -510,19 +510,19 @@
 <div class="viewcode-block" id="spawn_image_bridge">
 <a class="viewcode-back" href="../../better_launch.html#better_launch.gazebo.spawn_image_bridge">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">spawn_image_bridge</span><span class="p">(</span>
-    <span class="o">*</span><span class="n">topics</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;GazeboBridge&quot;</span><span class="p">],</span>
-    <span class="n">node_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;img_bridge&quot;</span><span class="p">,</span>
+    <span class="o">*</span><span class="n">bridges</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;GazeboBridge&quot;</span><span class="p">],</span>
+    <span class="n">node_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">remaps</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">cmd_args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> 
-    <span class="n">qos</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;sensor_data&quot;</span><span class="p">,</span>
+    <span class="n">qos</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Spawn a bridge to efficiently relay images from Gazebo to ROS2 (one direction only).</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    topics : list[str]</span>
-<span class="sd">        The image topics to bridge. These can be specified as either Gazebo bridge definitions, :py:class:`GazeboBridge` instances, or regular topics.</span>
+<span class="sd">    bridges : list[str | GazeboBridge]</span>
+<span class="sd">        The image topics to bridge. These can be specified as either Gazebo bridge definitions, :py:class:`GazeboBridge` instances. Also accepts regular topics, in which case the type is assumed to be `sensor_msgs/Image`.</span>
 <span class="sd">    node_name : str, optional</span>
 <span class="sd">        The name of the node running the bridge.</span>
 <span class="sd">    remaps : dict[str, str], optional</span>
@@ -530,8 +530,10 @@
 <span class="sd">    cmd_args : list[str], optional</span>
 <span class="sd">        Additional commandline arguments to the bridge executable.</span>
 <span class="sd">    qos : str, optional</span>
-<span class="sd">        The `ROS2 quality of service &lt;https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html&gt;`_ definition to use. </span>
-
+<span class="sd">        The `ROS2 quality of service &lt;https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html&gt;`_ definition to use. Note that this is not supported in all versions of ros-gz-image and may cause the bridge to terminate.</span>
+<span class="sd">    kwargs : dict[str, Any]</span>
+<span class="sd">        Additional node arguments.</span>
+<span class="sd">    </span>
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    Node</span>
@@ -544,31 +546,36 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">all_remaps</span> <span class="o">=</span> <span class="p">{}</span>
 
-    <span class="n">topics</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">GazeboBridge</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">topics</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">topics</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">GazeboBridge</span><span class="p">):</span>
+    <span class="n">bridges</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">GazeboBridge</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">bridges</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bridges</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">GazeboBridge</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">t</span> <span class="o">=</span> <span class="n">GazeboBridge</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+                <span class="n">b</span> <span class="o">=</span> <span class="n">GazeboBridge</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                <span class="n">t</span> <span class="o">=</span> <span class="n">GazeboBridge</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">@sensor_msgs/msg/Image]gz.msgs.Image&quot;</span><span class="p">)</span>
+                <span class="n">b</span> <span class="o">=</span> <span class="n">GazeboBridge</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">b</span><span class="si">}</span><span class="s2">@sensor_msgs/msg/Image]gz.msgs.Image&quot;</span><span class="p">)</span>
             
-            <span class="n">topics</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">t</span>
+            <span class="n">bridges</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">t</span><span class="o">.</span><span class="n">is_image_bridge</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot relay non-image bridges&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">b</span><span class="o">.</span><span class="n">is_image_bridge</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">b</span><span class="si">}</span><span class="s2"> is not an image bridge&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">remaps</span><span class="p">:</span>
-            <span class="n">all_remaps</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">remaps</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">b</span><span class="o">.</span><span class="n">remaps</span><span class="p">:</span>
+            <span class="n">all_remaps</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">remaps</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">remaps</span><span class="p">:</span>
         <span class="n">all_remaps</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">remaps</span><span class="p">)</span>
 
-    <span class="k">for</span> <span class="n">src</span> <span class="ow">in</span> <span class="n">topics</span><span class="p">:</span>
-        <span class="n">dst</span> <span class="o">=</span> <span class="n">all_remaps</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">topic</span><span class="p">,</span> <span class="n">src</span><span class="o">.</span><span class="n">topic</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;/compressed&quot;</span><span class="p">,</span> <span class="s2">&quot;/compressedDepth&quot;</span><span class="p">,</span> <span class="s2">&quot;/theora&quot;</span><span class="p">):</span>
-            <span class="n">all_remaps</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">src</span> <span class="o">+</span> <span class="n">ext</span><span class="p">,</span> <span class="n">dst</span> <span class="o">+</span> <span class="n">ext</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">src</span> <span class="ow">in</span> <span class="n">bridges</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">topic</span> <span class="ow">in</span> <span class="n">all_remaps</span><span class="p">:</span>
+            <span class="n">dst</span> <span class="o">=</span> <span class="n">all_remaps</span><span class="p">[</span><span class="n">src</span><span class="o">.</span><span class="n">topic</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;/compressed&quot;</span><span class="p">,</span> <span class="s2">&quot;/compressedDepth&quot;</span><span class="p">,</span> <span class="s2">&quot;/theora&quot;</span><span class="p">):</span>
+                <span class="n">all_remaps</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">topic</span> <span class="o">+</span> <span class="n">ext</span><span class="p">,</span> <span class="n">dst</span> <span class="o">+</span> <span class="n">ext</span><span class="p">)</span>
 
-    <span class="n">args</span> <span class="o">=</span> <span class="n">cmd_args</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span><span class="o">.</span><span class="n">topic</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bridges</span><span class="p">]</span>
+    
+    <span class="k">if</span> <span class="n">cmd_args</span><span class="p">:</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cmd_args</span><span class="p">)</span>
+    
     <span class="k">if</span> <span class="n">qos</span><span class="p">:</span>
         <span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;--ros-args&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;qos:=</span><span class="si">{</span><span class="n">qos</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">])</span>
 
@@ -578,7 +585,7 @@
     <span class="k">return</span> <span class="n">bl</span><span class="o">.</span><span class="n">node</span><span class="p">(</span>
         <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ros_gz</span><span class="si">}</span><span class="s2">_image&quot;</span><span class="p">,</span>
         <span class="s2">&quot;image_bridge&quot;</span><span class="p">,</span>
-        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">node_name</span><span class="si">}</span><span class="s2">_image&quot;</span><span class="p">,</span>
+        <span class="n">node_name</span><span class="p">,</span>
         <span class="n">remaps</span><span class="o">=</span><span class="n">all_remaps</span><span class="p">,</span>
         <span class="n">cmd_args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
@@ -675,12 +682,12 @@
 <span class="sd">        ValueError</span>
 <span class="sd">            If the bridge string doesn&#39;t match the expected pattern.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(.+)@(.+)[\[\]@](.+)&quot;</span><span class="p">,</span> <span class="n">bridge</span><span class="p">)</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(.+)@(.+)([\[\]@])(.+)&quot;</span><span class="p">,</span> <span class="n">bridge</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">m</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">bridge</span> <span class="o">+</span> <span class="s2">&quot; is not a valid bridge string&quot;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">GazeboBridge</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">4</span><span class="p">))</span></div>
+        <span class="k">return</span> <span class="n">GazeboBridge</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">remaps</span><span class="o">=</span><span class="n">remaps</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="GazeboBridge.clock_bridge">

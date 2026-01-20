@@ -1,0 +1,213 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>better_launch.utils.random_names &mdash; better_launch 1.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/logo.svg"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=1ed6394b"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            better_launch
+              <img src="../../../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../better_launch_custom.html">better_launch package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">better_launch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">better_launch.utils.random_names</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for better_launch.utils.random_names</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+
+
+<div class="viewcode-block" id="UniqueWordGenerator">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">UniqueWordGenerator</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># English roots and stems</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">roots</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s1">&#39;amber&#39;</span><span class="p">,</span> <span class="s1">&#39;arch&#39;</span><span class="p">,</span> <span class="s1">&#39;ash&#39;</span><span class="p">,</span> <span class="s1">&#39;bran&#39;</span><span class="p">,</span> <span class="s1">&#39;brass&#39;</span><span class="p">,</span> <span class="s1">&#39;bronze&#39;</span><span class="p">,</span> <span class="s1">&#39;cedar&#39;</span><span class="p">,</span> <span class="s1">&#39;crim&#39;</span><span class="p">,</span> <span class="s1">&#39;crystal&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;dusk&#39;</span><span class="p">,</span> <span class="s1">&#39;ember&#39;</span><span class="p">,</span> <span class="s1">&#39;falcon&#39;</span><span class="p">,</span> <span class="s1">&#39;frost&#39;</span><span class="p">,</span> <span class="s1">&#39;gild&#39;</span><span class="p">,</span> <span class="s1">&#39;glim&#39;</span><span class="p">,</span> <span class="s1">&#39;gold&#39;</span><span class="p">,</span> <span class="s1">&#39;haven&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;hawk&#39;</span><span class="p">,</span> <span class="s1">&#39;iron&#39;</span><span class="p">,</span> <span class="s1">&#39;mist&#39;</span><span class="p">,</span> <span class="s1">&#39;moon&#39;</span><span class="p">,</span> <span class="s1">&#39;moss&#39;</span><span class="p">,</span> <span class="s1">&#39;oak&#39;</span><span class="p">,</span> <span class="s1">&#39;pearl&#39;</span><span class="p">,</span> <span class="s1">&#39;quick&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;raven&#39;</span><span class="p">,</span> <span class="s1">&#39;rock&#39;</span><span class="p">,</span> <span class="s1">&#39;rose&#39;</span><span class="p">,</span> <span class="s1">&#39;scar&#39;</span><span class="p">,</span> <span class="s1">&#39;shadow&#39;</span><span class="p">,</span> <span class="s1">&#39;silver&#39;</span><span class="p">,</span> <span class="s1">&#39;star&#39;</span><span class="p">,</span> <span class="s1">&#39;stone&#39;</span><span class="p">,</span> <span class="s1">&#39;storm&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;thorn&#39;</span><span class="p">,</span> <span class="s1">&#39;thunder&#39;</span><span class="p">,</span> <span class="s1">&#39;whis&#39;</span><span class="p">,</span> <span class="s1">&#39;wind&#39;</span><span class="p">,</span> <span class="s1">&#39;winter&#39;</span><span class="p">,</span> <span class="s1">&#39;wolf&#39;</span><span class="p">,</span> <span class="s1">&#39;wood&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;bar&#39;</span><span class="p">,</span> <span class="s1">&#39;bor&#39;</span><span class="p">,</span> <span class="s1">&#39;car&#39;</span><span class="p">,</span> <span class="s1">&#39;cor&#39;</span><span class="p">,</span> <span class="s1">&#39;dar&#39;</span><span class="p">,</span> <span class="s1">&#39;dor&#39;</span><span class="p">,</span> <span class="s1">&#39;far&#39;</span><span class="p">,</span> <span class="s1">&#39;for&#39;</span><span class="p">,</span> <span class="s1">&#39;gar&#39;</span><span class="p">,</span> <span class="s1">&#39;gor&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;har&#39;</span><span class="p">,</span> <span class="s1">&#39;hor&#39;</span><span class="p">,</span> <span class="s1">&#39;jar&#39;</span><span class="p">,</span> <span class="s1">&#39;jor&#39;</span><span class="p">,</span> <span class="s1">&#39;kar&#39;</span><span class="p">,</span> <span class="s1">&#39;kor&#39;</span><span class="p">,</span> <span class="s1">&#39;lar&#39;</span><span class="p">,</span> <span class="s1">&#39;lor&#39;</span><span class="p">,</span> <span class="s1">&#39;mar&#39;</span><span class="p">,</span> <span class="s1">&#39;mor&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;nar&#39;</span><span class="p">,</span> <span class="s1">&#39;nor&#39;</span><span class="p">,</span> <span class="s1">&#39;par&#39;</span><span class="p">,</span> <span class="s1">&#39;por&#39;</span><span class="p">,</span> <span class="s1">&#39;sar&#39;</span><span class="p">,</span> <span class="s1">&#39;sor&#39;</span><span class="p">,</span> <span class="s1">&#39;tar&#39;</span><span class="p">,</span> <span class="s1">&#39;tor&#39;</span><span class="p">,</span> <span class="s1">&#39;var&#39;</span><span class="p">,</span> <span class="s1">&#39;vor&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;wal&#39;</span><span class="p">,</span> <span class="s1">&#39;wel&#39;</span><span class="p">,</span> <span class="s1">&#39;wil&#39;</span><span class="p">,</span> <span class="s1">&#39;zar&#39;</span><span class="p">,</span> <span class="s1">&#39;zel&#39;</span><span class="p">,</span> <span class="s1">&#39;bel&#39;</span><span class="p">,</span> <span class="s1">&#39;cal&#39;</span><span class="p">,</span> <span class="s1">&#39;del&#39;</span><span class="p">,</span> <span class="s1">&#39;fel&#39;</span><span class="p">,</span> <span class="s1">&#39;gel&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;kel&#39;</span><span class="p">,</span> <span class="s1">&#39;mel&#39;</span><span class="p">,</span> <span class="s1">&#39;nel&#39;</span><span class="p">,</span> <span class="s1">&#39;pel&#39;</span><span class="p">,</span> <span class="s1">&#39;rel&#39;</span><span class="p">,</span> <span class="s1">&#39;sel&#39;</span><span class="p">,</span> <span class="s1">&#39;tel&#39;</span><span class="p">,</span> <span class="s1">&#39;vel&#39;</span><span class="p">,</span> <span class="s1">&#39;cran&#39;</span><span class="p">,</span> <span class="s1">&#39;gran&#39;</span>
+        <span class="p">]</span>
+        
+        <span class="c1"># English suffixes and endings</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">suffixes</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s1">&#39;ton&#39;</span><span class="p">,</span> <span class="s1">&#39;ston&#39;</span><span class="p">,</span> <span class="s1">&#39;den&#39;</span><span class="p">,</span> <span class="s1">&#39;don&#39;</span><span class="p">,</span> <span class="s1">&#39;ley&#39;</span><span class="p">,</span> <span class="s1">&#39;ly&#39;</span><span class="p">,</span> <span class="s1">&#39;ney&#39;</span><span class="p">,</span> <span class="s1">&#39;win&#39;</span><span class="p">,</span> <span class="s1">&#39;wyn&#39;</span><span class="p">,</span> <span class="s1">&#39;kin&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;lin&#39;</span><span class="p">,</span> <span class="s1">&#39;ling&#39;</span><span class="p">,</span> <span class="s1">&#39;son&#39;</span><span class="p">,</span> <span class="s1">&#39;sen&#39;</span><span class="p">,</span> <span class="s1">&#39;man&#39;</span><span class="p">,</span> <span class="s1">&#39;mon&#39;</span><span class="p">,</span> <span class="s1">&#39;rick&#39;</span><span class="p">,</span> <span class="s1">&#39;wick&#39;</span><span class="p">,</span> <span class="s1">&#39;ford&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;worth&#39;</span><span class="p">,</span> <span class="s1">&#39;borne&#39;</span><span class="p">,</span> <span class="s1">&#39;burn&#39;</span><span class="p">,</span> <span class="s1">&#39;by&#39;</span><span class="p">,</span> <span class="s1">&#39;dale&#39;</span><span class="p">,</span> <span class="s1">&#39;field&#39;</span><span class="p">,</span> <span class="s1">&#39;gate&#39;</span><span class="p">,</span> <span class="s1">&#39;ham&#39;</span><span class="p">,</span> <span class="s1">&#39;hold&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;ard&#39;</span><span class="p">,</span> <span class="s1">&#39;art&#39;</span><span class="p">,</span> <span class="s1">&#39;ent&#39;</span><span class="p">,</span> <span class="s1">&#39;ant&#39;</span><span class="p">,</span> <span class="s1">&#39;er&#39;</span><span class="p">,</span> <span class="s1">&#39;or&#39;</span><span class="p">,</span> <span class="s1">&#39;ar&#39;</span><span class="p">,</span> <span class="s1">&#39;ian&#39;</span><span class="p">,</span> <span class="s1">&#39;ean&#39;</span><span class="p">,</span> <span class="s1">&#39;an&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;ous&#39;</span><span class="p">,</span> <span class="s1">&#39;ious&#39;</span><span class="p">,</span> <span class="s1">&#39;eous&#39;</span><span class="p">,</span> <span class="s1">&#39;ace&#39;</span><span class="p">,</span> <span class="s1">&#39;ice&#39;</span><span class="p">,</span> <span class="s1">&#39;ance&#39;</span><span class="p">,</span> <span class="s1">&#39;ence&#39;</span><span class="p">,</span> <span class="s1">&#39;age&#39;</span><span class="p">,</span> <span class="s1">&#39;ine&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;ing&#39;</span><span class="p">,</span> <span class="s1">&#39;ed&#39;</span><span class="p">,</span> <span class="s1">&#39;en&#39;</span><span class="p">,</span> <span class="s1">&#39;eth&#39;</span><span class="p">,</span> <span class="s1">&#39;ith&#39;</span><span class="p">,</span> <span class="s1">&#39;us&#39;</span><span class="p">,</span> <span class="s1">&#39;is&#39;</span><span class="p">,</span> <span class="s1">&#39;as&#39;</span><span class="p">,</span> <span class="s1">&#39;os&#39;</span>
+        <span class="p">]</span>
+        
+        <span class="c1"># Pregenerate all possible combinations as indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">available_indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roots</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">suffixes</span><span class="p">)))</span>
+        <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">available_indices</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">next_index</span> <span class="o">=</span> <span class="mi">0</span>
+    
+<div class="viewcode-block" id="UniqueWordGenerator.get_unique_word">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator.get_unique_word">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_unique_word</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate the next unique word&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">next_index</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">available_indices</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No more unique fantasy words available&quot;</span><span class="p">)</span>
+        
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="c1"># Get the next index and convert to root/suffix pair</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">available_indices</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">next_index</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">next_index</span> <span class="o">+=</span> <span class="mi">1</span>
+            
+            <span class="n">root_idx</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">//</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">suffixes</span><span class="p">)</span>
+            <span class="n">suffix_idx</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">suffixes</span><span class="p">)</span>
+            
+            <span class="c1"># Avoid some awkward combinations</span>
+            <span class="n">word</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roots</span><span class="p">[</span><span class="n">root_idx</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">suffixes</span><span class="p">[</span><span class="n">suffix_idx</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">x</span> <span class="ow">in</span> <span class="n">word</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;shsh&quot;</span><span class="p">,</span> <span class="s2">&quot;thth&quot;</span><span class="p">)):</span>
+                <span class="k">break</span>
+        
+        <span class="k">return</span> <span class="n">word</span></div>
+
+    
+<div class="viewcode-block" id="UniqueWordGenerator.reset">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator.reset">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Shuffle and reset the generator&quot;&quot;&quot;</span>
+        <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">available_indices</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">next_index</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+    
+<div class="viewcode-block" id="UniqueWordGenerator.remaining">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator.remaining">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remaining</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return number of words still available&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">available_indices</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">next_index</span></div>
+
+    
+<div class="viewcode-block" id="UniqueWordGenerator.total_available">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.random_names.UniqueWordGenerator.total_available">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">total_available</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return total number of unique words possible&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">available_indices</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="n">default_name_generator</span> <span class="o">=</span> <span class="n">UniqueWordGenerator</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="get_unique_word">
+<a class="viewcode-back" href="../../../better_launch.utils.html#better_launch.utils.random_names.get_unique_word">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_unique_word</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">default_name_generator</span><span class="o">.</span><span class="n">get_unique_word</span><span class="p">()</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">discovered</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="mi">10000</span>
+    <span class="n">collisions</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">default_name_generator</span><span class="o">.</span><span class="n">remaining</span><span class="p">()):</span>    
+        <span class="n">n</span> <span class="o">=</span> <span class="n">default_name_generator</span><span class="o">.</span><span class="n">get_unique_word</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">discovered</span><span class="p">:</span>
+            <span class="n">collisions</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">discovered</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Collisions: </span><span class="si">{</span><span class="n">collisions</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">samples</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Nikolas Dahn.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
