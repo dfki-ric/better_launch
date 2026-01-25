@@ -182,8 +182,10 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
         Note that this will not appear in the logs!
         """
         # Ascii art based on: https://asciiart.cc/view/10677
-        
-        config_str = "\n".join(f"{key}={val}" for key, val in Settings().as_dict().items())
+
+        config_str = "\n".join(
+            f"{key}={val}" for key, val in Settings().as_dict().items()
+        )
 
         msg = f"""
 \x1b[1;20mBetter Launch is starting!\x1b[0m
@@ -804,26 +806,17 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                     # Global parameters should always be included
                     if (
                         not path
-                        or not qualifier 
                         or fnmatch(path, qualifier)
                     ):
                         for param_name, param_val in val.items():
-                            if not path or trim:
-                                param_path = param_name
-                            else:
-                                param_path = f"{path}:{param_name}"
-                            final_params[param_path] = param_val
+                            final_params[param_name] = param_val
+
+                elif fnmatch(f"{path}/{key}", qualifier):
+                    final_params[key] = val
 
                 elif isinstance(val, dict):
                     branch_path = f"{path}/{key}" if path else key
                     todo.append((branch_path, val))
-
-                else:
-                    # Some value that's not a dict and not a ros__parameters, just add it
-                    leaf_path = f"{path}/{key}" if path else key
-                    if not qualifier or fnmatch(leaf_path, qualifier):
-                        param_path = key if (not path or trim) else leaf_path
-                        final_params[param_path] = val
 
         return final_params
 
@@ -1856,7 +1849,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 from better_launch.declarative import _execute_toml
 
                 _execute_toml(file_path, **include_args)
-            elif file_path.lower().endswith(".py") and find_launchthis_function(file_path):
+            elif file_path.lower().endswith(".py") and find_launchthis_function(
+                file_path
+            ):
                 # Python better_launch launchfile
                 # Read the code, compile it and insert ourselves before running it
                 with open(file_path) as f:
@@ -1875,9 +1870,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 # Assume it's a ROS2 launch file (py, xml, yaml)
                 self._include_ros2_launchfile(file_path, **include_args)
         except Exception as e:
-            self.logger.error(
-                f"Launch include '{package}/{launchfile}' failed: {e}"
-            )
+            self.logger.error(f"Launch include '{package}/{launchfile}' failed: {e}")
             raise
 
     def _include_ros2_launchfile(self, file_path: str, **kwargs) -> None:
@@ -1900,10 +1893,10 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
     def _value_to_yaml(self, val: Any) -> str | Any:
         """Convert a value to a YAML string suitable for ROS2 launch arguments.
-        
+
         Optimized for performance on embedded platforms (Jetson Orin Nano).
         Uses direct type dispatch for primitives to avoid json.dumps overhead.
-        
+
         Parameters
         ----------
         val: Any
@@ -1912,7 +1905,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         Returns
         -------
         str | Any
-            A YAML-formatted string for primitives/containers, or the object itself 
+            A YAML-formatted string for primitives/containers, or the object itself
             if it is a ROS2 Substitution.
 
         Raises
@@ -1944,17 +1937,20 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         # Check for ROS2 Substitution objects
         # We can probably get away without importing from ROS2 to keep this function more general.
         if hasattr(val, "perform") or hasattr(val, "describe"):
-             return val
+            return val
 
         # Fallback to JSON serialization for containers (list, dict)
         # JSON is valid YAML and safer/cleaner than yaml.dump for these
         import json
+
         try:
             return json.dumps(val)
         except TypeError as e:
             # Fallback for non-serializable types (e.g. custom objects)
             # We could try str(), but it might not be valid YAML
-            raise ValueError(f"Failed to serialize launch argument '{val}' ({type(val).__name__}): {e}") from e
+            raise ValueError(
+                f"Failed to serialize launch argument '{val}' ({type(val).__name__}): {e}"
+            ) from e
 
     def ros2_launch_service(
         self,
@@ -2079,7 +2075,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         Parameters
         ----------
         severity : str | int
-            A logging severity or level. Standard severities are debug, info, warning, error, critical, and fatal. Integers can be used for more fine grained control and custom 
+            A logging severity or level. Standard severities are debug, info, warning, error, critical, and fatal. Integers can be used for more fine grained control and custom
             log levels, as per the python logging module.
         message : str
             The message to log.
