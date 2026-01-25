@@ -805,8 +805,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                         or fnmatch(path, qualifier)
                     ):
                         for param_name, param_val in val.items():
-                            param_path = f"{path}:{param_name}" if path else param_name
-                            final_params[param_path] = param_val
+                            final_params[param_name] = param_val
 
                 elif isinstance(val, dict):
                     branch_path = f"{path}/{key}" if path else key
@@ -816,7 +815,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                     # Some value that's not a dict and not a ros__parameters, just add it
                     leaf_path = f"{path}/{key}" if path else key
                     if not qualifier or fnmatch(leaf_path, qualifier):
-                        final_params[leaf_path] = val
+                        final_params[key] = val
 
         return final_params
 
