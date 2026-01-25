@@ -732,6 +732,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         subdir: str = None,
         *,
         qualifier: str | Node = None,
+        trim: bool = True,
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through :py:meth:`find`.
 
@@ -757,6 +758,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             A path fragment that the config file must be located in.
         qualifier : str | Node, optional
             Used to specifiy which section of the config to return.
+        trim : bool, optional
+            Remove the matching qualifier paths from the returned dict's keys if true and a qualifier was specified.
 
         Returns
         -------
@@ -805,7 +808,11 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                         or fnmatch(path, qualifier)
                     ):
                         for param_name, param_val in val.items():
-                            final_params[param_name] = param_val
+                            if not path or trim:
+                                param_path = param_name
+                            else:
+                                param_path = f"{path}:{param_name}"
+                            final_params[param_path] = param_val
 
                 elif isinstance(val, dict):
                     branch_path = f"{path}/{key}" if path else key
@@ -815,7 +822,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                     # Some value that's not a dict and not a ros__parameters, just add it
                     leaf_path = f"{path}/{key}" if path else key
                     if not qualifier or fnmatch(leaf_path, qualifier):
-                        final_params[key] = val
+                        param_path = key if (not path or trim) else leaf_path
+                        final_params[param_path] = val
 
         return final_params
 
