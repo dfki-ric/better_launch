@@ -140,6 +140,7 @@ def _get_toml_args(toml: dict) -> list[DeclaredArg]:
 def launch_toml(
     path: str,
     launch_args: dict[str, str] = None,
+    extra_args: list[str] = None,
     eval_mode: Literal["full", "literal", "none"] = None,
     *,
     ui: bool = None,
@@ -190,7 +191,7 @@ def launch_toml(
         package = "composition"
         plugin = "composition::Talker"
 
-    In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions). These will be evaluated according to 
+    In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions). These will be evaluated according to
     python truthiness.
     - if     -> execute only if condition is true
     - unless -> execute only if condition is false
@@ -213,6 +214,8 @@ def launch_toml(
         Path to the TOML launchfile to execute.
     launch_args : dict[str, str], optional
         values for launch arguments declared by the launchfile.
+    extra_args : list[str], optional
+        Extra CLI arguments to pass through (e.g. node parameter overrides).
     eval_mode : Literal[&quot;full&quot;, &quot;literal&quot;, &quot;none&quot;], optional
         How to treat `eval` substitutions.
     ui : bool, optional
@@ -248,7 +251,7 @@ def launch_toml(
 
     if toml_format == current_toml_format_version:
         pass
-    #elif toml_format == some_previous_version: ...
+    # elif toml_format == some_previous_version: ...
 
     # TODO establish and verify argument precedence:
     # CLI > env > launchfile > default
@@ -286,6 +289,11 @@ def launch_toml(
         for key, arg in launch_args.items():
             if arg is not None:
                 argv.extend([f"--{key}", arg])
+
+    if extra_args:
+        if argv is None:
+            argv = []
+        argv.extend(extra_args)
 
     def launch_func(*args, **kwargs):
         toml.update(kwargs)

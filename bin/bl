@@ -158,6 +158,9 @@ class BetterLaunchPython(LaunchFile):
             if arg is not None:
                 args.extend([f"--{key}", arg])
 
+        # Pass through extra args (e.g., --node.param value for node overrides)
+        args.extend(ctx.args)
+
         # This does NOT return and will replace our executable with the new executable in the same process
         os.execvp("python3", [str(a) for a in args])
 
@@ -202,7 +205,7 @@ class BetterLaunchToml(LaunchFile):
         # Since the toml files are not executable, we need something else to run them. We
         # could create another script with a main function, but I don't think there's much
         # of a point to this.
-        launch_toml(self.filepath, launch_args=kwargs)
+        launch_toml(self.filepath, launch_args=kwargs, extra_args=ctx.args)
 
 
 class Ros2LaunchFile(LaunchFile):

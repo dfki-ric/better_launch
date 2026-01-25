@@ -117,6 +117,7 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
 
     _launchfile: str = None
     _launch_func_args: dict[str, Any] = {}
+    _node_param_overrides: dict[str, dict[str, Any]] = {}
 
     def __init__(
         self,
@@ -214,6 +215,10 @@ Takeoff in 3... 2... 1...
         print(msg)
         self.logger.critical(f"Log files at {roslog.launch_config.log_dir}")
 
+    def set_node_param_overrides(self, overrides: dict[str, dict[str, Any]]) -> None:
+        """Set node parameter overrides from CLI."""
+        self._node_param_overrides = overrides
+
     def spin(self, exit_with_last_node: bool = True) -> None:
         """Join the BetterLaunch thread until it terminates. You do **not** need to call this if you're using the :py:meth:`launch_this` wrapper or the TUI.
 
@@ -243,7 +248,9 @@ Takeoff in 3... 2... 1...
             except (CancelledError, TimeoutError):
                 pass
 
-        self.logger.critical(f"Reminder: log files are at {roslog.launch_config.log_dir}")
+        self.logger.critical(
+            f"Reminder: log files are at {roslog.launch_config.log_dir}"
+        )
 
     def get_unique_name(self, name: str = "", check_running_nodes: bool = True) -> str:
         """Returns a unique name. If a name is provided it will be prepended with an underscore.
@@ -336,10 +343,10 @@ Takeoff in 3... 2... 1...
             nodes.append(self._ros2_launcher)
 
         if include_foreign:
-            # Note that self.shared_node.get_node_names_and_namespaces() will only give us the 
+            # Note that self.shared_node.get_node_names_and_namespaces() will only give us the
             # names and namespaces, but no handle on the actual processes, not even a package
 
-            # TODO should check if it's a composer and has subnodes, but we won't know the 
+            # TODO should check if it's a composer and has subnodes, but we won't know the
             # components' handles or plugins...
             # if include_components:
             #     for f in foreign:
@@ -347,7 +354,7 @@ Takeoff in 3... 2... 1...
             #             composer = Composer(f)
             #             for cid, component in composer.get_live_components().items():
             #                 nodes.append(Component(...))
-            
+
             foreign = self.get_foreign_nodes()
             nodes.extend(foreign)
 
@@ -667,9 +674,7 @@ Takeoff in 3... 2... 1...
             If `package` contains path separators, or if a `filename` is provided but could not be found within base path.
         """
         if filename and os.path.isabs(filename):
-            self.logger.info(
-                f"find({package}, {filename}, {subdir}):1 -> {filename}"
-            )
+            self.logger.info(f"find({package}, {filename}, {subdir}):1 -> {filename}")
             return filename
 
         if not package:
@@ -717,7 +722,6 @@ Takeoff in 3... 2... 1...
         raise ValueError(
             f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
         )
-
 
     def load_params(
         self,
@@ -1468,13 +1472,24 @@ Takeoff in 3... 2... 1...
         group = self.group_tip
         namespace = group.assemble_namespace()
 
+        # Merge CLI overrides (CLI takes precedence)
+        resolved_params = params
+        if isinstance(params, str):
+            resolved_params = self.load_params(configfile=params)
+        elif params is None:
+            resolved_params = {}
+
+        cli_overrides = self._node_param_overrides.get(name, {})
+        if cli_overrides:
+            resolved_params = {**resolved_params, **cli_overrides}
+
         node = Node(
             package,
             executable,
             name,
             namespace,
             remaps=remaps,
-            params=params,
+            params=resolved_params,
             cmd_args=cmd_args,
             env=env,
             isolate_env=isolate_env,
@@ -1637,7 +1652,14 @@ Takeoff in 3... 2... 1...
             else:
                 raise ValueError(f"Unknown container mode '{variant}")
 
-            node_ref = Node(package, executable, name, namespace, remaps=component_remaps, output=output)
+            node_ref = Node(
+                package,
+                executable,
+                name,
+                namespace,
+                remaps=component_remaps,
+                output=output,
+            )
 
         if isinstance(node_ref, Composer):
             comp = node_ref
