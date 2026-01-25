@@ -1865,7 +1865,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 global_args[_bl_include_args] = include_args
 
                 # Since we're running an entire module locals won't have any effect
-                exec(code, globals=global_args)
+                exec(code, global_args)
             else:
                 # Assume it's a ROS2 launch file (py, xml, yaml)
                 self._include_ros2_launchfile(file_path, **include_args)
