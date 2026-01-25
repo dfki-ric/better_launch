@@ -732,7 +732,6 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         subdir: str = None,
         *,
         qualifier: str | Node = None,
-        matching_only: bool = False,
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through :py:meth:`find`.
 
@@ -758,8 +757,6 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             A path fragment that the config file must be located in.
         qualifier : str | Node, optional
             Used to specifiy which section of the config to return.
-        matching_only : bool, optional
-            If True, load only those params matching the qualifier. If no qualifier was given, only load global params (and those under `/**`).
 
         Returns
         -------
@@ -777,16 +774,15 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         with open(path) as f:
             content = f.read()
-            is_ros_params = "ros__parameters" in content
             params = yaml.safe_load(content)
-
-        # Return the entire config if it doesn't follow the ros pattern
-        if not is_ros_params:
-            return params
 
         # No node- or namespace specific sections
         if "ros__parameters" in params:
             return params["ros__parameters"]
+
+        # Return the entire config if it doesn't follow the ros pattern
+        if not qualifier:
+            return params
 
         final_params = {}
 
@@ -802,8 +798,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                     # Global parameters should always be included
                     if (
                         not path
-                        or not matching_only
-                        or (qualifier and fnmatch(qualifier, path))
+                        or not qualifier 
+                        or fnmatch(qualifier, path)
                     ):
                         for param_name, param_val in val.items():
                             param_path = f"{path}:{param_name}" if path else param_name
@@ -816,9 +812,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 else:
                     # Some value that's not a dict and not a ros__parameters, just add it
                     leaf_path = f"{path}/{key}" if path else key
-                    if not matching_only or (
-                        qualifier and fnmatch(qualifier, leaf_path)
-                    ):
+                    if not qualifier or fnmatch(qualifier, leaf_path):
                         final_params[leaf_path] = val
 
         return final_params
