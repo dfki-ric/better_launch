@@ -784,6 +784,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if not qualifier:
             return params
 
+        if not qualifier.endswith("*"):
+            qualifier += "/*"
+
         final_params = {}
 
         # Depth-first search through the params to find any "ros__parameters" keys
@@ -799,7 +802,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                     if (
                         not path
                         or not qualifier 
-                        or fnmatch(qualifier, path)
+                        or fnmatch(path, qualifier)
                     ):
                         for param_name, param_val in val.items():
                             param_path = f"{path}:{param_name}" if path else param_name
@@ -812,7 +815,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 else:
                     # Some value that's not a dict and not a ros__parameters, just add it
                     leaf_path = f"{path}/{key}" if path else key
-                    if not qualifier or fnmatch(qualifier, leaf_path):
+                    if not qualifier or fnmatch(leaf_path, qualifier):
                         final_params[leaf_path] = val
 
         return final_params
