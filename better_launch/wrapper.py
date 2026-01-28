@@ -53,7 +53,7 @@ def launch_this(
     launch_func : Callable, optional
         Your launch function, typically using BetterLaunch to start ROS2 nodes.
     ui : bool, optional
-        Whether to start the better_launch TUI. Superseded by the `BL_UI_OVERRIDE` environment variable and the `--bl_ui_override` argument.
+        Whether to start the better_launch TUI. Superseded by the `BL_UI` environment variable and the `--bl_ui_override` argument.
     colormode : Colormode, optional
         Decides what colors will be used for:
         * default: one color per log severity level and a single color for all message sources
@@ -61,17 +61,17 @@ def launch_this(
         * source: one color per message source, don't colorize log severity
         * none: don't colorize anything
         * rainbow: colorize log severity and give each message source its own color
-        Superseded by the `BL_COLORMODE_OVERRIDE` environment variable and the `--bl_colormode_override` argument.
+        Superseded by the `BL_COLORMODE` environment variable and the `--bl_colormode_override` argument.
     print_limit : int, optional
         Limit the length of messages printed to the screen.
     screen_log_level : str | int, optional
         The minimum level for log messages to be printed to the terminal/screen. Can be either  "info", "warning", "error", "critical", or an arbitrary integer (e.g. logging.WARNING).
     screen_log_format : str, optional
-        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
+        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT` environment variable. See [PrettyLogFormatter][better_launch.utils.better_logging.PrettyLogFormatter] for details.
     file_log_level : str | int, optional
         The minimum level for log messages to be written to the lot file. Can be either  "info", "warning", "error", "critical", or an arbitrary integer (e.g. logging.WARNING).
     file_log_format : str, optional
-        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
+        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT` environment variable. See [PrettyLogFormatter][better_launch.utils.better_logging.PrettyLogFormatter] for details.
     manage_foreign_nodes : bool, optional
         If True, the TUI will also include node processes not started by this process. Has no effect if the TUI is not started.
     join : bool, optional

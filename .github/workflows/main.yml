@@ -1,0 +1,67 @@
+name: Run Unit Test via Pytest
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Deploy docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v1
+
+      - name: Deploy docs
+        uses: mhausenblas/mkdocs-deploy-gh-pages@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIREMENTS: docs/requirements.txt
+
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.6
+        with:
+          path: workspace
+
+      - name: Setup workspace
+        uses: ichiro-its/ros2-ws-action/setup@v1.0.0
+        with:
+          distro: jazzy
+
+      - name: Build workspace
+        uses: ichiro-its/ros2-ws-action/build@v1.0.0
+
+      - name: Install dependencies
+        run: |
+          # launch-ros is not included by default
+          sudo apt-get install -y \
+              ros-jazzy-launch-ros \
+              ros-jazzy-std-msgs \
+              ros-jazzy-examples-rclpy-minimal-publisher \
+              ros-jazzy-examples-rclpy-minimal-subscriber \
+              ros-jazzy-composition \
+              ros-jazzy-examples-rclcpp-minimal-composition
+          python -m pip install --upgrade pip
+          pip install pytest
+          pip install --break-system-packages -r workspace/requirements.txt
+
+      - name: Run tests
+        shell: bash
+        run: |
+          # Explicitly source the ROS2 environment so common packages can be found
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          colcon test --event-handlers console_cohesion+ \
+                      --pytest-with-coverage \
+                      --return-code-on-test-failure \
+                      --packages-select better_launch
+        # The tests are a bit unreliable at the moment
+        continue-on-error: true

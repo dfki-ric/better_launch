@@ -42,4 +42,4 @@ Developers have to submit pull requests. Those will be reviewed by at least one 
 ## Funding
 *better_launch* was initiated and is currently developed at the [Robotics Innovation Center](http://robotik.dfki-bremen.de/en/startpage.html) of the [German Research Center for Artificial Intelligence (DFKI)](http://www.dfki.de) in Bremen.
 
-![dfki-logo](media/dfki.png)
+![dfki-logo](ddocs/assets/images/dfki.png)

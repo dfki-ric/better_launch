@@ -35,8 +35,9 @@ from better_launch.tui.footer_menu import FooterMenu
 
 
 class AppMode(IntEnum):
-    """States of our TUI. The TUI decides what to display based on the active state. See :py:meth:`BetterTui._switch_mode` for details.
+    """States of our TUI. The TUI decides what to display based on the active state.
     """
+    # See BetterTui._switch_mode for details
     STANDARD = auto()
     CONFIRM_EXIT = auto()
     SEARCH_NODE = auto()
@@ -110,7 +111,7 @@ class BetterTui:
         keep_alive: bool = False,
         color_depth: Literal[1, 4, 8, 24] = 8,
     ):
-        """Our TUI class. Use :py:meth:`run` to start the TUI.
+        """Our TUI class. Use [run][] to start the TUI.
 
         In order to override keybindings you may set the BL_TUI_KEYBINDS environment variable. For example, this will bind the nodes menu to ctrl-n and setting the log level to ctrl-l:
 
@@ -328,7 +329,7 @@ class BetterTui:
 
     # Setup user interactions
     def _setup_key_bindings(self) -> None:
-        """Setup the key bindings. This is how the user will interact with the TUI and usually results in calls to :py:meth:`_switch_mode` or :py:meth:`_handle_menu_accept`.
+        """Setup the key bindings. This is how the user will interact with the TUI and usually results in calls to [_switch_mode` or :meth:`_handle_menu_accept][].
         """
         bind = self.bindings.add
 
@@ -485,7 +486,7 @@ class BetterTui:
             self.footer_menu.set_items(["mute", "mute others", "unmute", "unmute all"])
 
     def _handle_menu_accept(self, idx: int) -> None:
-        """Decide what to do when a menu item is activated by the user. Usually this will result in a state transition (via :py:meth:`_switch_mode`) and some side effects.
+        """Decide what to do when a menu item is activated by the user. Usually this will result in a state transition (via [_switch_mode][]) and some side effects.
 
         Parameters
         ----------

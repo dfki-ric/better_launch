@@ -298,6 +298,9 @@ def configure_logger(
     screen_formatter: logging.Formatter = None,
     file_formatter: logging.Formatter = None,
 ) -> None:
+    """Initialize the logging framework.
+    """
+    # TODO proper docstring
     if output:
         if isinstance(output, Iterable) and not isinstance(output, str):
             output = [output]

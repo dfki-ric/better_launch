@@ -1,0 +1,5 @@
+# TODO
+- improve hero spaceship
+- social media links?
+- check social card
+- shorten original README

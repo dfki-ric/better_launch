@@ -57,21 +57,17 @@ class Node(AbstractNode, LiveParamsMixin):
         remaps : dict[str, str], optional
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
-            Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using :py:meth:`BetterLaunch.load_params`.
+            Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
         env : dict[str, str], optional
-            Additional environment variables to set for the node's process. The node process will merge these with the environment variables of the better_launch host process unless :py:meth:`isolate_env` is True.
+            Additional environment variables to set for the node's process. The node process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
         isolate_env : bool, optional
             If True, the node process' env will not be inherited from the parent process and only those passed via `env` will be used. Be aware that this can result in many common things to not work anymore since e.g. keys like *PATH* will be missing.
         log_level : int, optional
             The minimum severity a logged message from this node must have in order to be published. This will be added to the cmd_args unless it is None.
         output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
-            Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
-        anonymous : bool, optional
-            If True, the node name will be appended with a unique suffix to avoid name conflicts.
-        hidden : bool, optional
-            If True, the node name will be prepended with a "_", hiding it from common listings.
+            Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See [configure_logger][utils.better_logging.configure_logger] for details.
         on_exit : Callable, optional
             A function to call when the node's process terminates (after any possible respawns).
         max_respawns : int, optional
