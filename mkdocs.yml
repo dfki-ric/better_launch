@@ -1,0 +1,96 @@
+site_name: better_launch
+repo_url: https://github.com/dfki-ric/better_launch
+site_url: https://dfki-ric.github.io/better_launch/
+site_author: Nikolas Dahn
+site_description: "A better launch system for ROS2"
+copyright: Copyright &copy; 2025 DFKI GmbH
+theme:
+  favicon: assets/images/logo.png
+  logo: assets/images/logo.png
+  name: material
+  custom_dir: docs/overrides
+  font:
+    text: Noto Sans
+  features:
+    - announce.dismiss
+    - content.code.copy
+    - header.autohide
+    - navigation.tabs
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.tabs
+    - navigation.tracking
+    - navigation.top
+    - search.highlight
+    - search.share
+    - search.suggest
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: pink
+
+nav:
+  - Home: index.md
+  - About: 
+    - Why?: about/why.md
+    - Features: about/features.md
+    - Differences: about/differences.md
+    - Performance: about/performance.md
+    - ROS2: about/ros2.md
+  - Installation: installation/installation.md
+  - HowTo:
+    - Python: howto/python.md
+    - TOML: howto/toml.md
+    - TUI: howto/tui.md
+    - Settings: howto/settings.md
+  - API Reference
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+          python:
+            options:
+              docstring_style: numpy
+              show_signature_annotations: true
+              separate_signature: true
+              show_source: false
+              show_symbol_type_heading: true
+              show_symbol_type_toc: true
+              scoped_crossrefs: true
+  - api-autonav:
+      modules: ["better_launch"]
+      nav_item_prefix: ""
+  - social:
+      cards_layout: default/variant
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      toc_depth: "1-3"
+      permalink: true
+  # Python Markdown Extensions
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tilde
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg

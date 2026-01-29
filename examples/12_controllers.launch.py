@@ -17,11 +17,7 @@ def parambolage():
 
     # We could also pass the params file path to the node, but this way we have a bit
     # more control.
-    params = bl.load_params(
-        "better_launch",
-        "control_config.yaml",
-        matching_only=False,  # we want ALL the parameters, including qualified ones
-    )
+    params = bl.load_params("better_launch", "control_config.yaml")
     print("Loaded parameters:")
     pprint(params, indent=2)
 

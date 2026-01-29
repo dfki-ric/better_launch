@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Iterable
 import os
 import platform
 import signal
@@ -18,6 +18,7 @@ from better_launch.utils.better_logging import (
     RecordForwarder,
     StubbornHandler,
 )
+from better_launch.utils import settings
 from better_launch.utils.colors import get_contrast_color
 from .abstract_node import AbstractNode
 
@@ -27,6 +28,7 @@ def _launchservice_worker(
     launchservice_args: list[Any],
     launch_action_queue: Queue,
     log_queue: Queue,
+    config: settings._Settings,
 ) -> None:
     """This function will run in a child process and will not have access to any objects already in memory UNLESS they are passed to it as arguments. See the comments for further details."""
     # Makes it easier to tell what's going on in the process table
@@ -60,6 +62,9 @@ def _launchservice_worker(
     # Late import to avoid adding ROS2 launch as a dependency - we are committed here!
     import launch
 
+    # Synchronize the settings from the host process
+    settings._SETTINGS = config
+
     # LaunchService is a little stubborn about log formatting and always prepends the node's
     # name and then appends the output format, but this also allows us to capture the actual
     # source of the message
@@ -80,6 +85,7 @@ def _launchservice_worker(
     std_handler = RecordForwarder(
         # TODO should always mimic the main process formatter configuration regarding colors etc.
         PrettyLogFormatter(
+            config.screen_log_format,
             roslog_pattern=r"\[(?P<name>.+)] *" + ROSLOG_PATTERN_BL,
         )
     )
@@ -145,7 +151,7 @@ class Ros2LaunchWrapper(AbstractNode):
         self,
         name: str = "LaunchService",
         launchservice_args: list[str] = None,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ):
         """Hosts a separate process running a ROS2 `LaunchService` instance (the main entrypoint of the ROS2 launch system).
 
@@ -163,8 +169,8 @@ class Ros2LaunchWrapper(AbstractNode):
             The name that will be used for the logger and the child process.
         launchservice_args : list[str], optional
             Additional arguments to pass to the ROS2 launch service. These will show up in the ROS2 `LaunchContext`.
-        output : LogSink  |  set[LogSink], optional
-            How log output from the launch service should be handled. This will also include the output from all nodes launched by this launch service. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
+            How log output from the launch service should be handled. This will also include the output from all nodes launched by this launch service. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See [configure_logger][utils.better_logging.configure_logger] for details.
         """
         super().__init__(
             "ros2/launch",
@@ -206,7 +212,7 @@ class Ros2LaunchWrapper(AbstractNode):
             return False
 
     def is_ros2_connected(self, timeout: float = None) -> bool:
-        """Equal to :py:meth:`is_running` for this class."""
+        """Equal to [is_running][AbstractNode.is_running] for this class."""
         return self.is_running
 
     def is_lifecycle_node(self, timeout: float = None) -> bool:
@@ -261,6 +267,7 @@ class Ros2LaunchWrapper(AbstractNode):
                 self.launchservice_args,
                 self._launch_action_queue,
                 self._process_log_queue,
+                settings.Settings(),
             ),
             name=self.name,
             daemon=True,

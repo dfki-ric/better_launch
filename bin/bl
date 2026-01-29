@@ -45,11 +45,9 @@ except ImportError:
 from better_launch import __version__
 from better_launch.utils.introspection import get_launchfunc_signature_from_file
 from better_launch.utils.click import (
-    Overrides,
     get_click_options,
-    get_click_overrides,
+    get_click_bl_options,
 )
-from better_launch.utils.better_logging import Colormode
 
 
 class LaunchFile:
@@ -118,9 +116,6 @@ class BetterLaunchPython(LaunchFile):
     def _get_launch_params_and_doc_bl_python(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        if not filepath.lower().endswith(".launch.py"):
-            raise ValueError("Not a python file")
-
         from better_launch.wrapper import _get_declared_args
 
         _, signature, func_doc = get_launchfunc_signature_from_file(filepath)
@@ -129,9 +124,8 @@ class BetterLaunchPython(LaunchFile):
 
         launch_args = _get_declared_args(signature, func_doc)
 
-        overrides = Overrides()
         options = get_click_options(launch_args)
-        options.extend(get_click_overrides(overrides, expose=True))
+        options.extend(get_click_bl_options(expose=True))
 
         doc = ""
         if func_doc:
@@ -148,7 +142,7 @@ class BetterLaunchPython(LaunchFile):
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Delegating to better_launch: {self.name}, args={kwargs}",
+            f"Delegating to better_launch: {self.name}, args={kwargs}",
             flush=True,
         )
 
@@ -169,21 +163,18 @@ class BetterLaunchToml(LaunchFile):
     def _get_launch_params_and_doc_bl_toml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        if not filepath.lower().endswith(".launch.toml"):
-            raise ValueError("Not a toml file")
-
-        from better_launch.declarative.declarative import (
-            _get_toml_args,
+        from better_launch.declarative import (
             load_toml,
+            _get_toml_args,
         )
 
         toml = load_toml(filepath)
         doc = toml.get("__comment__")
         declared_args = _get_toml_args(toml)
 
-        overrides = Overrides()
         options = get_click_options(declared_args)
-        options.extend(get_click_overrides(overrides, expose=True))
+        # We'll stay within the same process, so there's no need to expose these on the CLI
+        options.extend(get_click_bl_options(expose=False))
 
         return options, doc
 
@@ -193,15 +184,16 @@ class BetterLaunchToml(LaunchFile):
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Calling launch_toml: {self.name}, args={kwargs}",
+            f"Calling launch_toml: {self.name}, args={kwargs}",
             flush=True,
         )
 
-        from better_launch.declarative.declarative import launch_toml
+        from better_launch.declarative import launch_toml
 
         # Since the toml files are not executable, we need something else to run them. We
         # could create another script with a main function, but I don't think there's much
         # of a point to this.
+        # TODO pass overrides?
         launch_toml(self.filepath, launch_args=kwargs)
 
 
@@ -241,9 +233,6 @@ class Ros2LaunchFile(LaunchFile):
     def _get_launch_params_and_doc_ros2_python(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        if not filepath.lower().endswith(".launch.py"):
-            raise ValueError("Not a python file")
-
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 source = f.read()
@@ -288,9 +277,6 @@ class Ros2LaunchFile(LaunchFile):
     def _get_launch_params_and_doc_ros2_xml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        if not filepath.lower().endswith(".launch.xml"):
-            raise ValueError("Not a python file")
-
         tree = ElementTree.parse(filepath)
         root = tree.getroot()
 
@@ -351,7 +337,7 @@ class Ros2LaunchFile(LaunchFile):
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Delegating to ROS2 launch: {self.name}, args={kwargs}",
+            f"Delegating to ROS2 launch: {self.name}, args={kwargs}",
             flush=True,
         )
 
@@ -376,7 +362,7 @@ class ExecutableLaunchFile(LaunchFile):
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Directly executing launch file: {self.name}, args={kwargs}",
+            f"Directly executing launch file: {self.name}, args={kwargs}",
             flush=True,
         )
 

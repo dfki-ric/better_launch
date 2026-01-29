@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Iterable
 import signal
 import time
 import re
@@ -21,13 +21,13 @@ class Component(AbstractNode, LiveParamsMixin):
         name: str,
         namespace: str,
         *,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
     ):
         """Representation of a component, a composable object that can be loaded into a running process. Components will always use their composer's namespace.
 
-        Note that in ROS2 launch files you can reference existing composers by name when creating components. This is a clutch because ROS2 does not have a way to retrieve a reference to an already existing node. Since in better_launch we have actual node instances, referring to composers by name is not supported. Use :py:meth:`BetterLaunch.component` or construct your own component and pass a :py:class:`Composer` instance.
+        Note that in ROS2 launch files you can reference existing composers by name when creating components. This is a clutch because ROS2 does not have a way to retrieve a reference to an already existing node. Since in better_launch we have actual node instances, referring to composers by name is not supported. Use [BetterLaunch.component` or construct your own component and pass a [Composer][] instance.
 
         Also note that since components are loaded via a service call there are some additional restrictions on the types of `params`. In particular, they must be compatible with the `ROS2 Parameter message type <https://github.com/ros2/rcl_interfaces/blob/rolling/rcl_interfaces/msg/ParameterValue.msg>`_. This is *not* verified on construction.
 
@@ -52,9 +52,9 @@ class Component(AbstractNode, LiveParamsMixin):
         remaps : dict[str, str], optional
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
-            Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using :py:meth:`BetterLaunch.load_params`.
-        output : LogSink | set[LogSink], optional
-            Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
+            Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
+            Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See [configure_logger][utils.better_logging.configure_logger] for details.
 
         Raises
         ------
@@ -89,7 +89,7 @@ class Component(AbstractNode, LiveParamsMixin):
 
     @property
     def plugin(self) -> str:
-        """The special string that is used for loading the component. :py:meth:`executable` will return the same."""
+        """The special string that is used for loading the component. [executable][AbstractNode.executable] will return the same."""
         return self._exec
 
     @property
@@ -195,11 +195,11 @@ class Composer(AbstractNode):
         wrapped_node: AbstractNode,
         *,
         component_remaps: dict[str, str] = None,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ):
-        """A composer is a special ROS2 node that can host other nodes (:py:class:`Component`) within the same process, reducing overhead and enabling efficient intra process communication for message exchange.
+        """A composer is a special ROS2 node that can host other nodes ([Component][]) within the same process, reducing overhead and enabling efficient intra process communication for message exchange.
 
-        As it is possible to reuse already running composers (even without a reference to the actual process), this is merely a wrapper around another :py:class:`AbstractNode` providing additional functionality. The wrapped node instance is typically a :py:class:`Node` or :py:class:`ForeignNode`. See :py:meth:`BetterLaunch.compose` for the most common use cases. 
+        As it is possible to reuse already running composers (even without a reference to the actual process), this is merely a wrapper around another [AbstractNode] providing additional functionality. The wrapped node instance is typically a [Node][] or [ForeignNode][]. See [BetterLaunch.compose][] for the most common use cases. 
 
         Note that new nodes created by a component are using the composer's remaps. See the `related issue <https://github.com/ros2/rclcpp/issues/2404>`_ in rclcpp.
 
@@ -210,11 +210,11 @@ class Composer(AbstractNode):
         Parameters
         ----------
         wrapped_node : AbstractNode
-            A representation of the actual ROS2 node that will be managed by this composer. This is usually a :py:class:`Node` or :py:class:`ForeignNode` instance.
+            A representation of the actual ROS2 node that will be managed by this composer. This is usually a [Node` or [ForeignNode][] instance.
         component_remaps : dict[str, str], optional
             Any remaps you want to apply to all *components* loaded into this composer.
-        output : LogSink | set[LogSink], optional
-            Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
+            Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See [configure_logger][utils.better_logging.configure_logger] for details.
 
         Raises
         ------
@@ -288,7 +288,7 @@ class Composer(AbstractNode):
         self._wrapped_node.join(timeout)
 
     def start(self, service_timeout: float = 5.0) -> None:
-        """Start this node. Once this succeeds, :py:meth:`is_running` will return True.
+        """Start this node. Once this succeeds, [is_running][AbstractNode.is_running] will return True.
 
         Parameters
         ----------
@@ -363,7 +363,7 @@ class Composer(AbstractNode):
 
         Additional keyword arguments will be passed as ROS parameters to the component. If the component is not associated with this composer yet, a warning will be logged and its association will be updated.
 
-        Note that since components are loaded via a service call that there are some additional restrictions on the types of :py:meth:`Component.params` and `composer_extra_params`. In particular, they must be compatible with the `ROS2 Parameter message type <https://github.com/ros2/rcl_interfaces/blob/rolling/rcl_interfaces/msg/ParameterValue.msg>`_.
+        Note that since components are loaded via a service call that there are some additional restrictions on the types of `Component.params` and `composer_extra_params`. In particular, they must be compatible with the `ROS2 Parameter message type <https://github.com/ros2/rcl_interfaces/blob/rolling/rcl_interfaces/msg/ParameterValue.msg>][]_.
 
         Also note that new nodes created by a component are using the composer's remaps. See the `related issue <https://github.com/ros2/rclcpp/issues/2404>`_ in rclcpp.
 

@@ -144,7 +144,7 @@ class FooterMenu(FormattedTextControl):
         get_app().invalidate()
 
     def update_items(self, items: list[str | tuple[str, str]]) -> None:
-        """Like :py:meth:`set_items`, except that it keeps the currently selected index intact if it is contained within the new list of items.
+        """Like [FooterMenu.set_items][], except that it keeps the currently selected index intact if it is contained within the new list of items.
 
         Parameters
         ----------

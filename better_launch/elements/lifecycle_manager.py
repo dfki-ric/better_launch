@@ -57,7 +57,7 @@ class LifecycleManager:
 
         For a node to support lifecycle management, it must be running, be registered with ROS and offer the ROS lifecycle management services. This method **only** checks whether one of the key services is present.
 
-        If a timeout is specified, the check will be repeated until it succeeds or the specified amount of time has passed. This is to ensure that a freshly started node had enough time to create its topics, especially on slower devices. See :py:meth:`AbstractNode.is_lifecycle_node` for additional information.
+        If a timeout is specified, the check will be repeated until it succeeds or the specified amount of time has passed. This is to ensure that a freshly started node had enough time to create its topics, especially on slower devices. See [AbstractNode.is_lifecycle_node][better_launch.elements.abstract_node.AbstractNode.is_lifecycle_node] for additional information.
 
         Parameters
         ----------
@@ -77,8 +77,8 @@ class LifecycleManager:
             services = node.get_published_services()
             for srv_name, srv_types in services.items():
                 if (
-                    srv_name == f"{node.fullname}/get_state"
-                    and "lifecycle_msgs/srv/GetState" in srv_types
+                    srv_name == f"{node.fullname}/get_available_transitions"
+                    and "lifecycle_msgs/srv/GetAvailableTransitions" in srv_types
                 ):
                     return True
 
@@ -178,14 +178,14 @@ class LifecycleManager:
         """
         return self._current_ros_state
 
-    def transition(self, target_stage: LifecycleStage) -> bool:
+    def transition(self, target_stage: LifecycleStage | str) -> bool:
         """Transition the managed node into the target lifecycle stage. Does nothing if the node is already in the desired stage. 
         
         Note that you **don't** have to do step-by-step transitions - simply specify the stage you want the node to end up in and it will go through all the intermediate steps (assuming a path exists).
 
         Parameters
         ----------
-        target_stage : LifecycleStage
+        target_stage : LifecycleStage | str
             The lifecycle stage you want the node to end up in.
 
         Returns
@@ -198,6 +198,9 @@ class LifecycleManager:
         ValueError
             If no path to the target stage could be found.
         """
+        if isinstance(target_stage, str):
+            target_stage = LifecycleStage[target_stage.upper()]
+
         if target_stage == self.current_stage:
             return True
 
