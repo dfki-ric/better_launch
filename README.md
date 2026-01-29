@@ -113,6 +113,6 @@ Under the hood, TOML launchfiles result in calls to the `BetterLaunch` singleton
 
 ---
 
-*Copyright 2025, [DFKI GmbH](http://www.dfki.de) / [Robotics Innovation Center](http://robotik.dfki-bremen.de/en/startpage.html)*
+*Copyright 2026, [DFKI GmbH](http://www.dfki.de) / [Robotics Innovation Center](http://robotik.dfki-bremen.de/en/startpage.html)*
 
 ![dfki-logo](docs/assets/images/dfki.png)
