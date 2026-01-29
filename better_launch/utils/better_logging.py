@@ -221,11 +221,15 @@ class PrettyLogFormatter(logging.Formatter):
             record.levelno
         )
 
-        if self.max_message_length > 0:
-            msg = record.getMessage()
-            if msg > self.max_message_length:
-                record.msg = msg[: self.max_message_length] + "…"
-
+        msg = record.getMessage()
+        if self.max_message_length > 0 and len(msg) > self.max_message_length:
+            msg = msg[: self.max_message_length] + "..."
+        record.msg = msg
+        # The message has already been formatted with its arguments above.
+        # Clearing record.args prevents the next formatter from attempting
+        # a second '%' substitution on the truncated text, which could crash
+        # if any format placeholders were removed during truncation.
+        record.args = None
         return super().format(record)
 
 
@@ -298,6 +302,9 @@ def configure_logger(
     screen_formatter: logging.Formatter = None,
     file_formatter: logging.Formatter = None,
 ) -> None:
+    """Initialize the logging framework.
+    """
+    # TODO proper docstring
     if output:
         if isinstance(output, Iterable) and not isinstance(output, str):
             output = [output]

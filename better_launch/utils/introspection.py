@@ -43,7 +43,7 @@ def get_stack(thread_id: int = -1) -> list[inspect.FrameInfo]:
     Returns
     -------
     list
-        A list of :py:class:`inspect.FrameInfo` objects.
+        A list of `inspect.FrameInfo` objects.
 
     Raises
     ------
@@ -161,7 +161,7 @@ def find_decorated_function_args(decorator_func: Callable) -> dict[str, Any]:
 
 
 def find_launchthis_function(filepath: str) -> ast.FunctionDef:
-    """Parses a source file into an AST tree and searches for a function decorated by :py:meth:`better_launch.launch_this`.
+    """Parses a source file into an AST tree and searches for a function decorated by [better_launch.launch_this][].
 
     Parameters
     ----------
@@ -202,7 +202,7 @@ def get_launchfunc_signature_from_file(
 
     .. seealso::
 
-        :py:meth:`find_launchthis_function`
+        [find_launchthis_function][]
 
     Parameters
     ----------

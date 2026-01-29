@@ -37,9 +37,9 @@ class AbstractNode:
         remaps : dict[str, str], optional
             Topic remaps for this node.
         params : str | dict[str, Any], optional
-            Node parameters. If a string is passed it will be lazy loaded with :py:meth:`BetterLaunch.find`.
+            Node parameters. If a string is passed it will be lazy loaded with [BetterLaunch.find][].
         output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
-            Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
+            Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See [configure_logger][] for details.
 
         Raises
         ------
@@ -107,7 +107,7 @@ class AbstractNode:
 
     @property
     def params(self) -> dict[str, Any]:
-        """The ROS params that were passed to this node. If a string was passed it is assumed to be a filepath and will be loaded with :py:meth:`BetterLaunch.find`."""
+        """The ROS params that were passed to this node. If a string was passed it is assumed to be a filepath and will be loaded with [BetterLaunch.find][]."""
         if isinstance(self._params, str):
             from better_launch import BetterLaunch
 
@@ -143,10 +143,13 @@ class AbstractNode:
         """
         ros_args = dict(self.remaps)
 
-        # Why do I hear mad hatter music???
-        # See launch_ros/actions/node.py:495
-        ros_args["__ns"] = self.namespace
-        ros_args["__node"] = self.name
+        if self.namespace:
+            # Why do I hear mad hatter music???
+            # See launch_ros/actions/node.py:495
+            ros_args["__ns"] = self.namespace
+
+        if self.name:
+            ros_args["__node"] = self.name
 
         return ros_args
 
@@ -200,11 +203,11 @@ class AbstractNode:
         raise NotImplementedError()
 
     def start(self) -> None:
-        """Start this node. Once this succeeds, :py:meth:`is_running` will return True."""
+        """Start this node. Once this succeeds, [is_running][] will return True."""
         raise NotImplementedError()
 
     def shutdown(self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0) -> None:
-        """Shutdown this node. Once this succeeds, :py:meth:`is_running` will return False.
+        """Shutdown this node. Once this succeeds, [is_running][] will return False.
 
         Parameters
         ----------
@@ -264,11 +267,11 @@ class AbstractNode:
             return None
 
     def is_lifecycle_node(self, timeout: float = 0.0) -> bool:
-        """Checks if this is a lifecycle node and initializes a : py:class:`LifecycleManager` if supported and not done so before.
+        """Checks if this is a lifecycle node and initializes a : py[LifecycleManager][] if supported and not done so before.
 
-        Note that if you simply want to check whether this node supports lifecycle management right now, check whether :py:meth:`lifecycle` is None will be considerably cheaper.
+        Note that if you simply want to check whether this node supports lifecycle management right now, check whether [lifecycle][] is None will be considerably cheaper.
 
-        Whether a node supports lifecycle management can only be known from outside once its process is started and it has registered with ROS. When this is called while the node is alive and it supports lifecycle management, a :py:class:`LifecycleManager` object will be initialized for it. This will persist even if the node is shutdown, but will obviously no longer provide useful functionality.
+        Whether a node supports lifecycle management can only be known from outside once its process is started and it has registered with ROS. When this is called while the node is alive and it supports lifecycle management, a [LifecycleManager][] object will be initialized for it. This will persist even if the node is shutdown, but will obviously no longer provide useful functionality.
 
         Note that at the time of writing (Jazzy), the ROS node registers with ROS before the lifecycle topics are created. This makes sense of course, but also means that there is a short window where the node is registered with ROS but not a lifecycle node yet. This can be a problem, especially on slower devices like a Raspberry Pi 3. In these cases I advise you follow this pattern:
 
@@ -300,9 +303,9 @@ class AbstractNode:
 
     @property
     def lifecycle(self) -> LifecycleManager:
-        """Returns this node's :py:class:`LifecyceManager`.
+        """Returns this node's [LifecyceManager][better_launch.elements.lifecycle_manager.LifecycleManager].
 
-        **Note:** make sure to call :py:meth:`is_lifecycle_node` before retrieving this object!
+        **Note:** make sure to call [is_lifecycle_node][] before retrieving this object!
 
         Returns
         -------
@@ -317,7 +320,7 @@ class AbstractNode:
         Returns
         -------
         dict[str, list[str]]
-            The service topics and message types. Will be empty if :py:meth:`is_ros2_connected` is False.
+            The service topics and message types. Will be empty if [is_ros2_connected][] is False.
         """
         if not self.is_ros2_connected():
             return {}
@@ -341,7 +344,7 @@ class AbstractNode:
         Returns
         -------
         dict[str, list[str]]
-            The topics and their message types. Will be empty if :py:meth:`is_ros2_connected` is False.
+            The topics and their message types. Will be empty if [is_ros2_connected][] is False.
         """
         if not self.is_ros2_connected():
             return {}
@@ -358,7 +361,7 @@ class AbstractNode:
         Returns
         -------
         dict[str, list[str]]
-            The topics and their message types. Will be empty if :py:meth:`is_ros2_connected` is False.
+            The topics and their message types. Will be empty if [is_ros2_connected][] is False.
         """
         if not self.is_ros2_connected():
             return {}

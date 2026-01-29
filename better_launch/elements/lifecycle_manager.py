@@ -57,7 +57,7 @@ class LifecycleManager:
 
         For a node to support lifecycle management, it must be running, be registered with ROS and offer the ROS lifecycle management services. This method **only** checks whether one of the key services is present.
 
-        If a timeout is specified, the check will be repeated until it succeeds or the specified amount of time has passed. This is to ensure that a freshly started node had enough time to create its topics, especially on slower devices. See :py:meth:`AbstractNode.is_lifecycle_node` for additional information.
+        If a timeout is specified, the check will be repeated until it succeeds or the specified amount of time has passed. This is to ensure that a freshly started node had enough time to create its topics, especially on slower devices. See [AbstractNode.is_lifecycle_node][better_launch.elements.abstract_node.AbstractNode.is_lifecycle_node] for additional information.
 
         Parameters
         ----------

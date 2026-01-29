@@ -170,7 +170,7 @@ class Ros2LaunchWrapper(AbstractNode):
         launchservice_args : list[str], optional
             Additional arguments to pass to the ROS2 launch service. These will show up in the ROS2 `LaunchContext`.
         output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
-            How log output from the launch service should be handled. This will also include the output from all nodes launched by this launch service. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
+            How log output from the launch service should be handled. This will also include the output from all nodes launched by this launch service. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See [configure_logger][utils.better_logging.configure_logger] for details.
         """
         super().__init__(
             "ros2/launch",
@@ -212,7 +212,7 @@ class Ros2LaunchWrapper(AbstractNode):
             return False
 
     def is_ros2_connected(self, timeout: float = None) -> bool:
-        """Equal to :py:meth:`is_running` for this class."""
+        """Equal to [is_running][AbstractNode.is_running] for this class."""
         return self.is_running
 
     def is_lifecycle_node(self, timeout: float = None) -> bool:

@@ -1,0 +1,45 @@
+digraph G {
+  node [shape=box,fontname="Helvetica"];
+  rankdir=TB;
+  n0 [shape=oval,label="START"];
+  n1 [shape=box,label="from better_launch import BetterLaunch, launch_this"];
+  n2 [shape=box,label="from better_launch.elements import Component"];
+  n3 [shape=oval,label="def not_a_song()"];
+  n4 [shape=box,label="\"\"\"
+    This example will create a Composer node and load two example plugins into it from the composition package:
+    * composition/composition::Talker
+    * composition/composition::Listener
+
+    Using the terminal UI (the TUI), you will see how they appear as a single node. Opening the node dialog from the sidebar will also allow you to unload individual components or kill the entire composer.
+    \"\"\""];
+  n5 [shape=box,label="bl = BetterLaunch()"];
+  n6 [shape=ellipse,label="BL.compose('my_composer')"];
+  n7 [shape=ellipse,label="BL.component('composition', 'composition::Talker', 'comp_talker')"];
+  n8 [shape=point,label="with_end"];
+  n9 [shape=ellipse,label="BL.compose('my_composer', reuse_existing=True)"];
+  n10 [shape=box,label="listener = Component(
+            composer, 
+            package=\"composition\", 
+            plugin=\"composition::Listener\", 
+            name=\"comp_listener\",
+            namespace=\"/\",                                             
+        )"];
+  n11 [shape=box,label="listener.start()"];
+  n12 [shape=point,label="with_end"];
+  n13 [shape=oval,label="end not_a_song"];
+  n14 [shape=oval,label="END"];
+  n1 -> n2;
+  n4 -> n5;
+  n6 -> n7;
+  n7 -> n8;
+  n5 -> n6;
+  n10 -> n11;
+  n9 -> n10;
+  n11 -> n12;
+  n8 -> n9;
+  n3 -> n4;
+  n12 -> n13;
+  n2 -> n3;
+  n0 -> n1;
+  n13 -> n14;
+}

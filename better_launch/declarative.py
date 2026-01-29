@@ -3,7 +3,7 @@ import inspect
 import contextlib
 import logging
 
-from better_launch import BetterLaunch
+from better_launch import BetterLaunch, convenience, gazebo
 from better_launch.wrapper import _exec_launch_func
 from better_launch.utils.settings import Colormode, _update_settings
 from better_launch.utils.click import DeclaredArg
@@ -28,13 +28,30 @@ def _execute_toml(
         toml_val = toml.get(key)
         if isinstance(toml_val, dict) and "func" in toml_val:
             raise RuntimeError(f"Launcher tried to override TOML call table '{key}'")
-        
+
         toml[key] = val
 
     # Initialize the launcher instance
     bl = BetterLaunch()
 
-    valid_funcs = {f: getattr(bl, f) for f in dir(bl) if not f.startswith("_")}
+    #
+    contexts = {
+        "betterlaunch": dict(
+            f
+            for f in inspect.getmembers(BetterLaunch, inspect.isfunction)
+            if not f.startswith("_")
+        ),
+        "convenience": dict(
+            f
+            for f in inspect.getmembers(convenience, inspect.isfunction)
+            if not f.startswith("_")
+        ),
+        "gazebo": dict(
+            f
+            for f in inspect.getmembers(gazebo, inspect.isfunction)
+            if not f.startswith("_")
+        ),
+    }
     results = dict(bl.launch_args)
 
     def substitute_all(value: Any):
@@ -63,10 +80,16 @@ def _execute_toml(
             results[key] = None
             return
 
+        ctx = req.pop("context", "betterlaunch")
+        if ctx not in contexts:
+            raise KeyError(f"{key}: context='{ctx}' is not a valid context")
+
+        valid_funcs = contexts[ctx]
+
         # Get the function to execute
         func_name = req.pop("func")
         if func_name not in valid_funcs:
-            raise KeyError(f"func='{func_name}' is not a valid request")
+            raise KeyError(f"{key}: func='{func_name}' is not a valid function")
 
         func = valid_funcs[func_name]
         func_sig = inspect.signature(func)
@@ -87,9 +110,13 @@ def _execute_toml(
                 return
 
             with res:
-                # Must be a proper TOML subtable, we don't accept arrays of tables here
+                if isinstance(children, list):
+                    children = {f"{key}.children.{idx}": child for idx, child in enumerate(children)}
+
                 if not isinstance(children, dict):
-                    raise ValueError(f"Children of {key} must be specified as a dict")
+                    raise ValueError(
+                        f"Children of {key} must be specified as a dict or subtable"
+                    )
 
                 for subkey, child in children.items():
                     exec_request(subkey, child)
@@ -164,53 +191,25 @@ def launch_toml(
 ) -> None:
     """Execute a TOML better_launch launchfile.
 
-    In better_launch TOML launchfiles, most tables will be `call tables`. A call table is a dict that has a `func` key referring to one of the public :py:class:`BetterLaunch` member functions. All other attributes will be treated as keyword arguments to that function. Call tables are executed in the order they appear in the launch file, and the result of calling their associated function will be stored under the call table's name.
+    In better_launch TOML launchfiles, most tables will be `call tables`. A call table is a dict that has a `func` key referring to one of the public [BetterLaunch][] member functions. All other attributes will be treated as keyword arguments to that function. Call tables are executed in the order they appear in the launch file, and the result of calling their associated function will be stored under the call table's name.
 
     For example:
 
     .. code-block:: toml
-        max_respawns = 3
+        name = "the-node-of-destiny"
 
         [my_awesome_node]
         func = "node"
         package = "my-package"
         executable = "my-node"
-        name = "my-node"
-        max_respawns = "${max_respawns}"
+        name = "${name}"
 
-    This launch file declares a launch argument `max_respawns`. It then creates a new node and passes the launch argument to it using a substitution. The returned :py:class:`Node` instance is stored in the launch context under the `my_awesome_node` key, and could be referred to by later call tables.
+    Substitutions are also possible and use a similar syntax as in ROS1 (as shown for the `name` launch argument above). `if` and `unless` conditions can be added as well. 
 
-    An example launchfile with more explanations can be found in the examples folder.
+    All parameters below can be set through the launch file by declaring them on the global scope with a `bl_` prefix (i.e. `ui` becomes `bl_ui`).
 
-    Substitutions in better_launch take heavy inspiration from those found in ROS1 and should be familiar to many. However, as the TOML launchfile format is much more powerful, only the following substitutions were deemed necessary for now:
-    - `${<K>}` this will resolve to a launch arg or call table result named <K>
-    - `${param <N> <P>}` will retrieve a parameter <P> from the *full* nodename <N>
-    - `${env <E> [D]}` will get the environment variable <E> (default to <D> if specified)
-    - `${eval <X>}` will treat <X> as a python expression to evaluate (see `eval_mode` below)
+    Please see the documentation for full details.
 
-    Substitutions can also be nested, in which case the innermost ones will be resolved first.
-
-    For those functions in :py:class:`BetterLaunch` which are used as context objects (e.g. :py:meth:`BetterLaunch.group`, :py:meth:`BetterLaunch.compose`) you may provide a `children` attribute, which must be a dict of dicts. It's possible to use TOML's subtables for this like so:
-
-    .. code-block:: toml
-        [my_composer]
-        func = "compose"
-
-        [my_composer.children.talker]
-        func = "component"
-        package = "composition"
-        plugin = "composition::Talker"
-
-    In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions). These will be evaluated according to
-    python truthiness.
-    - if     -> execute only if condition is true
-    - unless -> execute only if condition is false
-
-    Similar to :py:meth:`launch_this`, a TOML launchfile may specify various settings to configure the launch process. In particular, all of the *keyword-only* arguments to this function can be specified with a `bl_` prefix as global args. For example, to set the `screen_log_level` from your launchfile you could add `bl_screen_log_level = "warning"` in the global scope.
-
-    Lastly, there are a couple of special keys that may be declared in the TOML:
-    - `bl_toml_format`: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don't want to update your launch file. The current version is :py:data:`toml_format_version`.
-    
     Parameters
     ----------
     path : str
@@ -220,7 +219,7 @@ def launch_toml(
     eval_mode : Literal[&quot;full&quot;, &quot;literal&quot;, &quot;none&quot;], optional
         How to treat `eval` substitutions.
     ui : bool, optional
-        Whether to start the better_launch TUI. Superseded by the `BL_UI_OVERRIDE` environment variable and the `--bl_ui_override` argument.
+        Whether to start the better_launch TUI. Superseded by the `BL_UI` environment variable and the `--bl_ui_override` argument.
     allow_kwargs : bool, optional
         Whether additional launch arguments are allowed.
     colormode : Colormode, optional
@@ -230,17 +229,17 @@ def launch_toml(
         * source: one color per message source, don't colorize log severity
         * none: don't colorize anything
         * rainbow: colorize log severity and give each message source its own color
-        Superseded by the `BL_COLORMODE_OVERRIDE` environment variable and the `--bl_colormode_override` argument.
+        Superseded by the `BL_COLORMODE` environment variable and the `--bl_colormode_override` argument.
     print_limit : int, optional
         Limit the length of messages printed to the screen.
     screen_log_level : str | int, optional
         The minimum level for log messages to be printed to the terminal/screen. Can be either  "info", "warning", "error", "critical", or an arbitrary integer (e.g. logging.WARNING).
     screen_log_format : str, optional
-        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
+        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT` environment variable. See [PrettyLogFormatter][utils.better_logging.PrettyLogFormatter] for details.
     file_log_level : str | int, optional
         The minimum level for log messages to be written to the lot file. Can be either  "info", "warning", "error", "critical", or an arbitrary integer (e.g. logging.WARNING).
     file_log_format : str, optional
-        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
+        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT` environment variable. See [PrettyLogFormatter][utils.better_logging.PrettyLogFormatter] for details.
     manage_foreign_nodes : bool, optional
         If True, the TUI will also include node processes not started by this process. Has no effect if the TUI is not started.
     join : bool, optional
