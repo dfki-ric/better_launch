@@ -51,7 +51,7 @@ In order to actually resolve these issues I have written *better_launch*, a comp
 
 ![Screenshot of the TUI](../media/tui.png){height="60%"}
 
-We consider *better_launch* mature enough for general use in research applications, with performance similar or better than `ros2 launch` (see [documentation](https://dfki-ric.github.io/better_launch/)) [@py-spy; @memray; @psutil]. It is under active development and can be downloaded for free from https://github.com/dfki-ric/better_launch. We hope that *better_launch* will advance the state of ROS2 in a meaningful way.
+We consider *better_launch* mature enough for general use in research applications, with performance similar or better than `ros2 launch` (benchmarks in repo) [@py-spy; @memray; @psutil]. It is under active development and can be downloaded for free from https://github.com/dfki-ric/better_launch. We hope that *better_launch* will advance the state of ROS2 in a meaningful way.
 
 \newpage
 

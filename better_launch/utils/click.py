@@ -1,4 +1,5 @@
 from typing import Any, Type, Iterable, Callable
+import json
 from dataclasses import dataclass
 import click
 
@@ -53,18 +54,44 @@ def get_click_bl_options(expose: bool = False) -> list[click.Option]:
     list[click.Option]
         _description_
     """
+
     def update_value(ctx: click.Context, param: click.Parameter, value: Any):
         key = param.name[3:].replace("-", "_")
-        _update_settings(**{key: value})
+
+        if value is not None:
+            _update_settings(**{key: value})
+
+        if key == "node_param_override" and value:
+            ctx.command.allow_extra_args = True
+            ctx.allow_extra_args = True
+
+    def _bool_param_type(value: str) -> bool:
+        """Convert string to boolean for Click options."""
+        if isinstance(value, bool):
+            return value
+        val_lower = value.lower()
+        if val_lower in ("true", "1", "yes", "on"):
+            return True
+        if val_lower in ("false", "0", "no", "off"):
+            return False
+        raise click.BadParameter(f"Invalid boolean value: {value}")
 
     # XXX always keep these synchronized with our Settings class
     options = [
         click.Option(
             ["--bl-ui"],
-            type=bool,
+            type=_bool_param_type,
             default=None,
             help="Enforce or prevent starting the TUI",
             expose_value=expose,  # not passed to our run method
+            callback=update_value,
+        ),
+        click.Option(
+            ["--bl-node-param-override"],
+            type=_bool_param_type,
+            default=None,
+            help="Allow overriding node parameters from the command line",
+            expose_value=expose,
             callback=update_value,
         ),
         click.Option(
@@ -138,11 +165,88 @@ def get_click_launch_command(
     allow_kwargs: bool = False,
 ) -> click.Command:
     click_cmd = click.Command(
-        cmd_name, callback=launch_func, params=options, help=cmd_help
+        cmd_name,
+        callback=launch_func,
+        params=options,
+        help=cmd_help,
+        context_settings={"ignore_unknown_options": True},
     )
 
-    if allow_kwargs:
-        click_cmd.allow_extra_args = True
-        click_cmd.ignore_unknown_options = True
+    click_cmd.allow_extra_args = allow_kwargs
+    click_cmd.ignore_unknown_options = True
 
     return click_cmd
+
+
+def args_to_dict(args: list[str]) -> dict[str, Any]:
+    """Convert a list of CLI arguments to a dictionary.
+
+    Parameters
+    ----------
+    args : list[str]
+        List of arguments, e.g. ["--foo", "bar", "--baz", "1.0"]
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary of arguments, e.g. {"foo": "bar", "baz": 1.0}
+
+    Raises
+    ------
+    ValueError
+        If an argument does not start with "-" or if a value is missing.
+    """
+    result = {}
+    it = iter(args)
+    for arg in it:
+        if not arg.startswith("-"):
+            raise ValueError(f"Argument '{arg}' does not start with '-'")
+
+        key = arg.lstrip("-")
+        try:
+            value = next(it)
+        except StopIteration:
+            raise ValueError(f"Missing value for argument '{arg}'")
+
+        try:
+            value = json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        result[key] = value
+
+    return result
+
+
+def parse_node_params(
+    kwargs: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Separate node parameters from other keyword arguments.
+
+    Node parameters are identified by containing a dot in their key. The part
+    before the first dot is considered the node name, the part after the dot
+    is the parameter name.
+
+    Parameters
+    ----------
+    kwargs : dict[str, Any]
+        Dictionary of keyword arguments.
+
+    Returns
+    -------
+    tuple[dict[str, Any], dict[str, dict[str, Any]]]
+        Remaining keyword arguments and a dictionary of node parameters.
+    """
+    remaining_kwargs = {}
+    node_params = {}
+
+    for key, value in kwargs.items():
+        if "." in key:
+            node_name, param_name = key.split(".", 1)
+            if node_name not in node_params:
+                node_params[node_name] = {}
+            node_params[node_name][param_name] = value
+        else:
+            remaining_kwargs[key] = value
+
+    return remaining_kwargs, node_params

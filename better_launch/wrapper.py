@@ -15,11 +15,19 @@ from better_launch.launcher import (
     _bl_singleton_instance,
     _bl_include_args,
 )
-from better_launch.utils.settings import Colormode, Settings, _update_settings, default_screen_format, default_file_format
+from better_launch.utils.settings import (
+    Colormode,
+    Settings,
+    _update_settings,
+    default_screen_format,
+    default_file_format,
+)
 from better_launch.utils.better_logging import init_logging
 from better_launch.utils.introspection import find_calling_frame
 from better_launch.utils.click import (
     DeclaredArg,
+    parse_node_params,
+    args_to_dict,
     get_click_options,
     get_click_bl_options,
     get_click_launch_command,
@@ -96,7 +104,7 @@ def launch_this(
     def decoration_helper(func):
         sig = inspect.signature(func)
         declared_args = _get_declared_args(sig, func.__doc__)
-        
+
         func_doc = doc.parse(func.__doc__)
 
         argspec = inspect.getfullargspec(func)
@@ -144,7 +152,9 @@ def _init_signal_handlers() -> None:
         signal.signal(signal.SIGQUIT, sigterm_handler)
 
 
-def _get_declared_args(signature: inspect.Signature, docstring: str = None) -> list[DeclaredArg]:
+def _get_declared_args(
+    signature: inspect.Signature, docstring: str = None
+) -> list[DeclaredArg]:
     # Extract more fine-grained information from the docstring
     param_docstrings = {}
     if docstring:
@@ -157,7 +167,7 @@ def _get_declared_args(signature: inspect.Signature, docstring: str = None) -> l
     for param in signature.parameters.values():
         ptype = None
         default = DeclaredArg._undefined
-        
+
         if param.annotation is not param.empty:
             ptype = param.annotation
             if ptype and isinstance(ptype, str):
@@ -213,7 +223,11 @@ def _exec_launch_func(
         include_args: dict = glob[_bl_include_args]
         bl.logger.info(f"Including launch file: {includefile} (args={include_args})")
 
-        call_kw = {a.name: a.default for a in declared_args if a.default != DeclaredArg._undefined}
+        call_kw = {
+            a.name: a.default
+            for a in declared_args
+            if a.default != DeclaredArg._undefined
+        }
 
         for key, val in include_args.items():
             if allow_kwargs or key in call_kw:
@@ -222,7 +236,7 @@ def _exec_launch_func(
         launch_func(**call_kw)
 
         return
-    
+
     # Get the filename of the original launchfile
     # At this point we know that we are the main launch file
     if launchfile:
@@ -271,33 +285,30 @@ def _exec_launch_func(
 
     @click.pass_context
     def run(ctx: click.Context, *args, **kwargs):
+        import sys
+
         init_logging(roslog.launch_config)
 
-        if allow_kwargs:
-            # If the launch func defines a **kwarg we can pass all extra arguments to it, with
-            # the caveat that these extra args need to be defined as `-[-]<key> val` tuples.
-            assert (
-                len(ctx.args) % 2 == 0
-            ), f"extra arguments need to be '--<key> <value>' tuples ({ctx.args})"
+        extra_args_dict = args_to_dict(ctx.args)
+        remaining_kwargs, node_overrides = parse_node_params(extra_args_dict)
 
-            for i in range(0, len(ctx.args), 2):
-                key = ctx.args[i]
-                if not key.startswith("-"):
-                    raise ValueError("Extra argument keys must start with a dash")
+        if Settings().node_param_override and node_overrides:
+            BetterLaunch._node_param_overrides = node_overrides
 
-                val = ctx.args[i + 1]
-                try:
-                    val = literal_eval(val)
-                except Exception:
-                    # Keep val as a string
-                    pass
-
-                kwargs[key.strip("-")] = val
+        # Handle remaining kwargs if allow_kwargs is enabled
+        if allow_kwargs and remaining_kwargs:
+            for key, value in remaining_kwargs.items():
+                if isinstance(value, str):
+                    try:
+                        value = literal_eval(value)
+                    except Exception:
+                        pass
+                kwargs[key] = value
 
         # By default BetterLaunch has access to all arguments from its launch function
         BetterLaunch._launch_func_args = dict(kwargs)
 
-        # Wrap the launch function so we can do some preparation and cleanup tasks. 
+        # Wrap the launch function so we can do some preparation and cleanup tasks.
         def launch_func_wrapper():
             try:
                 # Execute the launch function!
@@ -339,9 +350,8 @@ def _exec_launch_func(
         allow_kwargs=allow_kwargs,
     )
 
-    if allow_kwargs:
+    if allow_kwargs or Settings().node_param_override:
         click_cmd.allow_extra_args = True
-        click_cmd.ignore_unknown_options = True
 
     try:
         click_cmd.main(_argv)
@@ -350,7 +360,9 @@ def _exec_launch_func(
             raise
 
 
-def _expose_ros2_launch_function(launch_func: Callable, declared_args: list[DeclaredArg]):
+def _expose_ros2_launch_function(
+    launch_func: Callable, declared_args: list[DeclaredArg]
+):
     """Helper function that exposes a function decorated by launch_this so that it can be included by a regular ROS2 launch file. We achieve this by generating a `generate_launch_description` function and adding it to the module globals where the launch function is defined.
 
     Parameters

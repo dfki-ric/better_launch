@@ -10,7 +10,6 @@ Everything! *better_launch*  can do everything ROS2 launch can and some more. It
 - *remap topics* using simple dicts
 - launch arguments *passed directly* to your function
 - easily *locate files* and load configs
-- manage *nodes from other launch files*
 - manage your node using a nice [terminal UI](../howto/tui.md) reminiscent of [rosmon](https://github.com/xqms/rosmon)
 
 ![TUI](../assets/images/tui_small1.png)

@@ -60,4 +60,4 @@ bl --help
 
 ??? example "The devel branch"
 
-    If you are the experimental type, *better_launch* also has a `devel` branch where I merge new features for testing. I try to keep it functional (since I'm using it myself), although there might be the occasional hiccup.
+    If you are the experimental type, *better_launch* also has a `devel` branch where I merge new features for testing. It is in general functional, although there might be the occasional hiccup.
