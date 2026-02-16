@@ -182,6 +182,15 @@ class AbstractNode:
                     new_key = f"{path}.{key}" if path else key
                     delve(val, new_key)
             else:
+                rp_idx = path.find("ros__parameters")
+                if rp_idx >= 0:
+                    qualifier = path[:rp_idx].rstrip(".")
+                    param = path[rp_idx + 15:].lstrip(".")
+                    if qualifier:
+                        path = f"{qualifier}:{param}"
+                    else:
+                        path = param
+
                 ret[path] = data
 
         delve(self.params, "")

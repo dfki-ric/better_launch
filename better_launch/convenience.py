@@ -276,10 +276,10 @@ def spawn_controller_manager(
 
     Parameters
     ----------
-    robot_description : str, optional
-        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
     params : str | dict[str, Any], optional
         The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via [BetterLaunch.load_params][].
+    robot_description : str, optional
+        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
     remaps : dict[str, str], optional
         Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.
     cmd_args: list[str], optional
@@ -309,7 +309,7 @@ def spawn_controller_manager(
         # a cmd arg, or keep the manager and controller configs separate and pass the later to 
         # spawn_controller below.
         # process_args.extend(["--param-file", params])
-        params = bl.load_params(None, params, matching_only=False)
+        params = bl.load_params(None, params)
 
     if robot_description:
         if robot_description.startswith("<?xml"):
