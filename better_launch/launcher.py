@@ -739,17 +739,27 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         subdir: str = None,
         *,
         qualifier: str | Node = None,
-        trim: bool = True,
+        merge_pure_wildcards: bool = True,
+        conflict_resolution: Literal["reject", "accept"] = "reject",
+        strip_ros_path_separators: bool = False,
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through [find][].
 
-        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether `qualifier` was passed. Otherwise, if `qualifier` is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.
+        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether a `qualifier` was passed. Otherwise, the loaded config dict is searched for a matching section. If no matching section can be found the returned dict will be empty.
 
-        The following wildcards are supported for parameter sections:
-        * `/**`: matches any number of tokens, may be followed by additional tokens and a node name
-        * `/*`: skips a single namespace token, or ignores the node's name if at the end
+        Globbing is used for matching qualifiers to paths, so the following wildcards are supported:
+        * `**`: matches any number of tokens, may be followed by additional tokens and a node name
+        * `*`: skips a single namespace token, or ignores the node's name if at the end
 
-        Note that *better_launch* could not care less whether you put `ros__parameters` in your configs - if it is there it will be silently discarded.
+        Note that *better_launch* does not require you to place `ros__parameters` in your configs. If it exists it will later be used to qualify parameters. For example, a config like
+
+        ```yaml
+        my_node:
+            ros__parameters:
+                int_of_fury: 5
+        ```
+
+        will be passed to a ROS2 node process as `-p my_node:int_of_fury:=5` and thus becomes node specific.
 
         .. seealso::
 
@@ -765,8 +775,14 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             A path fragment that the config file must be located in.
         qualifier : str | Node, optional
             Used to specifiy which section of the config to return.
-        trim : bool, optional
-            Remove the matching qualifier paths from the returned dict's keys if true and a qualifier was specified.
+        merge_pure_wildcards : bool, optional
+            If True, wildcard parameters from the root level (/**) will be merged into the returned dict. That is, any new keys therein will be moved to the root level and any keys to already existing dicts will be merged.
+        conflict_resolution : Literal["reject", "accept"], optional
+            What to do when assembling the final params dict and there are keys that are already defined (e.g. due to wildcards).
+            - "reject": keep the already existing keys, i.e. the version with the more specific path.
+            - "accept": apply the value from the wildcard dict, replacing the one with the more specific path.
+        strip_ros_path_separators : bool, optional
+            If True, any mentions of ros__parameters will be removed.
 
         Returns
         -------
@@ -792,33 +808,70 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         # Return the entire config if it doesn't follow the ros pattern
         if not qualifier:
-            return params
+            qualifier = "**"
 
         if not qualifier.endswith("*"):
             qualifier += "/*"
 
         final_params = {}
+        qualifier.rstrip("/")
 
-        # Depth-first search through the params to find any "ros__parameters" keys
-        todo = [("", params)]
-        while todo:
-            path, cur = todo.pop(0)
+        # Recursively strip out the ros__parameters
+        def remove_ros_params(obj: Any) -> Any:
+            if isinstance(obj, dict):
+                if "ros__parameters" in obj:
+                    return remove_ros_params(obj["ros__parameters"])
+                return {k: remove_ros_params(v) for k, v in obj.items()}
+            return obj
 
-            for key, val in cur.items():
-                if key in ("*", "**", "/**", "ros__parameters"):
-                    val = val.get("ros__parameters", val)
+        # Collect any params that match our qualifier
+        def gather_params(current: dict[str, Any], path: str = "") -> None:
+            for key, value in current.items():
+                current_path = f"{path}/{key}" if path else key
 
-                    # Global parameters should always be included
-                    if not path or fnmatch(path, qualifier):
-                        for param_name, param_val in val.items():
+                if isinstance(value, dict):
+                    if not path or fnmatch(current_path, qualifier):
+                        selected = (
+                            remove_ros_params(value)
+                            if strip_ros_path_separators
+                            else value
+                        )
+                        for param_name, param_val in selected.items():
                             final_params[param_name] = param_val
+                    else:
+                        gather_params(value, current_path)
+                elif fnmatch(current_path, qualifier):
+                    final_params[key] = value
 
-                elif fnmatch(f"{path}/{key}", qualifier):
-                    final_params[key] = val
+        # Merge nested dicts
+        def recursive_merge(
+            target: dict[str, Any], source: dict[str, Any], path: str = ""
+        ) -> None:
+            for key, value in source.items():
+                current_path = f"{path}/{key}" if path else key
 
-                elif isinstance(val, dict):
-                    branch_path = f"{path}/{key}" if path else key
-                    todo.append((branch_path, val))
+                if key in target:
+                    if isinstance(target[key], dict) and isinstance(value, dict):
+                        recursive_merge(target[key], value, current_path)
+                    elif target[key] != value:
+                        self.logger.warning(
+                            f"Parameter {path} was redefined ({os.path.basename(path)})"
+                        )
+
+                        if conflict_resolution == "accept":
+                            target[key] = value
+                        elif conflict_resolution == "reject":
+                            pass
+                else:
+                    target[key] = value
+
+        gather_params(params)
+
+        if merge_pure_wildcards:
+            for wildcard in ("*", "/*", "**", "/**"):
+                if wildcard in final_params:
+                    wc_params = final_params.pop(wildcard)
+                    recursive_merge(final_params, wc_params)
 
         return final_params
 
