@@ -778,8 +778,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         merge_pure_wildcards : bool, optional
             If True, wildcard parameters from the root level (/**) will be merged into the returned dict. That is, any new keys therein will be moved to the root level and any keys to already existing dicts will be merged.
         conflict_resolution : Literal["reject", "accept"], optional
-            What to do when assembling the final params dict and there are keys that are already defined (e.g. due to wildcards).
-            - "reject": keep the already existing keys, i.e. the version with the more specific path.
+            What to do when assembling the final params dict and there are keys that are already defined (e.g. due to wildcards). 
+            - "reject": keep the already existing keys, i.e. the version with the more specific path. 
             - "accept": apply the value from the wildcard dict, replacing the one with the more specific path.
         strip_ros_path_separators : bool, optional
             If True, any mentions of ros__parameters will be removed.
@@ -829,19 +829,12 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             for key, value in current.items():
                 current_path = f"{path}/{key}" if path else key
 
-                if isinstance(value, dict):
-                    if not path or fnmatch(current_path, qualifier):
-                        selected = (
-                            remove_ros_params(value)
-                            if strip_ros_path_separators
-                            else value
-                        )
-                        for param_name, param_val in selected.items():
-                            final_params[param_name] = param_val
-                    else:
-                        gather_params(value, current_path)
-                elif fnmatch(current_path, qualifier):
+                if fnmatch(current_path, qualifier):
+                    if strip_ros_path_separators:
+                        value = remove_ros_params(value)
                     final_params[key] = value
+                elif isinstance(value, dict):
+                    gather_params(value, current_path)
 
         # Merge nested dicts
         def recursive_merge(
