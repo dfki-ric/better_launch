@@ -194,7 +194,7 @@ class AbstractNode:
                                 # them to this node's fullname instead
                                 if qualifier not in ("*", "/*", "**", "/**"):
                                     self.logger.warning(
-                                        f"Resolved wildcard {qualifier} to {self.fullname}"
+                                        f"Wildcard {qualifier} was grounded to {self.fullname}"
                                     )
                                 qualifier = self.fullname
                             else:
