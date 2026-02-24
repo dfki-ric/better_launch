@@ -7,6 +7,7 @@ import inspect
 import time
 import threading
 import subprocess
+import shlex
 from fnmatch import fnmatch
 from pathlib import Path
 from concurrent.futures import Future, CancelledError, TimeoutError
@@ -1370,7 +1371,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             If the command had a non-zero exit code. See the raised error's `returncode` and `output` attributes for details.
         """
         if isinstance(cmd, str):
-            cmd = cmd.split(" ")
+            cmd = shlex.split(cmd)
 
         bl = BetterLaunch.instance()
         if bl:
