@@ -1,6 +1,7 @@
 from typing import Any, Iterable
 import signal
 import time
+from fnmatch import fnmatch
 
 import better_launch.ros.logging as roslog
 from better_launch.utils.better_logging import LogSink, configure_logger
@@ -184,9 +185,24 @@ class AbstractNode:
             else:
                 rp_idx = path.find("ros__parameters")
                 if rp_idx >= 0:
-                    qualifier = path[:rp_idx].rstrip(".")
-                    param = path[rp_idx + 15:].lstrip(".")
+                    qualifier = path[:rp_idx].rstrip("./")
+                    param = path[rp_idx + 15 :].lstrip(".")
                     if qualifier:
+                        if "*" in qualifier:
+                            if fnmatch(self.fullname, qualifier):
+                                # Wildcards cannot be passed on the command line, so we resolve
+                                # them to this node's fullname instead
+                                if qualifier not in ("*", "/*", "**", "/**"):
+                                    self.logger.warning(
+                                        f"Resolved wildcard {qualifier} to {self.fullname}"
+                                    )
+                                qualifier = self.fullname
+                            else:
+                                self.logger.warning(
+                                    f"Wildcard param {path} did not match and will be ignored, as wildcards cannot be passed on the command line"
+                                )
+                                return
+
                         path = f"{qualifier}:{param}"
                     else:
                         path = param
@@ -215,7 +231,9 @@ class AbstractNode:
         """Start this node. Once this succeeds, [is_running][] will return True."""
         raise NotImplementedError()
 
-    def shutdown(self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0) -> None:
+    def shutdown(
+        self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0
+    ) -> None:
         """Shutdown this node. Once this succeeds, [is_running][] will return False.
 
         Parameters
@@ -225,7 +243,7 @@ class AbstractNode:
         signum : int, optional
             The signal that should be send to the node (if supported).
         timeout : float, optional
-            How long to wait for the node to shutdown before returning. Don't wait if timeout is 0.0. Wait forever if timeout is None. 
+            How long to wait for the node to shutdown before returning. Don't wait if timeout is 0.0. Wait forever if timeout is None.
 
         Raises
         ------
@@ -361,7 +379,9 @@ class AbstractNode:
         from better_launch import BetterLaunch
 
         bl = BetterLaunch.instance()
-        topics = bl.shared_node.get_publisher_names_and_types_by_node(self.name, self.namespace)
+        topics = bl.shared_node.get_publisher_names_and_types_by_node(
+            self.name, self.namespace
+        )
         return dict(topics)
 
     def get_subscribed_topics(self) -> dict[str, list[str]]:
@@ -378,7 +398,9 @@ class AbstractNode:
         from better_launch import BetterLaunch
 
         bl = BetterLaunch.instance()
-        topics = bl.shared_node.get_subscriber_names_and_types_by_node(self.name, self.namespace)
+        topics = bl.shared_node.get_subscriber_names_and_types_by_node(
+            self.name, self.namespace
+        )
         return dict(topics)
 
     def get_info_sheet(self) -> str:
@@ -404,7 +426,7 @@ class AbstractNode:
         return f"""\
 \x1b[1m{self.name} ({self.__class__.__name__})\x1b[0m
   Status:    {status}
-  Lifecycle: {self.lifecycle.current_stage.name if self.lifecycle else 'None'}
+  Lifecycle: {self.lifecycle.current_stage.name if self.lifecycle else "None"}
   Package:   {self.package}
   Command:   {self.executable}
   Namespace: {self.namespace}
