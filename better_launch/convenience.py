@@ -421,7 +421,7 @@ def spawn_controller(
 
     # This is NOT a node! Could also use the spawner python implementation directly, but that
     # would just introduce another dependency with little benefit.
-    spawner = bl.find("controller_manager", "controller_manager/spawner")
+    spawner = bl.find("controller_manager", "spawner")
     bl.exec(["python3", spawner] + process_args)
 
 
