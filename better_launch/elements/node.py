@@ -10,8 +10,8 @@ import threading
 import subprocess
 import queue
 from pprint import pformat
-from textwrap import indent
 import json
+from ament_index_python.packages import get_package_prefix
 
 from better_launch.utils.better_logging import LogSink, ROSLOG_PATTERN_BL
 from .abstract_node import AbstractNode
@@ -155,10 +155,12 @@ class Node(AbstractNode, LiveParamsMixin):
             return
 
         try:
-            cmd = launcher.find(
-                self.package, self.executable, f"lib/**/{self.package}/"
-            )
-
+            # In jazzy and later, package files are no longer collected in a singular package
+            # folder. Instead, workspace/install has global include, bin, lib, share, etc. 
+            # folders where all the files are placed, which is quite annoying for us
+            install_path = get_package_prefix(self.package)
+            cmd = launcher.find(install_path, self.executable, f"lib/**/{self.package}")
+            
             final_cmd = [cmd]
             if self.cmd_args:
                 final_cmd.extend(self.cmd_args)

@@ -24,7 +24,7 @@ from rclpy.node import (
     Subscription as RosSubscriber,
 )
 from rclpy.qos import QoSProfile, qos_profile_services_default
-from ament_index_python.packages import get_package_prefix
+from ament_index_python.packages import get_package_share_directory
 
 if TYPE_CHECKING:
     # Surprisingly large imports, so we only import them if we actually need them
@@ -687,14 +687,18 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             package, _ = get_package_for_path(os.path.dirname(self.launchfile))
 
         if package:
-            if "/" in package or os.path.sep in package:
+            if os.path.isabs(package):
+                base_path = package
+            elif "/" in package or os.path.sep in package:
                 raise ValueError(
-                    f"Package must be a single name, not a path ({package})"
+                    f"package must be a single name or absolute path ({package})"
                 )
-
-            base_path = get_package_prefix(package)
+            else:
+                base_path = get_package_share_directory(package)
         else:
-            raise ValueError(f"find({package}, {filename}, {subdir}): could not determine package")
+            raise ValueError(
+                f"find({package}, {filename}, {subdir}): could not determine package"
+            )
 
         if not filename and subdir in (None, "", "**"):
             self.logger.info(f"find({package}, {filename}, {subdir}):2 -> {base_path}")
@@ -703,50 +707,28 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if not subdir:
             subdir = "**"
 
-        def search_base_path(base_path: Path | str) -> str:
-            for candidate in Path(base_path).glob(subdir):
-                if not filename:
-                    # Return the first candidate
-                    ret = str(candidate.resolve().absolute())
-                    self.logger.info(f"find({package}, {filename}, {subdir}):3 -> {ret}")
-                    return ret
-
-                if candidate.is_file() and candidate.match(f"**/{filename}"):
-                    # We found a match
-                    ret = str(candidate.resolve().absolute())
-                    self.logger.info(f"find({package}, {filename}, {subdir}):4 -> {ret}")
-                    return ret
-
-                elif candidate.is_dir():
-                    # Candidate is a dir, search the filename within
-                    ret = next(candidate.glob(f"**/{filename}"), None)
-                    if ret:
-                        ret = str(ret.resolve().absolute())
-                        self.logger.info(
-                            f"find({package}, {filename}, {subdir}):5 -> {ret}"
-                        )
-                        return ret
-            
-            return None
-
-        if self.ros_distro()[0].lower() >= "j":
-            # In jazzy and later package files are no longer collected in a singular package
-            # folder. Instead, workspace/install has global include, bin, lib, share, etc. 
-            # folders
-            ret = search_base_path(base_path + "/bin/")
-            print(f"### SEARCHING {base_path}/bin/")
-            if ret:
+        for candidate in Path(base_path).glob(subdir):
+            if not filename:
+                # Return the first candidate
+                ret = str(candidate.resolve().absolute())
+                self.logger.info(f"find({package}, {filename}, {subdir}):3 -> {ret}")
                 return ret
 
-            for install_dir in Path(base_path).glob(f"*/{package}/"):
-                print(f"### SEARCHING {install_dir}")
-                ret = search_base_path(install_dir)
+            if candidate.is_file() and candidate.match(f"**/{filename}"):
+                # We found a match
+                ret = str(candidate.resolve().absolute())
+                self.logger.info(f"find({package}, {filename}, {subdir}):4 -> {ret}")
+                return ret
+
+            elif candidate.is_dir():
+                # Candidate is a dir, search the filename within
+                ret = next(candidate.glob(f"**/{filename}"), None)
                 if ret:
+                    ret = str(ret.resolve().absolute())
+                    self.logger.info(
+                        f"find({package}, {filename}, {subdir}):5 -> {ret}"
+                    )
                     return ret
-        else:
-            ret = search_base_path(base_path)
-            if ret:
-                return ret
 
         raise ValueError(
             f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
