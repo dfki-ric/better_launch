@@ -738,7 +738,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             if ret:
                 return ret
 
-            for install_dir in Path(base_path).glob("*/"):
+            for install_dir in Path(base_path).glob(f"*/{package}/"):
                 print(f"### SEARCHING {install_dir}")
                 ret = search_base_path(install_dir)
                 if ret:
