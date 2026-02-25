@@ -154,8 +154,13 @@ class AbstractNode:
 
         return ros_args
 
-    def _flat_params(self) -> dict[str, Any]:
+    def _flat_params(self, strip_qualifiers: bool = False) -> dict[str, Any]:
         """Flattens this node's ROS parameters so they conform to what ROS expects.
+
+        Parameters
+        ----------
+        strip_qualifiers : bool, optional
+            If True, remove additional node/namespace qualifiers from the returned dict.
 
         Returns
         -------
@@ -187,7 +192,10 @@ class AbstractNode:
                 if rp_idx >= 0:
                     qualifier = path[:rp_idx].rstrip("./")
                     param = path[rp_idx + 15 :].lstrip(".")
-                    if qualifier:
+
+                    if strip_qualifiers:
+                        path = param
+                    elif qualifier:
                         if "*" in qualifier:
                             if fnmatch(self.fullname, qualifier):
                                 # Wildcards cannot be passed on the command line, so we resolve
