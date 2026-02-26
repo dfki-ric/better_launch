@@ -710,7 +710,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         # all the package files are placed, which is quite annoying for us. We fix this by
         # requiring the filename to appear after the package name without trying to guess
         # how the package files are organized.
-        base_path = Path(base_path).resolve().absolute()
+        base_path = Path(base_path).resolve()
         if filename:
             filename = f"{package}/**/{filename}"
 
@@ -724,13 +724,13 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         for candidate in base_path.glob(subdir):
             if not filename:
                 # Return the first candidate
-                ret = str(candidate.resolve().absolute())
+                ret = str(candidate.resolve())
                 self.logger.info(f"find({package}, {filename}, {subdir}):3 -> {ret}")
                 return ret
 
             if candidate.is_file() and candidate.match(f"**/{filename}"):
                 # We found a match
-                ret = str(candidate.resolve().absolute())
+                ret = str(candidate.resolve())
                 self.logger.info(f"find({package}, {filename}, {subdir}):4 -> {ret}")
                 return ret
 
@@ -738,7 +738,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 # Candidate is a dir, search the filename within
                 ret = next(candidate.glob(f"**/{filename}"), None)
                 if ret:
-                    ret = str(ret.resolve().absolute())
+                    ret = str(ret.resolve())
                     self.logger.info(
                         f"find({package}, {filename}, {subdir}):5 -> {ret}"
                     )

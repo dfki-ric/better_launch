@@ -7,6 +7,7 @@ import logging
 from fnmatch import fnmatch
 import re
 import json
+from pathlib import Path
 import threading
 from xml.etree import ElementTree
 
@@ -114,42 +115,39 @@ def get_package_for_path(path: str) -> tuple[str, str]:
     tuple[str, str]
         The package name and path to the package, or (None, None) if the package could not be determined.
     """
-    path = os.path.normpath(os.path.abspath(os.path.dirname(path)))
+    path: Path = Path(path).resolve()
     ros_packages = get_packages_with_prefixes()
 
     for pkg, pkg_path in ros_packages.items():
         # Try to find the package in the currently registered packages
-        if path.startswith(pkg_path):
+        if path.name.startswith(pkg_path):
             return pkg, pkg_path
     else:
         # Not a package currently sourced, look for a package.xml somewhere on the path. This search
         # is somewhat expensive, but we expect it to be rare since usually packages should already
         # be sourced 99.9% of the time
-        while os.path.sep in path:
-            # The package.xml is usually found in install/<package>/share/<package>
-            package_candidate = os.path.basename(path)
-            candidates = [
-                os.path.join("share", package_candidate, "package.xml"),
-                "package.xml",
-            ]
+        while True:
+            # Launch files are usually inside a subfolder of share/<package>/launch/, and the 
+            # package.xml should be in share/<package>
+            package_xml = (path / "package.xml").resolve()
 
-            for package_xml in candidates:
-                if os.path.isfile(package_xml):
-                    # Unfortunately the package name can be different from the package's folder, so
-                    # we get it from the package.xml instead
-                    tree = ElementTree.parse(package_xml)
-                    root = tree.getroot()
-                    if root.tag != "package":
-                        # Not an actual package file
-                        continue
-
+            if package_xml.is_file():
+                # Unfortunately the package name can be different from the package's folder, so
+                # we get it from the package.xml instead
+                tree = ElementTree.parse(package_xml)
+                root = tree.getroot()
+                if root.tag == "package":
                     name_tag = root.find("name")
-                    if name_tag:
+                    if name_tag is not None:
                         # Found it!
-                        return name_tag.text, path
+                        return name_tag.text, str(path)
 
-            # Go up one level
-            path = path.rsplit(os.path.sep, maxsplit=1)[0]
+            # Not an actual package file, go up one level
+            path = path.parent
+
+            # We can probably stop if are at the file system root :)
+            if path == path.anchor:
+                break
 
     return None, None
 
