@@ -19,4 +19,4 @@ jobs:
         run: |
           uv sync
           source .venv/bin/activate
-          uv run -m pytest tests/test_load_params.py
+          uv run -m pytest tests/test_load_params.py -vv
