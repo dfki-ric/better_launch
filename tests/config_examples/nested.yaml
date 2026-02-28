@@ -1,0 +1,8 @@
+robot:
+  controller:
+    ros__parameters:
+      kp: 1.2
+      kd: 0.1
+  monitor:
+    ros__parameters:
+      hz: 30

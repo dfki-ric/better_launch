@@ -1,0 +1,5 @@
+log_level: info
+enabled: false
+limits:
+  max_speed: 1.5
+  max_accel: 0.25

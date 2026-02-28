@@ -1,0 +1,10 @@
+"/**":
+  ros__parameters:
+    default_timeout: 10
+fleet:
+  alpha:
+    ros__parameters:
+      id: 1
+  beta:
+    ros__parameters:
+      id: 2

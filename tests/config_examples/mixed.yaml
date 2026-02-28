@@ -1,0 +1,5 @@
+robot:
+  malformed_value: 10
+  node:
+    ros__parameters:
+      enabled: true

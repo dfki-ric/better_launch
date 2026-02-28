@@ -1,0 +1,22 @@
+name: UV Test Load Params
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-load-params:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/astral-sh/uv:python3.12-bookworm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync and run test
+        shell: bash
+        run: |
+          uv sync
+          source .venv/bin/activate
+          uv run -m pytest tests/test_load_params.py
