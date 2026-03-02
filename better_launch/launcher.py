@@ -145,7 +145,7 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
         """
         if not name:
             if not BetterLaunch._launchfile:
-                frame = find_calling_frame(self.__init__, -1)
+                frame = find_calling_frame(self.__init__)
                 BetterLaunch._launchfile = frame.filename
             name = os.path.basename(BetterLaunch._launchfile)
 
@@ -748,6 +748,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
         )
 
+    # FIXME clean up args
     def load_params(
         self,
         package: str = None,
@@ -1858,7 +1859,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         # TODO verify this works
         for func in (cls.include, _expose_ros2_launch_function):
             try:
-                find_calling_frame(func, 0)
+                find_calling_frame(func)
                 return True
             except ValueError:
                 pass
