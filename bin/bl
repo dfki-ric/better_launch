@@ -75,8 +75,9 @@ class LaunchFile:
         for launch_cls in LaunchFile.__subclasses__():
             try:
                 return launch_cls(filepath)
-            except (ValueError, FileNotFoundError):
-                # File not found will be thrown for invalid symlinks
+            except Exception:
+                # May throw a variety of errors like FileNotFound (dead symlinks), parsing
+                # errors, permission errors... we just don't want to interrupt the autocomplete
                 pass
 
         raise ValueError(f"{filepath} is not a valid launch file")
