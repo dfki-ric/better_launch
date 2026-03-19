@@ -55,6 +55,7 @@ from better_launch.utils.introspection import (
 from better_launch.utils.settings import Settings, severity_to_loglevel
 from better_launch.utils.better_logging import LogSink
 from better_launch.utils.random_names import get_unique_word
+from better_launch.utils.glob_dict import glob_dict, merge_and_explode
 from better_launch.ros.ros_adapter import ROSAdapter
 from better_launch.ros import logging as roslog
 
@@ -748,17 +749,15 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
         )
 
-    # FIXME clean up args
     def load_params(
         self,
         package: str = None,
         configfile: str = None,
         subdir: str = None,
         *,
-        qualifier: str | Node = None,
-        merge_pure_wildcards: bool = True,
-        conflict_resolution: Literal["reject", "accept"] = "reject",
-        strip_ros_path_separators: bool = False,
+        strip_ros_parameters: bool = False,
+        qualifier: str = None,
+        merge_paths: bool = False,
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through [find][].
 
@@ -768,7 +767,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         * `**`: matches any number of tokens, may be followed by additional tokens and a node name
         * `*`: skips a single namespace token, or ignores the node's name if at the end
 
-        Note that *better_launch* does not require you to place `ros__parameters` in your configs. If it exists it will later be used to qualify parameters. For example, a config like
+        Note that *better_launch* does not require you to place `ros__parameters` in your configs. If it exists it will later be used to match parameters to namespaces and nodes. For example, a config like
 
         ```yaml
         my_node:
@@ -776,7 +775,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 int_of_fury: 5
         ```
 
-        will be passed to a ROS2 node process as `-p my_node:int_of_fury:=5` and thus becomes node specific.
+        will be passed to a ROS2 node process as `-p my_node:int_of_fury:=5` and thus become specific to any node named `my_node`.
 
         .. seealso::
 
@@ -790,16 +789,12 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             The name of the config file to locate.
         subdir : str, optional
             A path fragment that the config file must be located in.
-        qualifier : str | Node, optional
-            Used to specifiy which section of the config to return.
-        merge_pure_wildcards : bool, optional
-            If True, wildcard parameters from the root level (/**) will be merged into the returned dict. That is, any new keys therein will be moved to the root level and any keys to already existing dicts will be merged.
-        conflict_resolution : Literal["reject", "accept"], optional
-            What to do when assembling the final params dict and there are keys that are already defined (e.g. due to wildcards).
-            - "reject": keep the already existing keys, i.e. the version with the more specific path.
-            - "accept": apply the value from the wildcard dict, replacing the one with the more specific path.
-        strip_ros_path_separators : bool, optional
-            If True, any mentions of ros__parameters will be removed.
+        strip_ros_parameters : bool, optional
+            If True, any mentions of ros__parameters will be removed. These are usually used to distinguish between namespace/node qualifiers and the actual parameters. Should be False if you're passing the results to a node.
+        qualifier : str, optional
+            Used to specifiy which section of the config to return. E.g. if the yaml contains `{A: {B: C, D: E}}`, then the qualifier "A/B" will return `{A: {B: C}}`. The qualifier supports globbing patterns like `*` and `**` and will ignore `ros__parameters` keys.
+        merge_paths: bool, optional
+            If True matching branches of the parsed dict will be merged (and also exploded). I.e. to merge the keys `a` and `a/b`, the latter will be unraveled into `a -> b` and then applied onto `a`. Branches appearing later in the yaml will win. Branches containing wildcards are not merged.
 
         Returns
         -------
@@ -819,56 +814,32 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             content = f.read()
             params = yaml.safe_load(content)
 
-        # No node- or namespace specific sections, ignore qualifier
-        if "ros__parameters" in params:
-            return params["ros__parameters"]
-
-        # Nothing to filter, return everything
-        has_ros_params = "ros__parameters" in content
-        empty_qualifier = qualifier in (None, "", "*", "/*", "**", "/**")
-        if not has_ros_params and empty_qualifier:
-            return params
-
-        # Return the entire config if it doesn't follow the ros pattern
-        if empty_qualifier:
-            qualifier = "**"
-
-        if not qualifier.endswith("*"):
-            qualifier += "/*"
-
-        qualifier.rstrip("/")
-        final_params = {}
-
-        # Assemble the path qualifiers
-        def condense(obj: dict, path: str = "") -> None:
-            for key, val in obj.items():
-                if key in ("*", "/*", "**", "/**"):
-                    condense(val)
-                    continue
-
-                branch_path = f"{path}/{key}" if path else key
-                if not fnmatch(branch_path, qualifier):
-                    continue
-
-                if "*" in key:
-                    self.logger.warning(
-                        f"{configfile} wildcard parameters will be resolved to specific nodes on launch"
-                    )
-
+        def strip_ros_params(sub: dict) -> Any:
+            res = {}
+            for key, val in sub.items():
                 if key == "ros__parameters":
-                    print(branch_path)
-                    final_params[branch_path] = val
+                    for child_key, child_val in val.items():
+                        if isinstance(child_val, dict):
+                            res[child_key] = strip_ros_params(child_val)
+                        else:
+                            res[child_key] = child_val
                 elif isinstance(val, dict):
-                    condense(val, branch_path)
+                    res[key] = strip_ros_params(val)
                 else:
-                    if has_ros_params:
-                        self.logger.warning(
-                            f"{configfile}: found branch in ROS2 config without ros__parameters: {path}"
-                        )
-                    final_params[branch_path] = val
+                    res[key] = val
 
-        condense(params)
-        return final_params
+            return res
+
+        if strip_ros_parameters:
+            params = strip_ros_params(params)
+
+        if qualifier:
+            params = glob_dict(params, qualifier)
+
+        if merge_paths:
+            params = merge_and_explode(params)
+
+        return params
 
     def get_ros_message_type(self, message_string: str) -> type:
         """Loads a ROS2 message type from a string representation.
