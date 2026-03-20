@@ -2,6 +2,7 @@ from typing import Any, Callable, Generator, Iterable, Literal, TYPE_CHECKING
 import importlib
 import sys
 import os
+import re
 import signal
 import inspect
 import time
@@ -755,9 +756,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         configfile: str = None,
         subdir: str = None,
         *,
+        merge_paths: bool = False,
         strip_ros_parameters: bool = False,
         qualifier: str = None,
-        merge_paths: bool = False,
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through [find][].
 
@@ -789,12 +790,12 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             The name of the config file to locate.
         subdir : str, optional
             A path fragment that the config file must be located in.
+        merge_paths: bool, optional
+            If True matching branches of the parsed dict will be merged (and also exploded). I.e. to merge the keys `a` and `a/b`, the latter will be unraveled into `a -> b` and then applied onto `a`. Branches appearing later in the yaml will win. Branches containing wildcards are not merged.
         strip_ros_parameters : bool, optional
             If True, any mentions of ros__parameters will be removed. These are usually used to distinguish between namespace/node qualifiers and the actual parameters. Should be False if you're passing the results to a node.
         qualifier : str, optional
             Used to specifiy which section of the config to return. E.g. if the yaml contains `{A: {B: C, D: E}}`, then the qualifier "A/B" will return `{A: {B: C}}`. The qualifier supports globbing patterns like `*` and `**` and will ignore `ros__parameters` keys.
-        merge_paths: bool, optional
-            If True matching branches of the parsed dict will be merged (and also exploded). I.e. to merge the keys `a` and `a/b`, the latter will be unraveled into `a -> b` and then applied onto `a`. Branches appearing later in the yaml will win. Branches containing wildcards are not merged.
 
         Returns
         -------
@@ -812,7 +813,25 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         with open(path) as f:
             content = f.read()
-            params = yaml.safe_load(content)
+            # The default yaml loader requires a dot when writing floats in scientific notation,
+            # whereas the json spec treats it as optional.
+            # This fixes #59 based on https://stackoverflow.com/a/30462009/2061551
+            loader = yaml.SafeLoader
+            loader.add_implicit_resolver(
+                "tag:yaml.org,2002:float",
+                re.compile(
+                    """^(?:
+                [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+                |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+                |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+                |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+                |[-+]?\\.(?:inf|Inf|INF)
+                |\\.(?:nan|NaN|NAN))$""",
+                    re.X,
+                ),
+                list("-+0123456789."),
+            )
+            params = yaml.load(content, Loader=loader)
 
         def strip_ros_params(sub: dict) -> Any:
             res = {}
@@ -830,14 +849,31 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
             return res
 
-        if strip_ros_parameters:
-            params = strip_ros_params(params)
+        def concatenate_branches(sub: dict, prefix: str = "") -> dict:
+            res = {}
+            for key, val in sub.items():
+                path = f"{prefix}/{key}" if prefix else key
+                if key == "ros__parameters":
+                    res[path] = val
+                elif isinstance(val, dict):
+                    res.update(concatenate_branches(val, path))
+                else:
+                    res[path] = val
 
-        if qualifier:
-            params = glob_dict(params, qualifier)
+            return res
 
         if merge_paths:
             params = merge_and_explode(params)
+
+        if "ros__parameters" in content:
+            # Each ros__parameters block should get its own path key
+            concatenate_branches(params)
+
+            if strip_ros_parameters:
+                params = strip_ros_params(params)
+
+        if qualifier:
+            params = glob_dict(params, qualifier)
 
         return params
 

@@ -193,6 +193,9 @@ class AbstractNode:
                     qualifier = path[:rp_idx].rstrip("./")
                     param = path[rp_idx + 15 :].lstrip(".")
 
+                    if not qualifier.startswith("/"):
+                        qualifier = "**/" + qualifier
+
                     if strip_qualifiers:
                         path = param
                     elif qualifier:
