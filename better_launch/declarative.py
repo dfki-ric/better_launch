@@ -111,7 +111,10 @@ def _execute_toml(
 
             with res:
                 if isinstance(children, list):
-                    children = {f"{key}.children.{idx}": child for idx, child in enumerate(children)}
+                    children = {
+                        f"{key}.children.{idx}": child
+                        for idx, child in enumerate(children)
+                    }
 
                 if not isinstance(children, dict):
                     raise ValueError(
@@ -174,6 +177,7 @@ def _get_toml_args(toml: dict) -> list[DeclaredArg]:
 def launch_toml(
     path: str,
     launch_args: dict[str, str] = None,
+    extra_args: list[str] = None,
     *,
     # These should largely mirror the launch_this decorator
     ui: bool = None,
@@ -204,7 +208,7 @@ def launch_toml(
         executable = "my-node"
         name = "${name}"
 
-    Substitutions are also possible and use a similar syntax as in ROS1 (as shown for the `name` launch argument above). `if` and `unless` conditions can be added as well. 
+    Substitutions are also possible and use a similar syntax as in ROS1 (as shown for the `name` launch argument above). `if` and `unless` conditions can be added as well.
 
     All parameters below can be set through the launch file by declaring them on the global scope with a `bl_` prefix (i.e. `ui` becomes `bl_ui`).
 
@@ -309,6 +313,11 @@ def launch_toml(
         for key, arg in launch_args.items():
             if arg is not None:
                 argv.extend([f"--{key}", str(arg)])
+
+    if extra_args:
+        if argv is None:
+            argv = []
+        argv.extend(extra_args)
 
     def launch_func(*args, **kwargs):
         _execute_toml(toml, eval_mode=eval_mode, **kwargs)

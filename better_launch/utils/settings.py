@@ -46,6 +46,7 @@ default_file_format = "[{levelname}] [{asctime}] {message}"
 @dataclass(frozen=True)
 class _Settings:
     ui: bool = False
+    node_param_override: bool = False
     colormode: Colormode = Colormode.DEFAULT
     print_limit: int = 0
     screen_log_level: int = logging.INFO
@@ -139,15 +140,15 @@ class _Settings:
         return vars
 
     def as_dict(self) -> dict[str, Any]:
-        """Returns the settings as a dict.
-        """
+        """Returns the settings as a dict."""
         # A bit more comfortable than having to import dataclasses.asdict each time
         return asdict(self)
+
 
 def _update_settings(**overrides) -> None:
     """Replace the _SETTINGS object with a new instance with updated values. Only non-None values are applied.
 
-    This should only be called right after the launch process has started. 
+    This should only be called right after the launch process has started.
 
     Parameters
     ----------

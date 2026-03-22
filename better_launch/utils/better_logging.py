@@ -13,7 +13,7 @@ from .settings import Colormode, Settings
 # Log format string for ROS so that we can identify and reformat its log messages.
 ROSLOG_PATTERN_ROS = "%%{severity}%%{time}%%{message}"
 
-# Regular expression matching ROSLOG_PATTERN_ROS. The named groups will be matched to 
+# Regular expression matching ROSLOG_PATTERN_ROS. The named groups will be matched to
 # logging.LogRecord attributes via their group names.
 ROSLOG_PATTERN_BL = r"%%(?P<levelname>\w+)%%(?P<created>[\d.]+)%%(?P<msg>[\s\S]*)"
 
@@ -221,15 +221,11 @@ class PrettyLogFormatter(logging.Formatter):
             record.levelno
         )
 
-        msg = record.getMessage()
-        if self.max_message_length > 0 and len(msg) > self.max_message_length:
-            msg = msg[: self.max_message_length] + "..."
-        record.msg = msg
-        # The message has already been formatted with its arguments above.
-        # Clearing record.args prevents the next formatter from attempting
-        # a second '%' substitution on the truncated text, which could crash
-        # if any format placeholders were removed during truncation.
-        record.args = None
+        if self.max_message_length > 0:
+            msg = record.getMessage()
+            if msg > self.max_message_length:
+                record.msg = msg[: self.max_message_length] + "…"
+
         return super().format(record)
 
 
@@ -302,26 +298,25 @@ def configure_logger(
     screen_formatter: logging.Formatter = None,
     file_formatter: logging.Formatter = None,
 ) -> None:
-    """Initialize the logging framework.
-    """
+    """Initialize the logging framework."""
     # TODO proper docstring
     if output:
-        if isinstance(output, Iterable) and not isinstance(output, str):
-            output = [output]
+        if isinstance(output, str) or not isinstance(output, Iterable):
+            sinks = [output]
+        else:
+            sinks = list(output)
 
-        for idx, sink in output:
-            if isinstance(sink, str):
-                output[idx] = LogSink[output.upper()]
-
-        output = set(output)
+        output_sinks = set(
+            LogSink[sink.upper()] if isinstance(sink, str) else sink for sink in sinks
+        )
     else:
-        output = {LogSink.SCREEN}
+        output_sinks = {LogSink.SCREEN}
 
     config = Settings()
     screen_filter = LevelFilter(config.screen_log_level)
     file_filter = LevelFilter(config.file_log_level)
 
-    for sink in output:
+    for sink in output_sinks:
         if sink == LogSink.SCREEN:
             screen_handler = roslog.launch_config.get_screen_handler()
             if screen_handler not in logger.handlers:

@@ -148,11 +148,25 @@ class BetterLaunchPython(LaunchFile):
             flush=True,
         )
 
+        # Filter out bl_* settings - these are BetterLaunch options, not launch args
+        launch_args = {k: v for k, v in kwargs.items() if not k.startswith("bl_")}
+
+        # Pass current bl_* settings as CLI args to child process
+        from better_launch.utils.settings import Settings
+
+        current_settings = Settings()
+
         # First argument becomes argv[0], so should be the program name
         args = ["python3", self.filepath]
-        for key, arg in kwargs.items():
+        for key, arg in launch_args.items():
             if arg is not None:
-                args.extend([f"--{key}", arg])
+                args.extend([f"--{key}", str(arg)])
+
+        if current_settings.node_param_override:
+            args.extend(["--bl-node-param-override", "true"])
+
+        # Pass through extra args (e.g., --node.param value for node overrides)
+        args.extend(ctx.args)
 
         # This does NOT return and will replace our executable with the new executable in the same process
         os.execvp("python3", [str(a) for a in args])
@@ -192,11 +206,13 @@ class BetterLaunchToml(LaunchFile):
 
         from better_launch.declarative import launch_toml
 
+        # Filter out bl_* settings - these are BetterLaunch options, not launch args
+        launch_args = {k: v for k, v in kwargs.items() if not k.startswith("bl_")}
+
         # Since the toml files are not executable, we need something else to run them. We
         # could create another script with a main function, but I don't think there's much
         # of a point to this.
-        # TODO pass overrides?
-        launch_toml(self.filepath, launch_args=kwargs)
+        launch_toml(self.filepath, launch_args=launch_args, extra_args=ctx.args)
 
 
 class Ros2LaunchFile(LaunchFile):

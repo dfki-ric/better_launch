@@ -120,6 +120,7 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
 
     _launchfile: str = None
     _launch_func_args: dict[str, Any] = {}
+    _node_param_overrides: dict[str, dict[str, Any]] = {}
 
     def __init__(
         self,
@@ -226,6 +227,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 """
         # We don't want to log this
         print(msg)
+
+    def set_node_param_overrides(self, overrides: dict[str, dict[str, Any]]) -> None:
+        BetterLaunch._node_param_overrides = overrides or {}
 
     def spin(self, exit_with_last_node: bool = True) -> None:
         """Join the BetterLaunch thread until it terminates. You do **not** need to call this if you're using the [launch_this][] wrapper or the TUI.
@@ -1534,13 +1538,26 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         group = self.group_tip
         namespace = group.assemble_namespace()
 
+        # Merge CLI overrides (CLI takes precedence)
+        resolved_params: dict[str, Any]
+        if isinstance(params, str):
+            resolved_params = self.load_params(configfile=params)
+        elif params is None:
+            resolved_params = {}
+        else:
+            resolved_params = params
+
+        cli_overrides = self._node_param_overrides.get(name, {})
+        if cli_overrides:
+            resolved_params = {**resolved_params, **cli_overrides}
+
         node = Node(
             package,
             executable,
             name,
             namespace,
             remaps=remaps,
-            params=params,
+            params=resolved_params,
             cmd_args=cmd_args,
             env=env,
             isolate_env=isolate_env,
