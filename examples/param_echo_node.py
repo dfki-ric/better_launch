@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from pprint import pformat
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
@@ -9,7 +8,7 @@ from rcl_interfaces.msg import SetParametersResult
 class ParamEchoNode(Node):
     def __init__(self):
         super().__init__(
-            "param_printer",
+            "param_echo_node",
             allow_undeclared_parameters=True,
             automatically_declare_parameters_from_overrides=True,
         )
@@ -18,7 +17,7 @@ class ParamEchoNode(Node):
             f"### [PARAM] {name} = {p.value!r}"
             for name, p in self.get_parameters_by_prefix("").items()
         ]
-        self.get_logger().info(pformat(params, width=120))
+        self.get_logger().info("Params:\n" + "\n".join(params))
 
         self.add_on_set_parameters_callback(self._on_params_set)
 

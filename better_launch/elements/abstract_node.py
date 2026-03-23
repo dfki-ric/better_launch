@@ -20,6 +20,7 @@ class AbstractNode:
         namespace: str,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
+        param_files: list[str] = None,
         *,
         output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ):
@@ -37,8 +38,10 @@ class AbstractNode:
             The node's namespace. Must be absolute, i.e. start with a '/'.
         remaps : dict[str, str], optional
             Topic remaps for this node.
-        params : str | dict[str, Any], optional
-            Node parameters. If a string is passed it will be lazy loaded with [BetterLaunch.find][].
+        params : dict[str, Any], optional
+            Node parameters. If a string is passed it will be lazy loaded with [BetterLaunch.load_params][].
+        param_files : list[str], optional
+            Paths to parameter files that will be passed to the node as is.
         output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See [configure_logger][] for details.
 
@@ -67,8 +70,9 @@ class AbstractNode:
         self._exec = executable
         self._name = name
         self._namespace = namespace
-        self._remaps = remaps or {}
-        self._params = params or {}
+        self._remaps: dict[str, str] = remaps or {}
+        self._params: str | dict[str, str] = params or {}
+        self._param_files: list[str] = param_files or []
         self._lifecycle_manager: LifecycleManager = None
 
         self.logger = roslog.get_logger(self.fullname)
@@ -108,7 +112,7 @@ class AbstractNode:
 
     @property
     def params(self) -> dict[str, Any]:
-        """The ROS params that were passed to this node. If a string was passed it is assumed to be a filepath and will be loaded with [BetterLaunch.find][]."""
+        """The ROS params that were passed to this node. If a string was passed it is assumed to be a filepath and will be loaded with [BetterLaunch.load_params][]."""
         if isinstance(self._params, str):
             from better_launch import BetterLaunch
 
@@ -121,6 +125,11 @@ class AbstractNode:
         return self._params
 
     @property
+    def param_files(self) -> list[str]:
+        """Any param files that should be passed to the node as paths."""
+        return self._param_files
+
+    @property
     def remaps(self) -> dict[str, str]:
         """Any topic remaps that were passed to this node."""
         return self._remaps
@@ -130,36 +139,12 @@ class AbstractNode:
         """True if the node is currently running."""
         raise NotImplementedError()
 
-    def _ros_args(self) -> dict[str, str]:
-        """Returns this node's ROS args, e.g. remaps and special parameters like namespace and name.
-
-        .. seealso::
-
-            `Passing ROS arguments to nodes via the command-line <https://docs.ros.org/en/jazzy/How-To-Guides/Node-arguments.html>`_
-
-        Returns
-        -------
-        dict[str, str]
-            A dict containing the
-        """
-        ros_args = dict(self.remaps)
-
-        if self.namespace:
-            # Why do I hear mad hatter music???
-            # See launch_ros/actions/node.py:495
-            ros_args["__ns"] = self.namespace
-
-        if self.name:
-            ros_args["__node"] = self.name
-
-        return ros_args
-
-    def _flat_params(self, strip_qualifiers: bool = False) -> dict[str, Any]:
+    def _flat_params(self, ignore_qualifiers: bool = False) -> dict[str, Any]:
         """Flattens this node's ROS parameters so they conform to what ROS expects.
 
         Parameters
         ----------
-        strip_qualifiers : bool, optional
+        ignore_qualifiers : bool, optional
             If True, remove additional node/namespace qualifiers from the returned dict.
 
         Returns
@@ -193,28 +178,30 @@ class AbstractNode:
                     qualifier = path[:rp_idx].rstrip("./")
                     param = path[rp_idx + 15 :].lstrip(".")
 
-                    if not qualifier.startswith("/"):
-                        qualifier = "**/" + qualifier
+                    if not ignore_qualifiers and qualifier:
+                        if not qualifier.startswith("/"):
+                            qualifier = "**/" + qualifier
 
-                    if strip_qualifiers:
-                        path = param
-                    elif qualifier:
-                        if "*" in qualifier:
-                            if fnmatch(self.fullname, qualifier):
-                                # Wildcards cannot be passed on the command line, so we resolve
-                                # them to this node's fullname instead
-                                if qualifier not in ("*", "/*", "**", "/**"):
-                                    self.logger.warning(
-                                        f"Wildcard {qualifier} was grounded to {self.fullname}"
-                                    )
-                                qualifier = self.fullname
-                            else:
-                                self.logger.warning(
-                                    f"Wildcard param {path} did not match and will be ignored, as wildcards cannot be passed on the command line"
-                                )
-                                return
+                        if qualifier.endswith("/"):
+                            ns_qualifier = qualifier
+                            node_qualifier = None
+                        else:
+                            ns_qualifier, node_qualifier = qualifier.rsplit("/", maxsplit=1)
+                            if not ns_qualifier:
+                                ns_qualifier = "**"
+                            if node_qualifier in ("*", "**"):
+                                node_qualifier = None
 
-                        path = f"{qualifier}:{param}"
+                        if not fnmatch(self.namespace, ns_qualifier):
+                            return
+
+                        if node_qualifier:
+                            # On the command line ROS only allows the name for qualification,
+                            # which is fine since we already used the full qualifier for matching
+                            path = f"{node_qualifier}:{param}"
+                        else:
+                            # Only the namespace was qualified and this node matched
+                            path = param
                     else:
                         path = param
 

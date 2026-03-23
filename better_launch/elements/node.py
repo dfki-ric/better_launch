@@ -28,6 +28,9 @@ class Node(AbstractNode, LiveParamsMixin):
         *,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
+        param_files: list[str] = None,
+        # TODO true by default until https://github.com/ros2/rcl/issues/1306 is resolved
+        ignore_param_qualifiers: bool = True,
         cmd_args: list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
@@ -57,6 +60,10 @@ class Node(AbstractNode, LiveParamsMixin):
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
             Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
+        param_files : list[str], optional
+            Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
+        ignore_param_qualifiers : bool, optional
+            If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
         env : dict[str, str], optional
@@ -83,12 +90,20 @@ class Node(AbstractNode, LiveParamsMixin):
             If True, apply the `remap_qualifier` to all remaps that are not already qualified.
         """
         super().__init__(
-            package, executable, name, namespace, remaps, params, output=output
+            package,
+            executable,
+            name,
+            namespace,
+            remaps,
+            params,
+            param_files,
+            output=output,
         )
 
+        self.ignore_param_qualifiers = ignore_param_qualifiers
+        self.cmd_args = cmd_args or []
         self.env = env or {}
         self.isolate_env = isolate_env
-        self.cmd_args = cmd_args or []
         self.node_log_level = (
             logging.getLevelName(log_level) if isinstance(log_level, int) else log_level
         )
@@ -166,13 +181,8 @@ class Node(AbstractNode, LiveParamsMixin):
                 if self.node_log_level is not None:
                     final_cmd += ["--log-level", self.node_log_level]
 
-                # Attach node parameters
-                for key, value in self._flat_params().items():
-                    # Make sure the values are parseable for ROS
-                    final_cmd.extend(["-p", f"{key}:={json.dumps(value)}"])
-
                 # Special args and remaps
-                # launch_ros/actions/node.py:206
+                # https://github.com/ros2/launch_ros/blob/rolling/launch_ros/launch_ros/actions/node.py
 
                 # Qualifier to create node-specific remaps
                 qualifier = ""
@@ -181,7 +191,16 @@ class Node(AbstractNode, LiveParamsMixin):
                     if not qualifier.endswith(":"):
                         qualifier += ":"
 
-                for src, dst in self._ros_args().items():
+                # Why do I hear mad hatter music???
+                # See https://docs.ros.org/en/jazzy/How-To-Guides/Node-arguments.html
+                remaps = {}
+                if self.namespace:
+                    remaps["__ns"] = self.namespace
+                if self.name:
+                    remaps["__node"] = self.name
+                remaps.update(self.remaps)
+                
+                for src, dst in remaps.items():
                     if qualifier:
                         if src in ("__ns", "__node", "__name"):
                             src = qualifier + src
@@ -190,9 +209,20 @@ class Node(AbstractNode, LiveParamsMixin):
 
                     final_cmd.extend(["-r", f"{src}:={dst}"])
 
+                # Pass param files first
+                for path in self.param_files:
+                    final_cmd.extend(["--param-file", path])
+
+                # Attach node parameters
+                for key, value in self._flat_params(
+                    self.ignore_param_qualifiers
+                ).items():
+                    # Make sure the values are parseable for ROS
+                    final_cmd.extend(["-p", f"{key}:={json.dumps(value)}"])
+
             # If an env is specified ROS2 lets it completely replace the host env. We cover this
             # through an additional flag, as often you just want to make certain overrides.
-            # launch/descriptions/executable.py:199
+            # https://github.com/ros2/launch/blob/rolling/launch/launch/descriptions/executable.py
             if self.isolate_env:
                 final_env = self.env
             else:
