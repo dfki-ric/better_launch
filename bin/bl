@@ -165,10 +165,8 @@ class BetterLaunchToml(LaunchFile):
     def _get_launch_params_and_doc_bl_toml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        from better_launch.declarative import (
-            load_toml,
-            _get_toml_args,
-        )
+        from better_launch.declarative import _get_toml_args
+        from better_launch.toml import load as load_toml
 
         toml = load_toml(filepath)
         doc = toml.get("__comment__")
