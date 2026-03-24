@@ -75,7 +75,9 @@ class LaunchFile:
         for launch_cls in LaunchFile.__subclasses__():
             try:
                 return launch_cls(filepath)
-            except ValueError:
+            except Exception:
+                # May throw a variety of errors like FileNotFound (dead symlinks), parsing
+                # errors, permission errors... we just don't want to interrupt the autocomplete
                 pass
 
         raise ValueError(f"{filepath} is not a valid launch file")
@@ -163,10 +165,8 @@ class BetterLaunchToml(LaunchFile):
     def _get_launch_params_and_doc_bl_toml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        from better_launch.declarative import (
-            load_toml,
-            _get_toml_args,
-        )
+        from better_launch.declarative import _get_toml_args
+        from better_launch.toml import load as load_toml
 
         toml = load_toml(filepath)
         doc = toml.get("__comment__")
@@ -215,7 +215,7 @@ class Ros2LaunchFile(LaunchFile):
 
         if default:
             # Yes ROS2, I also think that simple things are boring and uninspiring...
-            default = parameter_value_to_python(get_parameter_value(default))
+            default = parameter_value_to_python(get_parameter_value(str(default)))
 
         if choices:
             ptype = click.Choice(choices)

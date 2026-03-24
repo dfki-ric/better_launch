@@ -194,7 +194,7 @@ def _exec_launch_func(
     # NOTE this function should not make any assumptions about the launch_func
 
     # Globals of the calling module
-    launch_frame = find_calling_frame(_exec_launch_func, 0)
+    launch_frame = find_calling_frame(_exec_launch_func)
     glob = launch_frame.frame.f_globals
 
     if glob.get(_is_launcher_defined, False) and _bl_singleton_instance not in glob:
@@ -402,6 +402,6 @@ def _expose_ros2_launch_function(launch_func: Callable, declared_args: list[Decl
         return ld
 
     # Add our generate_launch_description function to the module launch_this was called from
-    launch_frame = find_calling_frame(_exec_launch_func, -1)
+    launch_frame = find_calling_frame(_exec_launch_func)
     caller_globals = launch_frame.frame.f_globals
     caller_globals["generate_launch_description"] = generate_launch_description

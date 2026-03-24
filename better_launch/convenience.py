@@ -12,6 +12,8 @@ __all__ = [
 from typing import Sequence, Any
 import subprocess
 import json
+import yaml
+import tempfile
 
 from better_launch import BetterLaunch
 from better_launch.elements import Node
@@ -276,10 +278,10 @@ def spawn_controller_manager(
 
     Parameters
     ----------
-    robot_description : str, optional
-        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
     params : str | dict[str, Any], optional
         The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via [BetterLaunch.load_params][].
+    robot_description : str, optional
+        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
     remaps : dict[str, str], optional
         Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.
     cmd_args: list[str], optional
@@ -304,17 +306,19 @@ def spawn_controller_manager(
     if params is None:
         params = {}
     elif isinstance(params, str):
-        # In theory one could pass the config and then change it before a controller is loaded, 
+        # In theory one could pass the config and then change it before a controller is loaded,
         # but that seems debatable at best. If you truly want this, either pass the file path as
-        # a cmd arg, or keep the manager and controller configs separate and pass the later to 
+        # a cmd arg, or keep the manager and controller configs separate and pass the later to
         # spawn_controller below.
         # process_args.extend(["--param-file", params])
-        params = bl.load_params(None, params, matching_only=False)
+        params = bl.load_params(None, params)
 
     if robot_description:
         if robot_description.startswith("<?xml"):
             if bl.ros_distro()[0].lower() >= "j":
-                raise ValueError("Passing a robot description by value is deprecated in ROS Jazzy and beyond")
+                raise ValueError(
+                    "Passing a robot description by value is deprecated in ROS Jazzy and beyond"
+                )
             params["robot_description"] = robot_description
         else:
             # Assume it's a topic
@@ -324,7 +328,9 @@ def spawn_controller_manager(
 
     else:
         if bl.ros_distro()[0].lower() < "j":
-            bl.logger.warning("Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!")
+            bl.logger.warning(
+                "Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!"
+            )
 
     return bl.node(
         package="controller_manager",
@@ -356,8 +362,7 @@ def spawn_controller(
     controller : str
         The controller to spwawn.
     params : str | list[str] | dict[str, Any], optional
-        Additional parameters for the controller node. Can be a path to a ROS2 config, a list of paths, or a dict with the actual key-value pairs. Note that passing a dict is only 
-        supported for ROS Jazzy and newer.
+        Additional parameters for the controller node. Can be a path to a ROS2 config, a list of paths, or a dict with the actual key-value pairs. In versions of ROS before Jazzy the params will be serialized into a temporary yaml file.
     remaps : dict[str, str], optional
         Additional remaps specific to the controller. These will be qualified with the controller's name to avoid conflicts.
     cmd_args: list[str], optional
@@ -375,30 +380,39 @@ def spawn_controller(
         params = bl.load_params(None, params)
 
     if params:
+        # Passing controller params directly is only supported in Jazzy and newer, so we
+        # write them to a yaml instead, then pass them as a param-file
+        if isinstance(params, dict) and bl.ros_distro()[0].lower() < "j":
+            data = yaml.serialize(params).splitlines()
+
+            tmp = tempfile.NamedTemporaryFile("w+", suffix=".yaml")
+            bl.logger.warning(
+                f"ROS2 {bl.ros_distro()} does not support passing params to controllers directly, serializing to {tmp.name} instead"
+            )
+            tmp.writelines(data)
+            bl.add_shutdown_callback(tmp.close)
+
+            params = tmp.name
+
+        # Decide how to pass the params to the controller
         if isinstance(params, dict):
-            if bl.ros_distro()[0].lower() < "j":
-                raise ValueError(
-                    "Passing controller params directly is only supported in Jazzy and newer"
-                )
-            
             manager_node = bl.query_node(manager, include_foreign=True)
 
             if not manager_node:
                 raise ValueError(f'Could not find controller manager "{manager}"')
 
-            # In theory we could pass --controller-ros-args to the spawner and let the spawner 
-            # handle these, but it unfortunately does some very naive string splitting which 
-            # messes up more complex arguments containing e.g. lists. 
+            # In theory we could pass --controller-ros-args to the spawner and let the spawner
+            # handle these, but it unfortunately does some very naive string splitting which
+            # messes up more complex arguments containing e.g. lists.
             manager_node.set_live_params(
                 {
                     f"{controller}.node_options_args": [
-                        f"{key}:={json.dumps(val)}"
-                        for key, val in params.items()
+                        f"{key}:={json.dumps(val)}" for key, val in params.items()
                     ]
                 }
             )
         elif isinstance(params, str):
-            # Usually we'd load the parameters here and pass them to the controller manager, 
+            # Usually we'd load the parameters here and pass them to the controller manager,
             # but this functionality only exists from jazzy onwards
             process_args.extend(["--param-file", params])
         elif isinstance(params, list):
@@ -414,14 +428,14 @@ def spawn_controller(
             )
 
         for key, value in remaps.items():
-            # Qualify remaps to avoid accidental remaps for other controllers 
+            # Qualify remaps to avoid accidental remaps for other controllers
             process_args.extend(
                 ["--controller-ros-args", f"-r {controller}:{key}:={value}"]
             )
 
     # This is NOT a node! Could also use the spawner python implementation directly, but that
     # would just introduce another dependency with little benefit.
-    spawner = bl.find("controller_manager", "controller_manager/spawner")
+    spawner = bl.find("controller_manager", "spawner")
     bl.exec(["python3", spawner] + process_args)
 
 
@@ -436,8 +450,8 @@ def record_topics(
     max_bag_size: int = 0,
     format: str = "mcap",
 ):
-    """Record a rosbag. 
-    
+    """Record a rosbag.
+
     Will record the specified topics, or automatically select topics based on currently available topics and arguments.
 
     Parameters
@@ -504,8 +518,8 @@ def record_topics_from_file(
     max_bag_size: int = 0,
     format: str = "mcap",
 ):
-    """Record a rosbag. 
-    
+    """Record a rosbag.
+
     Reads topics to record from a text-file. Empty lines and lines starting with "#" will be ignored.
 
     Parameters
@@ -540,7 +554,7 @@ def record_topics_from_file(
 
     with open(topic_file) as f:
         lines = f.readlines()
-    
+
     topics = []
     for line in lines:
         line = line.trim()
