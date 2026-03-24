@@ -9,6 +9,7 @@ import time
 import threading
 import subprocess
 import shlex
+import shutil
 from fnmatch import fnmatch
 from pathlib import Path
 from concurrent.futures import Future, CancelledError, TimeoutError
@@ -1380,7 +1381,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     # be there. By making it a class method it can still be used without a BL instance.
     @classmethod
     def exec(cls, cmd: str | list[str]) -> str:
-        """Run the specified command and return its output. The command can either be an absolute path to an executable or any file found on `PATH`.
+        """Run the specified command, await its termination and return its output. Bare commands are resolved using `shutil.which`.
+
+        For long-running commands see [BetterLaunch.process][] instead.
 
         Parameters
         ----------
@@ -1399,6 +1402,10 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         """
         if isinstance(cmd, str):
             cmd = shlex.split(cmd)
+
+        executable = cmd[0]
+        if not os.path.isabs(executable) and os.sep not in executable:
+            cmd[0] = shutil.which(executable)
 
         bl = BetterLaunch.instance()
         if bl:
