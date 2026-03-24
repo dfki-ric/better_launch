@@ -139,13 +139,13 @@ class AbstractNode:
         """True if the node is currently running."""
         raise NotImplementedError()
 
-    def _flat_params(self, ignore_qualifiers: bool = False) -> dict[str, Any]:
+    def _flat_params(self, drop_qualifiers: bool = False) -> dict[str, Any]:
         """Flattens this node's ROS parameters so they conform to what ROS expects.
 
         Parameters
         ----------
-        ignore_qualifiers : bool, optional
-            If True, remove additional node/namespace qualifiers from the returned dict.
+        drop_qualifiers : bool, optional
+            If True, remove additional node/namespace qualifiers from the returned dict. Qualifiers will still be used to match this node if present.
 
         Returns
         -------
@@ -178,7 +178,7 @@ class AbstractNode:
                     qualifier = path[:rp_idx].rstrip("./")
                     param = path[rp_idx + 15 :].lstrip(".")
 
-                    if not ignore_qualifiers and qualifier:
+                    if qualifier:
                         if not qualifier.startswith("/"):
                             qualifier = "**/" + qualifier
 
@@ -195,7 +195,7 @@ class AbstractNode:
                         if not fnmatch(self.namespace, ns_qualifier):
                             return
 
-                        if node_qualifier:
+                        if not drop_qualifiers and node_qualifier:
                             # On the command line ROS only allows the name for qualification,
                             # which is fine since we already used the full qualifier for matching
                             path = f"{node_qualifier}:{param}"

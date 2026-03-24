@@ -29,8 +29,7 @@ class Node(AbstractNode, LiveParamsMixin):
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
         param_files: list[str] = None,
-        # TODO true by default until https://github.com/ros2/rcl/issues/1306 is resolved
-        ignore_param_qualifiers: bool = True,
+        drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
@@ -62,7 +61,7 @@ class Node(AbstractNode, LiveParamsMixin):
             Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
         param_files : list[str], optional
             Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
-        ignore_param_qualifiers : bool, optional
+        drop_param_qualifiers : bool, optional
             If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
@@ -100,7 +99,7 @@ class Node(AbstractNode, LiveParamsMixin):
             output=output,
         )
 
-        self.ignore_param_qualifiers = ignore_param_qualifiers
+        self.drop_param_qualifiers = drop_param_qualifiers
         self.cmd_args = cmd_args or []
         self.env = env or {}
         self.isolate_env = isolate_env
@@ -199,7 +198,7 @@ class Node(AbstractNode, LiveParamsMixin):
                 if self.name:
                     remaps["__node"] = self.name
                 remaps.update(self.remaps)
-                
+
                 for src, dst in remaps.items():
                     if qualifier:
                         if src in ("__ns", "__node", "__name"):
@@ -214,9 +213,17 @@ class Node(AbstractNode, LiveParamsMixin):
                     final_cmd.extend(["--param-file", path])
 
                 # Attach node parameters
-                for key, value in self._flat_params(
-                    self.ignore_param_qualifiers
-                ).items():
+
+                # TODO I could not find a way to pass a qualified param to a namespaced node yet.
+                # See https://github.com/ros2/rcl/issues/1306
+                drop_qualifiers = self.drop_param_qualifiers
+                if len(self.namespace) > 1:
+                    drop_qualifiers = True
+                    self.logger.warning(
+                        "Qualified params cannot be passed to namespaced nodes and will be passed unqualified instead"
+                    )
+
+                for key, value in self._flat_params(drop_qualifiers).items():
                     # Make sure the values are parseable for ROS
                     final_cmd.extend(["-p", f"{key}:={json.dumps(value)}"])
 

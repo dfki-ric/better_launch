@@ -1429,7 +1429,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
         param_files: list[str] = None,
-        ignore_param_qualifiers: bool = False,
+        drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
@@ -1471,7 +1471,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             Any ROS parameters you want to pass to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
         param_files : list[str], optional
             Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
-        ignore_param_qualifiers : bool, optional
+        drop_param_qualifiers : bool, optional
             If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
@@ -1548,7 +1548,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             remaps=remaps,
             params=params,
             param_files=param_files,
-            ignore_param_qualifiers=ignore_param_qualifiers,
+            drop_param_qualifiers=drop_param_qualifiers,
             cmd_args=cmd_args,
             env=env,
             isolate_env=isolate_env,
