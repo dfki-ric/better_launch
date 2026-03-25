@@ -1383,7 +1383,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     def exec(cls, cmd: str | list[str]) -> str:
         """Run the specified command, await its termination and return its output. Bare commands are resolved using `shutil.which`.
 
-        For long-running commands see [BetterLaunch.process][] instead.
+        For long-lived commands that you don't want to wait for, consider using [BetterLaunch.process][] instead.
 
         Parameters
         ----------
@@ -1426,6 +1426,100 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         logger.info(ret)
 
         return ret
+
+    def process(
+        self,
+        cmd: str | list[str],
+        name: str = None,
+        *,
+        env: dict[str, str] = None,
+        isolate_env: bool = False,
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
+        anonymous: bool = False,
+        on_exit: Callable = None,
+        max_respawns: int = 0,
+        respawn_delay: float = 0.0,
+        use_shell: bool = False,
+        autostart_process: bool = True,
+    ) -> Node:
+        """Starts an arbitrary process and wraps it in a Node object.
+
+        This method for starting long-running non-ROS processes, similar to ROS2's `ExecuteProcess`. Bare command names are resolved using `shutil.which`.
+        
+        If you instead want to wait for the process to return (and retrieve its output), consider using [BetterLaunch.exec][] instead. 
+
+        Parameters
+        ----------
+        cmd : str | list[str]
+            The command to execute. If a string is provided, it will be split using `shlex.split`.
+        name : str, optional
+            The name of the process. If not provided, it will be derived from the command.
+        env : dict[str, str], optional
+            Additional environment variables to set for the process. The process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
+        isolate_env : bool, optional
+            If True, the process' env will not be inherited from the parent process and only those passed via `env` will be used.
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
+            Determines if and where this process' output should be directed. Defaults to `LogSink.SCREEN`.
+        anonymous : bool, optional
+            If True, the process name will be appended with a unique suffix to avoid name conflicts.
+        on_exit : Callable, optional
+            A function to call when the process terminates (after any possible respawns).
+        max_respawns : int, optional
+            How often to restart the process if it terminates.
+        respawn_delay : float, optional
+            How long to wait before restarting the process after it terminates.
+        use_shell : bool, optional
+            If True, invoke the executable via the system shell.
+        autostart_process : bool, optional
+            If True, start the process before returning from this function.
+
+        Returns
+        -------
+        Node
+            The node object wrapping the process.
+
+        Raises
+        ------
+        ValueError
+            If the command is empty.
+        FileNotFoundError
+            If the executable cannot be found.
+        """
+        if not cmd:
+            raise ValueError("Command cannot be empty")
+
+        if isinstance(cmd, str):
+            cmd = shlex.split(cmd)
+
+        executable = cmd[0]
+        cmd_args = cmd[1:]
+
+        if name is None:
+            name = os.path.basename(executable)
+
+        # Resolve executable to absolute path if it's not already one
+        if not os.path.isabs(executable) and os.sep not in executable:
+            resolved_executable = shutil.which(executable)
+            if resolved_executable is None:
+                raise FileNotFoundError(f"Executable '{executable}' not found in PATH")
+            executable = resolved_executable
+
+        return self.node(
+            package="",
+            executable=executable,
+            name=name,
+            cmd_args=cmd_args,
+            raw=True,
+            env=env,
+            isolate_env=isolate_env,
+            output=output,
+            anonymous=anonymous,
+            on_exit=on_exit,
+            max_respawns=max_respawns,
+            respawn_delay=respawn_delay,
+            use_shell=use_shell,
+            autostart_process=autostart_process,
+        )
 
     def node(
         self,
@@ -1584,103 +1678,6 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                     node.lifecycle.transition(lifecycle_target)
 
         return node
-
-    def process(
-        self,
-        cmd: str | list[str],
-        name: str = None,
-        *,
-        env: dict[str, str] = None,
-        isolate_env: bool = False,
-        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
-        anonymous: bool = False,
-        hidden: bool = False,
-        on_exit: Callable = None,
-        max_respawns: int = 0,
-        respawn_delay: float = 0.0,
-        use_shell: bool = False,
-        autostart_process: bool = True,
-    ) -> Node:
-        """Starts an arbitrary process.
-
-        This method provides a clean API for starting non-ROS processes, similar to ROS2's
-        `ExecuteProcess`. It resolves bare command names to absolute paths using `shutil.which`.
-
-        Parameters
-        ----------
-        cmd : str | list[str]
-            The command to execute. If a string is provided, it will be split using `shlex.split`.
-        name : str, optional
-            The name of the process. If not provided, it will be derived from the command.
-        env : dict[str, str], optional
-            Additional environment variables to set for the process. The process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
-        isolate_env : bool, optional
-            If True, the process' env will not be inherited from the parent process and only those passed via `env` will be used.
-        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
-            Determines if and where this process' output should be directed. Defaults to `LogSink.SCREEN`.
-        anonymous : bool, optional
-            If True, the process name will be appended with a unique suffix to avoid name conflicts.
-        hidden : bool, optional
-            If True, the process name will be prepended with a "_", hiding it from common listings.
-        on_exit : Callable, optional
-            A function to call when the process terminates (after any possible respawns).
-        max_respawns : int, optional
-            How often to restart the process if it terminates.
-        respawn_delay : float, optional
-            How long to wait before restarting the process after it terminates.
-        use_shell : bool, optional
-            If True, invoke the executable via the system shell.
-        autostart_process : bool, optional
-            If True, start the process before returning from this function.
-
-        Returns
-        -------
-        Node
-            The node object wrapping the process.
-
-        Raises
-        ------
-        ValueError
-            If the command is empty.
-        FileNotFoundError
-            If the executable cannot be found.
-        """
-        if not cmd:
-            raise ValueError("Command cannot be empty")
-
-        if isinstance(cmd, str):
-            cmd = shlex.split(cmd)
-
-        executable = cmd[0]
-        cmd_args = cmd[1:]
-
-        if name is None:
-            name = os.path.basename(executable)
-
-        # Resolve executable to absolute path if it's not already one
-        if not os.path.isabs(executable) and os.sep not in executable:
-            resolved_executable = shutil.which(executable)
-            if resolved_executable is None:
-                raise FileNotFoundError(f"Executable '{executable}' not found in PATH")
-            executable = resolved_executable
-
-        return self.node(
-            package="",
-            executable=executable,
-            name=name,
-            cmd_args=cmd_args,
-            env=env,
-            isolate_env=isolate_env,
-            output=output,
-            anonymous=anonymous,
-            hidden=hidden,
-            on_exit=on_exit,
-            max_respawns=max_respawns,
-            respawn_delay=respawn_delay,
-            use_shell=use_shell,
-            autostart_process=autostart_process,
-            raw=True,
-        )
 
     @contextmanager
     def compose(
