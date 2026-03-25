@@ -111,6 +111,34 @@ def glob_dict(data: dict, pattern: str, invert: bool = False) -> dict:
     return data
 
 
+def deep_merge(base: dict, override: dict) -> dict:
+    """Merge a (nested) override dict into a (nested) base dict. 
+
+    After this operation the entirety of override will be part of base. All values will be assigned without any copies. This operation will alter the provided base dict. Use copy.deepcopy if you don't want this.
+
+    Parameters
+    ----------
+    base : dict
+        The dict into which the override will be merged.
+    override : dict
+        The override to merge into base.
+
+    Returns
+    -------
+    dict
+        The merged dict, which is the modified base dict.
+    """
+    result = dict(base)
+
+    for k, v in override.items():
+        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+            result[k] = deep_merge(result[k], v)
+        else:
+            result[k] = v
+
+    return result
+
+
 def merge_and_explode(*dicts: dict) -> dict:
     """Recursively merge any number of nested dicts.
 
@@ -149,17 +177,6 @@ def merge_and_explode(*dicts: dict) -> dict:
                 result[top] = merge_and_explode(result[top], child)
             else:
                 result[top] = child
-
-        return result
-
-    def deep_merge(base: dict, override: dict) -> dict:
-        result = dict(base)
-
-        for k, v in override.items():
-            if k in result and isinstance(result[k], dict) and isinstance(v, dict):
-                result[k] = deep_merge(result[k], v)
-            else:
-                result[k] = v
 
         return result
 
