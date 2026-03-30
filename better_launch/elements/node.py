@@ -168,7 +168,7 @@ class Node(AbstractNode, LiveParamsMixin):
             return
 
         try:
-            cmd = launcher.find(self.package, self.executable, "lib/**")
+            cmd = launcher.find(f"{self.package}/lib", self.executable)
 
             final_cmd = [cmd]
             if self.cmd_args:

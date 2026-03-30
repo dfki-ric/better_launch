@@ -655,7 +655,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         If the `filename` is absolute, all other arguments will be ignored and the filename will be returned.
 
-        When `package` names a package discoverable by ament, the corresponding ROS2 package path will be used as the base path. Instead of a package name you may also provide an absolute path, in which case it will become the base path.
+        When `package` names a package discoverable by ament, the corresponding ROS2 package path will be used as the base path. Instead of a package name you may also provide an absolute path, in which case it will become the base path. Any path elements after the package name will be appended to the base path. For example, to find files inside the package's shared files, specify the package as `<package>/share`.
 
         Otherwise, if `package` was not specified we attempt to locate the current launch file's package by searching its directory and parent directories for a `package.xml`. If the package cannot be determined an exception is raised.
 
@@ -697,55 +697,41 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if package:
             if os.path.isabs(package):
                 base_path = package
-            elif "/" in package or os.path.sep in package:
-                raise ValueError(
-                    f"package must be a single name or absolute path ({package})"
-                )
             else:
-                base_path = get_package_prefix(package)
+                parts = Path(package).parts
+                if len(parts) > 1:
+                    package = parts[0]
+                    package_path = Path(get_package_prefix(parts[0]))
+                    base_path = str(package_path.joinpath(*parts[1:]))
+                else:
+                    base_path = get_package_prefix(package)
         else:
             raise ValueError(
                 f"find({package}, {filename}, {subdir}): could not determine package"
             )
+
+        base_path = Path(base_path).resolve()
+        
+        if not filename and subdir in (None, "", "**"):
+            self.logger.info(f"find({package}, {filename}, {subdir}):2 -> {base_path}")
+            return str(base_path)
+
+        if not subdir:
+            subdir = "**"
 
         # In some workspaces, package files are not collected in their own package folders.
         # Instead, workspace/install has global include, bin, lib, share, etc. folders where
         # all the package files are placed, which is quite annoying for us. We fix this by
         # requiring the filename to appear after the package name without trying to guess
         # how the package files are organized.
-        base_path = Path(base_path).resolve()
+        pattern = f"**/{package}/{subdir}/"
         if filename:
-            filename = f"{package}/**/{filename}"
+            pattern += filename
 
-        if not filename and subdir in (None, "", "**"):
-            self.logger.info(f"find({package}, {filename}, {subdir}):2 -> {base_path}")
-            return base_path
-
-        if not subdir:
-            subdir = "**"
-
-        for candidate in base_path.glob(subdir):
-            if not filename:
-                # Return the first candidate
-                ret = str(candidate.resolve())
-                self.logger.info(f"find({package}, {filename}, {subdir}):3 -> {ret}")
-                return ret
-
-            if candidate.is_file() and candidate.match(f"**/{filename}"):
-                # We found a match
-                ret = str(candidate.resolve())
-                self.logger.info(f"find({package}, {filename}, {subdir}):4 -> {ret}")
-                return ret
-
-            elif candidate.is_dir():
-                # Candidate is a dir, search the filename within
-                ret = next(candidate.glob(f"**/{filename}"), None)
-                if ret:
-                    ret = str(ret.resolve())
-                    self.logger.info(
-                        f"find({package}, {filename}, {subdir}):5 -> {ret}"
-                    )
-                    return ret
+        for candidate in base_path.glob(pattern):
+            candidate = candidate.resolve()
+            if candidate.exists():
+                return str(candidate)
 
         raise ValueError(
             f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
