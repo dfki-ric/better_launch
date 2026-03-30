@@ -268,10 +268,11 @@ def static_transform_publisher(
 
 
 def spawn_controller_manager(
-    params: str | dict[str, Any] = None,
+    param_files: str | list[str] = None,
     robot_description: str = None,
     *,
     remaps: dict[str, str] = None,
+    params: dict[str, Any] = None,
     cmd_args: list[str] = None,
     name: str = "controller_manager",
 ) -> Node:
@@ -279,12 +280,12 @@ def spawn_controller_manager(
 
     Parameters
     ----------
-    params : str | dict[str, Any], optional
-        The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via [BetterLaunch.load_params][].
     robot_description : str, optional
         Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
     remaps : dict[str, str], optional
         Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.
+    params : str | dict[str, Any], optional
+        The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via [BetterLaunch.load_params][].
     cmd_args: list[str], optional
         Additional CLI arguments to pass to the spawner command (e.g. `--load-only`).
     name : str, optional
@@ -306,14 +307,7 @@ def spawn_controller_manager(
 
     if params is None:
         params = {}
-    elif isinstance(params, str):
-        # In theory one could pass the config and then change it before a controller is loaded,
-        # but that seems debatable at best. If you truly want this, either pass the file path as
-        # a cmd arg, or keep the manager and controller configs separate and pass the later to
-        # spawn_controller below.
-        # process_args.extend(["--param-file", params])
-        params = bl.load_params(None, params)
-
+    
     if robot_description:
         if robot_description.startswith("<?xml"):
             if bl.ros_distro()[0].lower() >= "j":
@@ -339,6 +333,7 @@ def spawn_controller_manager(
         name=name,
         remaps=remaps,
         params=params,
+        param_files=param_files,
         cmd_args=cmd_args,
         # Prevent renaming nodes spawned by the manager
         # See https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process

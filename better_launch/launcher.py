@@ -746,6 +746,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         merge_paths: bool = False,
         strip_ros_parameters: bool = False,
         qualifier: str = None,
+        strip_qualifiers: bool = True,
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through [find][].
 
@@ -783,6 +784,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             If True, any mentions of ros__parameters will be removed. These are usually used to distinguish between namespace/node qualifiers and the actual parameters. Should be False if you're passing the results to a node.
         qualifier : str, optional
             Used to specifiy which section of the config to return. E.g. if the yaml contains `{A: {B: C, D: E}}`, then the qualifier "A/B" will return `{A: {B: C}}`. The qualifier supports globbing patterns like `*` and `**` and will ignore `ros__parameters` keys.
+        strip_qualifiers : bool, optional
+            If True and a qualifier was passed, the qualifier will not be part of the returned dict. Set to True if you want some inner part of the params, e.g. only the params for a specific node. Set to False if you want a slice of the full params, e.g. all params for nodes in a specific namespace.
 
         Returns
         -------
@@ -854,13 +857,13 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         if "ros__parameters" in content:
             # Each ros__parameters block should get its own path key
-            concatenate_branches(params)
+            params = concatenate_branches(params)
 
             if strip_ros_parameters:
                 params = strip_ros_params(params)
 
         if qualifier:
-            params = glob_dict(params, qualifier)
+            params = glob_dict(params, qualifier, strip=strip_qualifiers)
 
         return params
 
@@ -1515,7 +1518,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         *,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
-        param_files: list[str] = None,
+        param_files: str | list[str] = None,
         drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
         env: dict[str, str] = None,
@@ -1556,7 +1559,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
             Any ROS parameters you want to pass to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
-        param_files : list[str], optional
+        param_files : str | list[str], optional
             Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
         drop_param_qualifiers : bool, optional
             If True, any namespace/node qualifiers in the passed params are ignored.
