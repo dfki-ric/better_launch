@@ -20,7 +20,7 @@ class AbstractNode:
         namespace: str,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
-        param_files: list[str] = None,
+        param_files: str | list[str] = None,
         *,
         output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ):
@@ -40,7 +40,7 @@ class AbstractNode:
             Topic remaps for this node.
         params : dict[str, Any], optional
             Node parameters. If a string is passed it will be lazy loaded with [BetterLaunch.load_params][].
-        param_files : list[str], optional
+        param_files : str | list[str], optional
             Paths to parameter files that will be passed to the node as is.
         output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See [configure_logger][] for details.
@@ -65,6 +65,9 @@ class AbstractNode:
         global _node_counter
         self._node_id = _node_counter
         _node_counter += 1
+
+        if isinstance(param_files, str):
+            param_files = [param_files]
 
         self._pkg = package
         self._exec = executable

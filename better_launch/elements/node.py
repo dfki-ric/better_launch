@@ -28,7 +28,7 @@ class Node(AbstractNode, LiveParamsMixin):
         *,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
-        param_files: list[str] = None,
+        param_files: str | list[str] = None,
         drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
         env: dict[str, str] = None,
@@ -59,7 +59,7 @@ class Node(AbstractNode, LiveParamsMixin):
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
             Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
-        param_files : list[str], optional
+        param_files : str | list[str], optional
             Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
         drop_param_qualifiers : bool, optional
             If True, any namespace/node qualifiers in the passed params are ignored.
@@ -210,7 +210,7 @@ class Node(AbstractNode, LiveParamsMixin):
 
                 # Pass param files first
                 for path in self.param_files:
-                    final_cmd.extend(["--param-file", path])
+                    final_cmd.extend(["--params-file", path])
 
                 # Attach node parameters
 
@@ -219,7 +219,7 @@ class Node(AbstractNode, LiveParamsMixin):
                 drop_qualifiers = self.drop_param_qualifiers
                 if len(self.namespace) > 1:
                     drop_qualifiers = True
-                    self.logger.warning(
+                    self.logger.debug(
                         "Qualified params cannot be passed to namespaced nodes and will be passed unqualified instead"
                     )
 
