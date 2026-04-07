@@ -10,7 +10,6 @@ import threading
 import subprocess
 import queue
 from pprint import pformat
-from textwrap import indent
 import json
 
 from better_launch.utils.better_logging import LogSink, ROSLOG_PATTERN_BL
@@ -29,6 +28,8 @@ class Node(AbstractNode, LiveParamsMixin):
         *,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
+        param_files: list[str] = None,
+        drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
@@ -58,6 +59,10 @@ class Node(AbstractNode, LiveParamsMixin):
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
             Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
+        param_files : list[str], optional
+            Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
+        drop_param_qualifiers : bool, optional
+            If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
         env : dict[str, str], optional
@@ -84,12 +89,20 @@ class Node(AbstractNode, LiveParamsMixin):
             If True, apply the `remap_qualifier` to all remaps that are not already qualified.
         """
         super().__init__(
-            package, executable, name, namespace, remaps, params, output=output
+            package,
+            executable,
+            name,
+            namespace,
+            remaps,
+            params,
+            param_files,
+            output=output,
         )
 
+        self.drop_param_qualifiers = drop_param_qualifiers
+        self.cmd_args = cmd_args or []
         self.env = env or {}
         self.isolate_env = isolate_env
-        self.cmd_args = cmd_args or []
         self.node_log_level = (
             logging.getLevelName(log_level) if isinstance(log_level, int) else log_level
         )
@@ -155,9 +168,7 @@ class Node(AbstractNode, LiveParamsMixin):
             return
 
         try:
-            cmd = launcher.find(
-                self.package, self.executable, f"lib/**/{self.package}/"
-            )
+            cmd = launcher.find(self.package, self.executable, "lib/**")
 
             final_cmd = [cmd]
             if self.cmd_args:
@@ -169,13 +180,8 @@ class Node(AbstractNode, LiveParamsMixin):
                 if self.node_log_level is not None:
                     final_cmd += ["--log-level", self.node_log_level]
 
-                # Attach node parameters
-                for key, value in self._flat_params().items():
-                    # Make sure the values are parseable for ROS
-                    final_cmd.extend(["-p", f"{key}:={json.dumps(value)}"])
-
                 # Special args and remaps
-                # launch_ros/actions/node.py:206
+                # https://github.com/ros2/launch_ros/blob/rolling/launch_ros/launch_ros/actions/node.py
 
                 # Qualifier to create node-specific remaps
                 qualifier = ""
@@ -183,19 +189,47 @@ class Node(AbstractNode, LiveParamsMixin):
                     qualifier = self.remap_qualifier
                     if not qualifier.endswith(":"):
                         qualifier += ":"
-                
-                for src, dst in self._ros_args().items():
+
+                # Why do I hear mad hatter music???
+                # See https://docs.ros.org/en/jazzy/How-To-Guides/Node-arguments.html
+                remaps = {}
+                if self.namespace:
+                    remaps["__ns"] = self.namespace
+                if self.name:
+                    remaps["__node"] = self.name
+                remaps.update(self.remaps)
+
+                for src, dst in remaps.items():
                     if qualifier:
                         if src in ("__ns", "__node", "__name"):
                             src = qualifier + src
                         elif self.qualify_all_remaps and ":" not in src:
                             src = qualifier + src
-                    
+
                     final_cmd.extend(["-r", f"{src}:={dst}"])
+
+                # Pass param files first
+                for path in self.param_files:
+                    final_cmd.extend(["--param-file", path])
+
+                # Attach node parameters
+
+                # TODO I could not find a way to pass a qualified param to a namespaced node yet.
+                # See https://github.com/ros2/rcl/issues/1306
+                drop_qualifiers = self.drop_param_qualifiers
+                if len(self.namespace) > 1:
+                    drop_qualifiers = True
+                    self.logger.warning(
+                        "Qualified params cannot be passed to namespaced nodes and will be passed unqualified instead"
+                    )
+
+                for key, value in self._flat_params(drop_qualifiers).items():
+                    # Make sure the values are parseable for ROS
+                    final_cmd.extend(["-p", f"{key}:={json.dumps(value)}"])
 
             # If an env is specified ROS2 lets it completely replace the host env. We cover this
             # through an additional flag, as often you just want to make certain overrides.
-            # launch/descriptions/executable.py:199
+            # https://github.com/ros2/launch/blob/rolling/launch/launch/descriptions/executable.py
             if self.isolate_env:
                 final_env = self.env
             else:
@@ -205,9 +239,7 @@ class Node(AbstractNode, LiveParamsMixin):
             final_cmd = [str(s) for s in final_cmd]
 
             env_str = pformat(self.env, compact=True)
-            self.logger.info(
-                f"Starting process '{' '.join(final_cmd)}', env={env_str}"
-            )
+            self.logger.info(f"Starting process '{' '.join(final_cmd)}', env={env_str}")
 
             # Start the node process
             self._process = subprocess.Popen(
@@ -286,8 +318,8 @@ class Node(AbstractNode, LiveParamsMixin):
 
         def log_bundle(bundle: list[str], level: int):
             # When receiving multiple lines of text at ones it is not guaranteed that they belong
-            # together - we don't know if they were generated by a single log call or multiple. 
-            # By looking for our special pattern we can identify new log calls and emit them as 
+            # together - we don't know if they were generated by a single log call or multiple.
+            # By looking for our special pattern we can identify new log calls and emit them as
             # separate messages.
             seg = []
             for line in bundle:
@@ -382,7 +414,7 @@ class Node(AbstractNode, LiveParamsMixin):
 
         try:
             # Since introducing setpgrp above _process.wait hangs indefinitely
-            #self._process.wait(timeout)
+            # self._process.wait(timeout)
             os.waitpid(self.pid, 0)
         except subprocess.TimeoutExpired:
             raise TimeoutError("Node did not shutdown within the specified timeout")
@@ -412,7 +444,7 @@ class Node(AbstractNode, LiveParamsMixin):
         self.logger.info(f"Sending signal {signame} to {repr(self)}")
 
         try:
-            #os.killpg(self.pid, signum)
+            # os.killpg(self.pid, signum)
             self._process.send_signal(signum)
         except ProcessLookupError:
             self.logger.info(

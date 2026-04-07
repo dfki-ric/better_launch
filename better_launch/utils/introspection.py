@@ -81,6 +81,8 @@ def find_calling_frame(func: Callable, thread_id: int = -1) -> inspect.FrameInfo
     ValueError
         If no such frame could be found.
     """
+    # NOTE: be careful with this, not using the correct thread_id can cause very subtle issues.
+    # See https://github.com/dfki-ric/better_launch/issues/53 for details
     stack = get_stack(thread_id)
     func_frame = None
 

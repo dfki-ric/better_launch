@@ -414,8 +414,9 @@ class Composer(AbstractNode):
             req.parameters.extend(
                 [
                     # Parameter will initialize based on the value's type
+                    # #58: components don't seem to handle qualifiers
                     Parameter(name=k, value=v).to_parameter_msg()
-                    for k, v in component._flat_params().items()
+                    for k, v in component._flat_params(strip_qualifiers=True).items()
                 ]
             )
         except Exception as e:

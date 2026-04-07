@@ -2,7 +2,7 @@
 from better_launch import BetterLaunch, launch_this
 
 
-@launch_this(ui=False)
+@launch_this(ui=True)
 def tis_a_hungry_function():
     """
     better_launch can include other launch files and pass arbitrary arguments to them. 

@@ -2,11 +2,14 @@ from typing import Any, Callable, Generator, Iterable, Literal, TYPE_CHECKING
 import importlib
 import sys
 import os
+import re
 import signal
 import inspect
 import time
 import threading
 import subprocess
+import shlex
+import shutil
 from fnmatch import fnmatch
 from pathlib import Path
 from concurrent.futures import Future, CancelledError, TimeoutError
@@ -23,7 +26,7 @@ from rclpy.node import (
     Subscription as RosSubscriber,
 )
 from rclpy.qos import QoSProfile, qos_profile_services_default
-from ament_index_python.packages import get_package_prefix
+from ament_index_python.packages import get_package_prefix, get_package_share_directory
 
 if TYPE_CHECKING:
     # Surprisingly large imports, so we only import them if we actually need them
@@ -54,6 +57,7 @@ from better_launch.utils.introspection import (
 from better_launch.utils.settings import Settings, severity_to_loglevel
 from better_launch.utils.better_logging import LogSink
 from better_launch.utils.random_names import get_unique_word
+from better_launch.utils.glob_dict import glob_dict, merge_and_explode
 from better_launch.ros.ros_adapter import ROSAdapter
 from better_launch.ros import logging as roslog
 
@@ -144,7 +148,7 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
         """
         if not name:
             if not BetterLaunch._launchfile:
-                frame = find_calling_frame(self.__init__, -1)
+                frame = find_calling_frame(self.__init__)
                 BetterLaunch._launchfile = frame.filename
             name = os.path.basename(BetterLaunch._launchfile)
 
@@ -651,13 +655,15 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         If the `filename` is absolute, all other arguments will be ignored and the filename will be returned.
 
-        If `package` is provided, the corresponding ROS2 package path will be used as the base path. Else we attempt to locate the current launch file's package by searching its directory and parent directories for a `package.xml`. If the package cannot be determined the current working dir is used as the base path.
+        When `package` names a package discoverable by ament, the corresponding ROS2 package path will be used as the base path. Instead of a package name you may also provide an absolute path, in which case it will become the base path.
+
+        Otherwise, if `package` was not specified we attempt to locate the current launch file's package by searching its directory and parent directories for a `package.xml`. If the package cannot be determined an exception is raised.
+
+        `subdir` accepts [glob](https://docs.python.org/3/library/glob.html) patterns and can be used to resolve ambiguities, e.g. `lib/**` (anywhere inside the package's lib folder) or `share/` (directly inside the share folder). If not specified, "**" will be used (any file or directory inside the base path).
+
+        If only `subdir` is provided but not `filename`, the first matching candidate is returned. Otherwise the discovered candidates will be searched for the given filename.
 
         If neither `subdir` nor `filename` is provided the base path will be returned.
-
-        If `filename` is provided but `subdir` is not, the base path will be searched recursively for the given filename. Otherwise, `subdir` will be used to locate valid candidate files and directories within the base path, allowing patterns like `**/lib/` (any lib folder) and `*.py` (any python file).
-
-        If only `subdir` is provided but not `filename`, the first candidate is returned. Otherwise the discovered candidates will be searched for the given filename.
 
         Parameters
         ----------
@@ -676,7 +682,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         Raises
         ------
         ValueError
-            If `package` contains path separators, or if a `filename` is provided but could not be found within base path.
+            If the base path could not be determined, or if a `filename` is provided but could not be found within base path.
         """
         if filename and os.path.isabs(filename):
             self.logger.info(f"find({package}, {filename}, {subdir}):1 -> {filename}")
@@ -684,15 +690,32 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         if not package:
             package, _ = get_package_for_path(os.path.dirname(self.launchfile))
+            self.logger.warning(
+                f"find: package not provided, resolved {self.launchfile} to {package}"
+            )
 
         if package:
-            if "/" in package or os.path.sep in package:
+            if os.path.isabs(package):
+                base_path = package
+            elif "/" in package or os.path.sep in package:
                 raise ValueError(
-                    f"Package must be a single name, not a path ({package})"
+                    f"package must be a single name or absolute path ({package})"
                 )
-            base_path = get_package_prefix(package)
+            else:
+                base_path = get_package_prefix(package)
         else:
-            base_path = os.getcwd()
+            raise ValueError(
+                f"find({package}, {filename}, {subdir}): could not determine package"
+            )
+
+        # In some workspaces, package files are not collected in their own package folders.
+        # Instead, workspace/install has global include, bin, lib, share, etc. folders where
+        # all the package files are placed, which is quite annoying for us. We fix this by
+        # requiring the filename to appear after the package name without trying to guess
+        # how the package files are organized.
+        base_path = Path(base_path).resolve()
+        if filename:
+            filename = f"{package}/**/{filename}"
 
         if not filename and subdir in (None, "", "**"):
             self.logger.info(f"find({package}, {filename}, {subdir}):2 -> {base_path}")
@@ -701,16 +724,16 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if not subdir:
             subdir = "**"
 
-        for candidate in Path(base_path).glob(subdir):
+        for candidate in base_path.glob(subdir):
             if not filename:
                 # Return the first candidate
-                ret = str(candidate.resolve().absolute())
+                ret = str(candidate.resolve())
                 self.logger.info(f"find({package}, {filename}, {subdir}):3 -> {ret}")
                 return ret
 
             if candidate.is_file() and candidate.match(f"**/{filename}"):
                 # We found a match
-                ret = str(candidate.resolve().absolute())
+                ret = str(candidate.resolve())
                 self.logger.info(f"find({package}, {filename}, {subdir}):4 -> {ret}")
                 return ret
 
@@ -718,7 +741,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 # Candidate is a dir, search the filename within
                 ret = next(candidate.glob(f"**/{filename}"), None)
                 if ret:
-                    ret = str(ret.resolve().absolute())
+                    ret = str(ret.resolve())
                     self.logger.info(
                         f"find({package}, {filename}, {subdir}):5 -> {ret}"
                     )
@@ -734,18 +757,27 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         configfile: str = None,
         subdir: str = None,
         *,
-        qualifier: str | Node = None,
-        trim: bool = True,
+        merge_paths: bool = False,
+        strip_ros_parameters: bool = False,
+        qualifier: str = None,
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through [find][].
 
-        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether `qualifier` was passed. Otherwise, if `qualifier` is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.
+        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether a `qualifier` was passed. Otherwise, the loaded config dict is searched for a matching section. If no matching section can be found the returned dict will be empty.
 
-        The following wildcards are supported for parameter sections:
-        * `/**`: matches any number of tokens, may be followed by additional tokens and a node name
-        * `/*`: skips a single namespace token, or ignores the node's name if at the end
+        Globbing is used for matching qualifiers to paths, so the following wildcards are supported:
+        * `**`: matches any number of tokens, may be followed by additional tokens and a node name
+        * `*`: skips a single namespace token, or ignores the node's name if at the end
 
-        Note that *better_launch* could not care less whether you put `ros__parameters` in your configs - if it is there it will be silently discarded.
+        Note that *better_launch* does not require you to place `ros__parameters` in your configs. If it exists it will later be used to match parameters to namespaces and nodes. For example, a config like
+
+        ```yaml
+        my_node:
+            ros__parameters:
+                int_of_fury: 5
+        ```
+
+        will be passed to a ROS2 node process as `-p my_node:int_of_fury:=5` and thus become specific to any node named `my_node`.
 
         .. seealso::
 
@@ -759,10 +791,12 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             The name of the config file to locate.
         subdir : str, optional
             A path fragment that the config file must be located in.
-        qualifier : str | Node, optional
-            Used to specifiy which section of the config to return.
-        trim : bool, optional
-            Remove the matching qualifier paths from the returned dict's keys if true and a qualifier was specified.
+        merge_paths: bool, optional
+            If True matching branches of the parsed dict will be merged (and also exploded). I.e. to merge the keys `a` and `a/b`, the latter will be unraveled into `a -> b` and then applied onto `a`. Branches appearing later in the yaml will win. Branches containing wildcards are not merged.
+        strip_ros_parameters : bool, optional
+            If True, any mentions of ros__parameters will be removed. These are usually used to distinguish between namespace/node qualifiers and the actual parameters. Should be False if you're passing the results to a node.
+        qualifier : str, optional
+            Used to specifiy which section of the config to return. E.g. if the yaml contains `{A: {B: C, D: E}}`, then the qualifier "A/B" will return `{A: {B: C}}`. The qualifier supports globbing patterns like `*` and `**` and will ignore `ros__parameters` keys.
 
         Returns
         -------
@@ -780,46 +814,69 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         with open(path) as f:
             content = f.read()
-            params = yaml.safe_load(content)
+            # The default yaml loader requires a dot when writing floats in scientific notation,
+            # whereas the json spec treats it as optional.
+            # This fixes #59 based on https://stackoverflow.com/a/30462009/2061551
+            loader = yaml.SafeLoader
+            loader.add_implicit_resolver(
+                "tag:yaml.org,2002:float",
+                re.compile(
+                    """^(?:
+                [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+                |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+                |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+                |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+                |[-+]?\\.(?:inf|Inf|INF)
+                |\\.(?:nan|NaN|NAN))$""",
+                    re.X,
+                ),
+                list("-+0123456789."),
+            )
+            params = yaml.load(content, Loader=loader)
 
-        # No node- or namespace specific sections
-        if "ros__parameters" in params:
-            return params["ros__parameters"]
-
-        # Return the entire config if it doesn't follow the ros pattern
-        if not qualifier:
-            return params
-
-        if not qualifier.endswith("*"):
-            qualifier += "/*"
-
-        final_params = {}
-
-        # Depth-first search through the params to find any "ros__parameters" keys
-        todo = [("", params)]
-        while todo:
-            path, cur = todo.pop(0)
-
-            for key, val in cur.items():
-                if key in ("*", "**", "/**", "ros__parameters"):
-                    val = val.get("ros__parameters", val)
-
-                    # Global parameters should always be included
-                    if (
-                        not path
-                        or fnmatch(path, qualifier)
-                    ):
-                        for param_name, param_val in val.items():
-                            final_params[param_name] = param_val
-
-                elif fnmatch(f"{path}/{key}", qualifier):
-                    final_params[key] = val
-
+        def strip_ros_params(sub: dict) -> Any:
+            res = {}
+            for key, val in sub.items():
+                if key == "ros__parameters":
+                    for child_key, child_val in val.items():
+                        if isinstance(child_val, dict):
+                            res[child_key] = strip_ros_params(child_val)
+                        else:
+                            res[child_key] = child_val
                 elif isinstance(val, dict):
-                    branch_path = f"{path}/{key}" if path else key
-                    todo.append((branch_path, val))
+                    res[key] = strip_ros_params(val)
+                else:
+                    res[key] = val
 
-        return final_params
+            return res
+
+        def concatenate_branches(sub: dict, prefix: str = "") -> dict:
+            res = {}
+            for key, val in sub.items():
+                path = f"{prefix}/{key}" if prefix else key
+                if key == "ros__parameters":
+                    res[path] = val
+                elif isinstance(val, dict):
+                    res.update(concatenate_branches(val, path))
+                else:
+                    res[path] = val
+
+            return res
+
+        if merge_paths:
+            params = merge_and_explode(params)
+
+        if "ros__parameters" in content:
+            # Each ros__parameters block should get its own path key
+            concatenate_branches(params)
+
+            if strip_ros_parameters:
+                params = strip_ros_params(params)
+
+        if qualifier:
+            params = glob_dict(params, qualifier)
+
+        return params
 
     def get_ros_message_type(self, message_string: str) -> type:
         """Loads a ROS2 message type from a string representation.
@@ -1324,7 +1381,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     # be there. By making it a class method it can still be used without a BL instance.
     @classmethod
     def exec(cls, cmd: str | list[str]) -> str:
-        """Run the specified command and return its output. The command can either be an absolute path to an executable or any file found on `PATH`.
+        """Run the specified command, await its termination and return its output. Bare commands are resolved using `shutil.which`.
+
+        For long-lived commands that you don't want to wait for, consider using [BetterLaunch.process][] instead.
 
         Parameters
         ----------
@@ -1342,7 +1401,11 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             If the command had a non-zero exit code. See the raised error's `returncode` and `output` attributes for details.
         """
         if isinstance(cmd, str):
-            cmd = cmd.split(" ")
+            cmd = shlex.split(cmd)
+
+        executable = cmd[0]
+        if not os.path.isabs(executable) and os.sep not in executable:
+            cmd[0] = shutil.which(executable)
 
         bl = BetterLaunch.instance()
         if bl:
@@ -1364,6 +1427,100 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         return ret
 
+    def process(
+        self,
+        cmd: str | list[str],
+        name: str = None,
+        *,
+        env: dict[str, str] = None,
+        isolate_env: bool = False,
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
+        anonymous: bool = False,
+        on_exit: Callable = None,
+        max_respawns: int = 0,
+        respawn_delay: float = 0.0,
+        use_shell: bool = False,
+        autostart_process: bool = True,
+    ) -> Node:
+        """Starts an arbitrary process and wraps it in a Node object.
+
+        This method for starting long-running non-ROS processes, similar to ROS2's `ExecuteProcess`. Bare command names are resolved using `shutil.which`.
+        
+        If you instead want to wait for the process to return (and retrieve its output), consider using [BetterLaunch.exec][] instead. 
+
+        Parameters
+        ----------
+        cmd : str | list[str]
+            The command to execute. If a string is provided, it will be split using `shlex.split`.
+        name : str, optional
+            The name of the process. If not provided, it will be derived from the command.
+        env : dict[str, str], optional
+            Additional environment variables to set for the process. The process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
+        isolate_env : bool, optional
+            If True, the process' env will not be inherited from the parent process and only those passed via `env` will be used.
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
+            Determines if and where this process' output should be directed. Defaults to `LogSink.SCREEN`.
+        anonymous : bool, optional
+            If True, the process name will be appended with a unique suffix to avoid name conflicts.
+        on_exit : Callable, optional
+            A function to call when the process terminates (after any possible respawns).
+        max_respawns : int, optional
+            How often to restart the process if it terminates.
+        respawn_delay : float, optional
+            How long to wait before restarting the process after it terminates.
+        use_shell : bool, optional
+            If True, invoke the executable via the system shell.
+        autostart_process : bool, optional
+            If True, start the process before returning from this function.
+
+        Returns
+        -------
+        Node
+            The node object wrapping the process.
+
+        Raises
+        ------
+        ValueError
+            If the command is empty.
+        FileNotFoundError
+            If the executable cannot be found.
+        """
+        if not cmd:
+            raise ValueError("Command cannot be empty")
+
+        if isinstance(cmd, str):
+            cmd = shlex.split(cmd)
+
+        executable = cmd[0]
+        cmd_args = cmd[1:]
+
+        if name is None:
+            name = os.path.basename(executable)
+
+        # Resolve executable to absolute path if it's not already one
+        if not os.path.isabs(executable) and os.sep not in executable:
+            resolved_executable = shutil.which(executable)
+            if resolved_executable is None:
+                raise FileNotFoundError(f"Executable '{executable}' not found in PATH")
+            executable = resolved_executable
+
+        return self.node(
+            package="",
+            executable=executable,
+            name=name,
+            cmd_args=cmd_args,
+            raw=True,
+            env=env,
+            isolate_env=isolate_env,
+            output=output,
+            anonymous=anonymous,
+            on_exit=on_exit,
+            max_respawns=max_respawns,
+            respawn_delay=respawn_delay,
+            use_shell=use_shell,
+            autostart_process=autostart_process,
+        )
+
     def node(
         self,
         package: str,
@@ -1372,6 +1529,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         *,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
+        param_files: list[str] = None,
+        drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
@@ -1411,6 +1570,10 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
             Any ROS parameters you want to pass to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
+        param_files : list[str], optional
+            Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
+        drop_param_qualifiers : bool, optional
+            If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
         env : dict[str, str], optional
@@ -1464,7 +1627,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if name is None:
             name = f"{package}_{executable}"
             if not anonymous:
-                self.logger.warning(f"Name of node {package}/{executable} not set, will use anonymous name")
+                self.logger.warning(
+                    f"Name of node {package}/{executable} not set, will use anonymous name"
+                )
                 anonymous = True
 
         if anonymous:
@@ -1483,6 +1648,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             namespace,
             remaps=remaps,
             params=params,
+            param_files=param_files,
+            drop_param_qualifiers=drop_param_qualifiers,
             cmd_args=cmd_args,
             env=env,
             isolate_env=isolate_env,
@@ -1737,7 +1904,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if not name:
             name = f"{package}_{plugin.replace('::', '_')}"
             if not anonymous:
-                self.logger.warning(f"Name of {package}::{plugin} not set, will use anonymous name")
+                self.logger.warning(
+                    f"Name of {package}::{plugin} not set, will use anonymous name"
+                )
                 anonymous = True
 
         if anonymous:
@@ -1806,7 +1975,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         # TODO verify this works
         for func in (cls.include, _expose_ros2_launch_function):
             try:
-                find_calling_frame(func, 0)
+                find_calling_frame(func)
                 return True
             except ValueError:
                 pass

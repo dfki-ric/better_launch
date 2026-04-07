@@ -9,9 +9,12 @@ __all__ = [
 ]
 
 
-from typing import Sequence, Any
+from typing import Sequence, Any, Literal
 import subprocess
 import json
+import yaml
+from fnmatch import fnmatch
+import tempfile
 
 from better_launch import BetterLaunch
 from better_launch.elements import Node
@@ -276,10 +279,10 @@ def spawn_controller_manager(
 
     Parameters
     ----------
-    robot_description : str, optional
-        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
     params : str | dict[str, Any], optional
         The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via [BetterLaunch.load_params][].
+    robot_description : str, optional
+        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
     remaps : dict[str, str], optional
         Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.
     cmd_args: list[str], optional
@@ -304,17 +307,19 @@ def spawn_controller_manager(
     if params is None:
         params = {}
     elif isinstance(params, str):
-        # In theory one could pass the config and then change it before a controller is loaded, 
+        # In theory one could pass the config and then change it before a controller is loaded,
         # but that seems debatable at best. If you truly want this, either pass the file path as
-        # a cmd arg, or keep the manager and controller configs separate and pass the later to 
+        # a cmd arg, or keep the manager and controller configs separate and pass the later to
         # spawn_controller below.
         # process_args.extend(["--param-file", params])
-        params = bl.load_params(None, params, matching_only=False)
+        params = bl.load_params(None, params)
 
     if robot_description:
         if robot_description.startswith("<?xml"):
             if bl.ros_distro()[0].lower() >= "j":
-                raise ValueError("Passing a robot description by value is deprecated in ROS Jazzy and beyond")
+                raise ValueError(
+                    "Passing a robot description by value is deprecated in ROS Jazzy and beyond"
+                )
             params["robot_description"] = robot_description
         else:
             # Assume it's a topic
@@ -324,7 +329,9 @@ def spawn_controller_manager(
 
     else:
         if bl.ros_distro()[0].lower() < "j":
-            bl.logger.warning("Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!")
+            bl.logger.warning(
+                "Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!"
+            )
 
     return bl.node(
         package="controller_manager",
@@ -356,8 +363,7 @@ def spawn_controller(
     controller : str
         The controller to spwawn.
     params : str | list[str] | dict[str, Any], optional
-        Additional parameters for the controller node. Can be a path to a ROS2 config, a list of paths, or a dict with the actual key-value pairs. Note that passing a dict is only 
-        supported for ROS Jazzy and newer.
+        Additional parameters for the controller node. Can be a path to a ROS2 config, a list of paths, or a dict with the actual key-value pairs. In versions of ROS before Jazzy the params will be serialized into a temporary yaml file.
     remaps : dict[str, str], optional
         Additional remaps specific to the controller. These will be qualified with the controller's name to avoid conflicts.
     cmd_args: list[str], optional
@@ -375,30 +381,39 @@ def spawn_controller(
         params = bl.load_params(None, params)
 
     if params:
+        # Passing controller params directly is only supported in Jazzy and newer, so we
+        # write them to a yaml instead, then pass them as a param-file
+        if isinstance(params, dict) and bl.ros_distro()[0].lower() < "j":
+            data = yaml.serialize(params).splitlines()
+
+            tmp = tempfile.NamedTemporaryFile("w+", suffix=".yaml")
+            bl.logger.warning(
+                f"ROS2 {bl.ros_distro()} does not support passing params to controllers directly, serializing to {tmp.name} instead"
+            )
+            tmp.writelines(data)
+            bl.add_shutdown_callback(tmp.close)
+
+            params = tmp.name
+
+        # Decide how to pass the params to the controller
         if isinstance(params, dict):
-            if bl.ros_distro()[0].lower() < "j":
-                raise ValueError(
-                    "Passing controller params directly is only supported in Jazzy and newer"
-                )
-            
             manager_node = bl.query_node(manager, include_foreign=True)
 
             if not manager_node:
                 raise ValueError(f'Could not find controller manager "{manager}"')
 
-            # In theory we could pass --controller-ros-args to the spawner and let the spawner 
-            # handle these, but it unfortunately does some very naive string splitting which 
-            # messes up more complex arguments containing e.g. lists. 
+            # In theory we could pass --controller-ros-args to the spawner and let the spawner
+            # handle these, but it unfortunately does some very naive string splitting which
+            # messes up more complex arguments containing e.g. lists.
             manager_node.set_live_params(
                 {
                     f"{controller}.node_options_args": [
-                        f"{key}:={json.dumps(val)}"
-                        for key, val in params.items()
+                        f"{key}:={json.dumps(val)}" for key, val in params.items()
                     ]
                 }
             )
         elif isinstance(params, str):
-            # Usually we'd load the parameters here and pass them to the controller manager, 
+            # Usually we'd load the parameters here and pass them to the controller manager,
             # but this functionality only exists from jazzy onwards
             process_args.extend(["--param-file", params])
         elif isinstance(params, list):
@@ -414,49 +429,55 @@ def spawn_controller(
             )
 
         for key, value in remaps.items():
-            # Qualify remaps to avoid accidental remaps for other controllers 
+            # Qualify remaps to avoid accidental remaps for other controllers
             process_args.extend(
                 ["--controller-ros-args", f"-r {controller}:{key}:={value}"]
             )
 
     # This is NOT a node! Could also use the spawner python implementation directly, but that
     # would just introduce another dependency with little benefit.
-    spawner = bl.find("controller_manager", "controller_manager/spawner")
+    spawner = bl.find("controller_manager", "spawner")
     bl.exec(["python3", spawner] + process_args)
 
 
 def record_topics(
     topics: list[str] = None,
     *,
-    bagfile: str = None,
-    camera_topic: str = "image_rect",
-    include_image_topics: bool = True,
-    include_compressed: bool = False,
+    whitelist_globs: list[str] = None,
+    blacklist_globs: list[str] = None,
+    bagdir: str = None,
     max_bag_duration: int = 0,
     max_bag_size: int = 0,
-    format: str = "mcap",
+    recordings: int = 1,
+    format: Literal["mcap", "sqlite3"] = "mcap",
+    extra_args: list[str] = None,
 ):
-    """Record a rosbag. 
-    
+    """Record a rosbag.
+
     Will record the specified topics, or automatically select topics based on currently available topics and arguments.
 
     Parameters
     ----------
-    bagfile : str, optional
-        Where to record the bagfile. If not specified it will use the rosbag default.
-    camera_topic : str, optional
-        If specified, only record camera topics if they contain this string. Assumes that the word "camera" appears in the topic path. If specified it is independent from `include_image_topics`. Ignored if topics are specified.
-    include_image_topics : bool, optional
-        Whether to include non-camera image topics. Ignored if topics are specified.
-    include_compressed : bool, optional
-        Whether to include compressed image topics. Ignored if topics are specified.
+    whitelist_globs : list[str], optional
+        A list of glob strings. Only topics matching any of these patterns will be included. Supports the * and ** wildcards.
+    blacklist_globs : list[ſtr], optional
+        A list of glob strings. Only topics matching none of these patterns will be included. Supports the * and ** wildcards.
+    bagdir : str, optional
+        Where to record the bagfile. If not specified it will use the rosbag default (a timestamped folder in the currend working directory).
     max_bag_duration : int, optional
         Start recording a new bagfile after recording for X seconds.
     max_bag_size : int, optional
         Start recording a new bagfile after recording X MB.
-    format : str, optional
-        Rosbag format, should be mcap or sqlite3.
+    recordings : int, optional
+        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0.
+    format : Literal["mcap", "sqlite3"], optional
+        Rosbag recording format, should be mcap or sqlite3.
+    extra_args : Iterable[str], optional
+        Additional arguments that will be passed to rosbag.
     """
+    if not topics:
+        raise ValueError("No topics to record")
+
     bl = BetterLaunch()
 
     cmd = [
@@ -471,83 +492,134 @@ def record_topics(
         max_bag_size * 1024 * 1024,
     ]
 
-    if bagfile:
-        cmd.extend(["-o", bagfile])
+    if bagdir:
+        cmd.extend(["-o", bagdir])
 
-    if topics:
-        cmd.extend(topics)
-    else:
-        topics: dict = bl.shared_node.get_topic_names_and_types()
-        for topic, types in topics.items():
-            if "sensor_msgs/msg/Image" in types:
-                if "camera" in topic:
-                    if camera_topic and camera_topic not in topic:
-                        continue
+    if extra_args:
+        cmd.extend(extra_args)
 
-                elif not include_image_topics:
-                    # Not the camera topic we want and we don't want other image topics either
-                    continue
+    if whitelist_globs:
+        topics = filter(lambda t: any(fnmatch(t, p) for p in whitelist_globs), topics)
 
-                if "/compressed/" in topic and not include_compressed:
-                    continue
+    if blacklist_globs:
+        topics = filter(lambda t: not any(fnmatch(t, p) for p in blacklist_globs), topics)
 
-            cmd.append(topic)
+    cmd.extend(topics)
+    count = 0
 
-    bl.exec(cmd)
+    while True:
+        bl.logger.critical(f"\n\n### RECORDING {count + 1} ###\n")
+        bl.exec(cmd)
+        count += 1
+        if recordings > 0 and count >= recordings:
+            break
+
+
+def record_current_topics(
+    *,
+    whitelist_globs: list[str] = None,
+    blacklist_globs: list[str] = None,
+    bagdir: str = None,
+    max_bag_duration: int = 0,
+    max_bag_size: int = 0,
+    recordings: int = 1,
+    format: Literal["mcap", "sqlite3"] = "mcap",
+    extra_args: list[str] = None,
+):
+    """Record a rosbag.
+
+    Will record all currently available topics if they match any of the whitelist patterns and none of the blacklist patterns.
+
+    Parameters
+    ----------
+    whitelist_globs : list[str], optional
+        A list of glob strings. Only topics matching any of these patterns will be included. Supports the * and ** wildcards.
+    blacklist_globs : list[ſtr], optional
+        A list of glob strings. Only topics matching none of these patterns will be included. Supports the * and ** wildcards.
+    bagdir : str, optional
+        Where to record the bagfile. If not specified it will use the rosbag default (a timestamped folder in the currend working directory).
+    max_bag_duration : int, optional
+        Start recording a new bagfile after recording for X seconds.
+    max_bag_size : int, optional
+        Start recording a new bagfile after recording X MB.
+    recordings : int, optional
+        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0.
+    format : Literal["mcap", "sqlite3"], optional
+        Rosbag recording format, should be mcap or sqlite3.
+    extra_args : Iterable[str], optional
+        Additional arguments that will be passed to rosbag.
+    """
+    bl = BetterLaunch()
+    topics = [t for t, _ in bl.shared_node.get_topic_names_and_types()]
+    record_topics(
+        topics,
+        whitelist_globs=whitelist_globs,
+        blacklist_globs=blacklist_globs,
+        bagdir=bagdir,
+        max_bag_duration=max_bag_duration,
+        max_bag_size=max_bag_size,
+        recordings=recordings,
+        format=format,
+        extra_args=extra_args,
+    )
 
 
 def record_topics_from_file(
     topic_file: str,
     *,
-    bagfile: str = None,
+    whitelist_globs: list[str] = None,
+    blacklist_globs: list[str] = None,
+    bagdir: str = None,
     max_bag_duration: int = 0,
     max_bag_size: int = 0,
-    format: str = "mcap",
+    recordings: int = 1,
+    format: Literal["mcap", "sqlite3"] = "mcap",
+    extra_args: list[str] = None,
 ):
-    """Record a rosbag. 
-    
+    """Record a rosbag.
+
     Reads topics to record from a text-file. Empty lines and lines starting with "#" will be ignored.
 
     Parameters
     ----------
-    bagfile : str, optional
-        Where to record the bagfile. If not specified it will use the rosbag default.
+    whitelist_globs : list[str], optional
+        A list of glob strings. Only topics matching any of these patterns will be included. Supports the * and ** wildcards.
+    blacklist_globs : list[ſtr], optional
+        A list of glob strings. Only topics matching none of these patterns will be included. Supports the * and ** wildcards.
+    bagdir : str, optional
+        Where to record the bagfile. If not specified it will use the rosbag default (a timestamped folder in the currend working directory).
     topic_file : str, optional
         Text file with topics to record. Lines starting with "#" will be ignored.
     max_bag_duration : int, optional
         Start recording a new bagfile after recording for X seconds.
     max_bag_size : int, optional
         Start recording a new bagfile after recording X MB.
-    format : str, optional
-        Rosbag format, should be mcap or sqlite3.
+    recordings : int, optional
+        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0.
+    format : Literal["mcap", "sqlite3"], optional
+        Rosbag recording format, should be mcap or sqlite3.
+    extra_args : Iterable[str], optional
+        Additional arguments that will be passed to rosbag.
     """
-    bl = BetterLaunch()
-
-    cmd = [
-        "ros2",
-        "bag",
-        "record",
-        "--storage",
-        format,
-        "--max-bag-duration",
-        max_bag_duration,
-        "--max-bag-size",
-        max_bag_size * 1024 * 1024,
-    ]
-
-    if bagfile:
-        cmd.extend(["-o", bagfile])
-
     with open(topic_file) as f:
         lines = f.readlines()
-    
+
     topics = []
     for line in lines:
-        line = line.trim()
+        line = line.strip()
         if not line or line.startswith("#"):
             continue
 
         topics.append(line)
 
-    bl.logger.critical(f"{len(topics)} topics will be recorded")
-    bl.exec(cmd)
+    record_topics(
+        topics,
+        whitelist_globs=whitelist_globs,
+        blacklist_globs=blacklist_globs,
+        bagdir=bagdir,
+        max_bag_duration=max_bag_duration,
+        max_bag_size=max_bag_size,
+        recordings=recordings,
+        format=format,
+        extra_args=extra_args,
+    )

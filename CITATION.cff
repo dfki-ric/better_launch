@@ -1,0 +1,27 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Dahn
+  given-names: Nikolas
+  orcid: "https://orcid.org/0000-0003-2262-2989"
+doi: 10.5281/zenodo.18414064
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Dahn
+    given-names: Nikolas
+    orcid: "https://orcid.org/0000-0003-2262-2989"
+  date-published: 2026-02-25
+  doi: 10.21105/joss.08958
+  issn: 2475-9066
+  issue: 118
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 8958
+  title: "better_launch: A better replacement for the ROS2 launch
+    system"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.08958"
+  volume: 11
+title: "better_launch: A better replacement for the ROS2 launch system"
