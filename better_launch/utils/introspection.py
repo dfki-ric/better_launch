@@ -223,7 +223,7 @@ def get_launchfunc_signature_from_file(
 
     # Extract function signature
     params = []
-    for arg in func_node.args.args:
+    for idx, arg in enumerate(func_node.args.args):
         arg_name = arg.arg
         annotation = inspect.Parameter.empty
         if arg.annotation:
@@ -242,6 +242,13 @@ def get_launchfunc_signature_from_file(
             else:
                 # More complex stuff (expressions, names, etc.) needs unparse
                 default = ast.unparse(default_node)
+
+        # Extract default value
+        default = inspect.Parameter.empty
+        defaults_offset = len(func_node.args.args) - len(func_node.args.defaults)
+        if idx >= defaults_offset:
+            default_node = func_node.args.defaults[idx - defaults_offset]
+            default = ast.unparse(default_node)
 
         params.append(
             inspect.Parameter(
