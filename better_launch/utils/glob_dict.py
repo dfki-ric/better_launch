@@ -1,7 +1,7 @@
 import fnmatch
 
 
-def glob_dict(data: dict, pattern: str, invert: bool = False) -> dict:
+def glob_dict(data: dict, pattern: str, invert: bool = False, strip: bool = True) -> dict:
     """Filter a nested dict by a glob pattern.
 
     Keys may contain slashes which are treated as path separators.
@@ -18,6 +18,8 @@ def glob_dict(data: dict, pattern: str, invert: bool = False) -> dict:
         A glob-style pattern to select parts of the dictionary to keep.
     invert : bool, optional
         If True, only retain branches that do *not* match the provided pattern.
+    strip : bool, optional
+        If True, the matched qualifier prefix is removed from the keys of the returned dict.
 
     Returns
     -------
@@ -36,54 +38,63 @@ def glob_dict(data: dict, pattern: str, invert: bool = False) -> dict:
             return not pat
 
         bad_keys = []
-
+        renames = {}
+        
         for key in list(sub.keys()):
             key_parts = [p for p in key.split("/") if p]
+            survived, stripped_key = match_key_parts(sub, key, key_parts, pat)
 
-            survived = match_key_parts(sub, key, key_parts, pat)
             if invert:
                 survived = not survived
-
+            
             if not survived:
                 bad_keys.append(key)
-
+            elif strip and stripped_key != key:
+                renames[key] = stripped_key
+            
         for key in bad_keys:
             del sub[key]
-
+        
+        # Strip the matched qualifiers if desired
+        for old, new in renames.items():
+            sub[new] = sub.pop(old)
+        
         # Return True if content remaining
         return bool(sub)
 
     def match_key_parts(
         sub: dict, key: str, key_parts: list[str], pat: list[str]
-    ) -> bool:
+    ) -> tuple[bool, str]:
         """Match key_parts against pat, then recurse into children with remaining pattern."""
         if not pat:
             # Pattern exhausted but key remains - no match
-            return False
-
+            return False, key
+        
         # Consume key_parts against pat elements one by one
         remaining_key, remaining_pat = consume(key_parts, pat)
         if remaining_pat is None:
-            return False
-
+            return False, key
+        
         # Pattern fully consumed: keep this node entirely
         if not remaining_pat and not remaining_key:
-            return True
-
+            return True, ""
+        
         # Pattern still has elements: recurse into children
         child = sub[key]
         if not isinstance(child, dict):
             # Can't go deeper but pattern isn't done
-            return False
-
+            return False, key
+        
         # Pat exhausted but key had extra parts (e.g. key "a/b", pattern "a"),
         # this is still a match
         if not remaining_pat and remaining_key:
-            return True
+            stripped = "/".join(remaining_key) if strip else key
+            return True, stripped
+        
+        survived = match(child, remaining_pat)
+        return survived, key
 
-        return match(child, remaining_pat)
-
-    def consume(key_parts: list[str], pat: list[str]) -> tuple[list[str, list[str]]]:
+    def consume(key_parts: list[str], pat: list[str]) -> tuple[list[str], list[str]]:
         """Step through key_parts and pat, trying to match the two, then return what remains."""
         key_idx, pat_idx = 0, 0
         while key_idx < len(key_parts) and pat_idx < len(pat):

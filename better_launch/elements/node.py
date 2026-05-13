@@ -238,8 +238,19 @@ class Node(AbstractNode, LiveParamsMixin):
             # All args must be strings
             final_cmd = [str(s) for s in final_cmd]
 
+            print_cmd = []
+            for s in final_cmd:
+                if len(s) > 40:
+                    s = s[:40] + "..."
+                
+                i = s.find("\n")
+                if i > 0:
+                    s = s[:i] + "..."
+                
+                print_cmd.append(s)
+
             env_str = pformat(self.env, compact=True)
-            self.logger.info(f"Starting process '{' '.join(final_cmd)}', env={env_str}")
+            self.logger.info(f"Starting process '{' '.join(print_cmd)}', env={env_str}")
 
             # Start the node process
             self._process = subprocess.Popen(

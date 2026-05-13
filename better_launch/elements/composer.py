@@ -415,8 +415,8 @@ class Composer(AbstractNode):
                 [
                     # Parameter will initialize based on the value's type
                     # #58: components don't seem to handle qualifiers
-                    Parameter(name=k, value=v).to_parameter_msg()
-                    for k, v in component._flat_params(strip_qualifiers=True).items()
+                    Parameter(name=k.replace(":", "."), value=v).to_parameter_msg()
+                    for k, v in component._flat_params(drop_qualifiers=True).items()
                 ]
             )
         except Exception as e:

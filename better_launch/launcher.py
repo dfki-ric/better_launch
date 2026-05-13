@@ -743,8 +743,6 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         configfile: str = None,
         subdir: str = None,
         *,
-        merge_paths: bool = False,
-        strip_ros_parameters: bool = False,
         qualifier: str = None,
         strip_qualifiers: bool = True,
     ) -> dict[str, Any]:
@@ -811,33 +809,17 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 "tag:yaml.org,2002:float",
                 re.compile(
                     """^(?:
-                [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
-                |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
-                |\\.[0-9_]+(?:[eE][-+][0-9]+)?
-                |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
-                |[-+]?\\.(?:inf|Inf|INF)
-                |\\.(?:nan|NaN|NAN))$""",
+                        [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+                        |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+                        |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+                        |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+                        |[-+]?\\.(?:inf|Inf|INF)
+                        |\\.(?:nan|NaN|NAN))$""",
                     re.X,
                 ),
                 list("-+0123456789."),
             )
             params = yaml.load(content, Loader=loader)
-
-        def strip_ros_params(sub: dict) -> Any:
-            res = {}
-            for key, val in sub.items():
-                if key == "ros__parameters":
-                    for child_key, child_val in val.items():
-                        if isinstance(child_val, dict):
-                            res[child_key] = strip_ros_params(child_val)
-                        else:
-                            res[child_key] = child_val
-                elif isinstance(val, dict):
-                    res[key] = strip_ros_params(val)
-                else:
-                    res[key] = val
-
-            return res
 
         def concatenate_branches(sub: dict, prefix: str = "") -> dict:
             res = {}
@@ -852,15 +834,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
             return res
 
-        if merge_paths:
-            params = merge_and_explode(params)
-
         if "ros__parameters" in content:
             # Each ros__parameters block should get its own path key
             params = concatenate_branches(params)
-
-            if strip_ros_parameters:
-                params = strip_ros_params(params)
 
         if qualifier:
             params = glob_dict(params, qualifier, strip=strip_qualifiers)
