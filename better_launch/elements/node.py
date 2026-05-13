@@ -31,6 +31,7 @@ class Node(AbstractNode, LiveParamsMixin):
         param_files: str | list[str] = None,
         drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
+        exec_args: list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
@@ -65,6 +66,8 @@ class Node(AbstractNode, LiveParamsMixin):
             If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
+        exec_args : list[str], optional
+            Arguments to prepend to the resolved run command, e.g. for executing the node through gdb.
         env : dict[str, str], optional
             Additional environment variables to set for the node's process. The node process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
         isolate_env : bool, optional
@@ -100,6 +103,7 @@ class Node(AbstractNode, LiveParamsMixin):
         )
 
         self.drop_param_qualifiers = drop_param_qualifiers
+        self.exec_args = exec_args or []
         self.cmd_args = cmd_args or []
         self.env = env or {}
         self.isolate_env = isolate_env
@@ -170,7 +174,7 @@ class Node(AbstractNode, LiveParamsMixin):
         try:
             cmd = launcher.find(f"{self.package}/lib", self.executable)
 
-            final_cmd = [cmd]
+            final_cmd = self.exec_args + [cmd]
             if self.cmd_args:
                 final_cmd.extend(self.cmd_args)
 

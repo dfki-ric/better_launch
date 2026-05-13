@@ -1497,6 +1497,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         param_files: str | list[str] = None,
         drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
+        exec_args: list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
@@ -1541,6 +1542,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
+        exec_args : list[str], optional
+            Arguments to prepend to the resolved run command, e.g. for executing the node through gdb.
         env : dict[str, str], optional
             Additional environment variables to set for the node's process. The node process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
         isolate_env : bool, optional
@@ -1616,6 +1619,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             param_files=param_files,
             drop_param_qualifiers=drop_param_qualifiers,
             cmd_args=cmd_args,
+            exec_args=exec_args,
             env=env,
             isolate_env=isolate_env,
             log_level=log_level,
