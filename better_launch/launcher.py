@@ -294,7 +294,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 return u
 
     def get_groups(self) -> list[Group]:
-        """Returns a list of all in the order they were created.
+        """Returns a list of all groups in the order they were created.
 
         Returns
         -------
@@ -601,10 +601,11 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         else:
             self.logger.info(f"Shutdown: {reason}")
 
-        # Tell all nodes to shut down
-        for n in self.get_nodes(
+        # Tell all nodes to shut down in opposite order
+        all_nodes = self.get_nodes(
             include_components=False, include_launch_service=True, include_foreign=False
-        ):
+        )
+        for n in reversed(all_nodes):
             try:
                 n.shutdown(reason, signum)
             except NotImplementedError:
