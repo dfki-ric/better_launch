@@ -340,7 +340,7 @@ class Composer(AbstractNode):
             self.managed_components.clear()
             return
 
-        for comp in self.managed_components:
+        for comp in reversed(self.managed_components):
             try:
                 comp.shutdown(reason, signum, timeout)
             except Exception as e:

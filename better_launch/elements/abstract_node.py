@@ -148,7 +148,7 @@ class AbstractNode:
         Parameters
         ----------
         drop_qualifiers : bool, optional
-            If True, remove additional node/namespace qualifiers from the returned dict. Qualifiers will still be used to match this node if present.
+            If True, remove additional node/namespace qualifiers from the returned dict. Qualifiers will still be used to match this node if present, i.e. parameters with qualifiers not matching this node will not be included.
 
         Returns
         -------
