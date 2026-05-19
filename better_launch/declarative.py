@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any
 import inspect
 import contextlib
 import logging
@@ -8,7 +8,7 @@ from better_launch.wrapper import _exec_launch_func
 from better_launch.utils.settings import Colormode, _update_settings
 from better_launch.utils.click import DeclaredArg
 from better_launch.toml.toml_parser import load as load_toml
-from better_launch.toml.substitutions import apply_substitutions
+from better_launch.toml.substitutions import EvalMode, apply_substitutions
 
 
 current_toml_format_version = 1
@@ -16,7 +16,7 @@ current_toml_format_version = 1
 
 def _execute_toml(
     toml: dict[str, Any],
-    eval_mode: Literal["full", "literal", "none"] = "literal",
+    eval_mode: EvalMode,
     **kwargs,
 ) -> dict[str, Any]:
     """Execute each call table and apply substitutions."""
@@ -187,7 +187,7 @@ def launch_toml(
     screen_log_format: str = None,
     file_log_level: str | int = None,
     file_log_format: str = None,
-    eval_mode: Literal["full", "literal", "none"] = "full", # TODO
+    eval_mode: str | EvalMode = None,
     join: bool = None,
     manage_foreign_nodes: bool = None,
     keep_alive: bool = None,
@@ -308,6 +308,11 @@ def launch_toml(
 
     if allow_kwargs is None:
         allow_kwargs = toml.get("bl_allow_kwargs", False)
+
+    if eval_mode is None:
+        eval_mode = EvalMode(toml.get("bl_eval_mode", "none"))
+    elif isinstance(eval_mode, str):
+        eval_mode = EvalMode(eval_mode)
 
     argv = None
     if launch_args:

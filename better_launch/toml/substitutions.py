@@ -1,7 +1,8 @@
-from typing import Any, Literal, Callable
+from typing import Any, Callable
 import os
 from ast import literal_eval
 from functools import partial
+from enum import Enum
 
 from better_launch import BetterLaunch
 
@@ -12,6 +13,12 @@ _sentinel = object()
 class SubstitutionError(ValueError):
     """Exception type that will be thrown by substitution handlers."""
     pass
+
+
+class EvalMode(Enum):
+    NONE = "none"
+    LITERAL = "literal"
+    FULL = "full"
 
 
 def _parse_substitutions(s: str) -> list[list | str]:
@@ -345,12 +352,12 @@ def sub_env(key: str, default: Any = _sentinel):
 
 
 # ${eval ${arg x} * 5}
-def sub_eval(*args, context: dict, eval_type: Literal["full", "literal", "none"] = "full"):
+def sub_eval(*args, context: dict, eval_mode: EvalMode):
     expr = " ".join(str(arg) for arg in args)
     #print("###", expr)
-    if eval_type == "full":
+    if eval_mode == EvalMode.FULL:
         return eval(expr, {}, dict(context) if context else {})
-    elif eval_type == "literal":
+    elif eval_mode == EvalMode.LITERAL:
         return literal_eval(expr)
     else:
         # eval was disabled
@@ -362,7 +369,7 @@ def apply_substitutions(
     substitutions: dict[str, Callable] = None,
     context: dict[str, Any] = None,
     *,
-    eval_type: Literal["full", "literal", "none"] = "literal",
+    eval_type: EvalMode = EvalMode.NONE,
 ) -> Any:
     """Applies substitutions to a string.
 

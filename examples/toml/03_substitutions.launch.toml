@@ -11,13 +11,14 @@
 # ==============================================================================
 
 # One of the substitutions allows you to evaluate python code. Since this is 
-# obviously a security risk the default mode is to use `ast.literal_eval` 
-# which, as the name implies, only parses plain simple values. You can 
-# entirely disable this substitution by setting this to `none`, in which case
-# the substitutions will raise an exception when used.
+# obviously a security risk the default mode is `none` which will raise an 
+# exception if the substitution is used. The eval modes are:
+# - none: raises an exception if an eval substitution is used
+# - literal: use `ast.literal_eval` to parse plain values
+# - full: use the real `eval` for evaluation
 # 
-# Note that an included launch file may decrease, but never increase the eval
-# mode level (e.g. from `full` to `literal`, but never the other way).
+# Note that the eval mode is never inherited on includes and only set for the
+# launch file it is defined in.
 bl_eval_mode = "full"
 
 # We need a temporary node for later, don't worry about it
