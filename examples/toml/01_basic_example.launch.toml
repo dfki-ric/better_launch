@@ -1,0 +1,41 @@
+# An example for better_launch's declarative TOML launchfiles. The general 
+# functionality will still be covered by the python launch files, while this
+# section will cover the TOML pecularities.
+# 
+# Also the first comment block becomes the launchfile's help text :)
+
+# This block will call `BetterLaunch.is_included` and store the returned value 
+# in a variable called `included`.
+[included]
+func = "is_included"
+
+# A block can call any public function of the BetterLaunch object. Any arguments
+# to that function are passed as key-value pairs.
+[print_hello]
+# You may also specify `if` and `unless` conditions for a block. Substitutions 
+# will be explained later in detail, but the most basic ones allow you to refer
+# to the results of previous blocks. The return value of skipped blocks is `None`
+# (i.e. their identifiers can still be used in substitutions).
+if = "${included}"
+func = "log"
+severity = "info"
+message = "I am a strong, independent launchfile!"
+
+# To place nodes (or function calls really) inside a group you first need to 
+# create the group...
+[basic_group]
+func = "group"
+namespace = "basic"
+
+# ... and then use this slightly different block header.
+[basic_group.children.pub_node]
+func = "node"
+package = "examples_rclpy_minimal_publisher"
+executable = "publisher_local_function"
+name = "my_talker"
+
+[basic_group.children.sub_node]
+func = "node"
+package = "examples_rclpy_minimal_subscriber"
+executable = "subscriber_member_function"
+name = "my_listener"

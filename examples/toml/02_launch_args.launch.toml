@@ -1,0 +1,26 @@
+# TOML launch files also support required and optional launch arguments.
+
+# Any keys that are not part of a table (i.e. are on the global level) are considered 
+# launch arguments. In order to support required launch args you can assign a primitive
+# python type to the variable. The launch arg below is a bool with no default.
+enable = bool
+
+# All better_launch switches accepted by the CLI can be set on the global level, too.
+# As usual, the priority is env < launch file < CLI.
+bl_ui = true
+
+# Comments above any block become help text when run with --help.
+pkg = "better_launch"
+
+[a_simple_cube]
+# Only run if pkg was defined (based on python truthiness). You can also use "unless".
+if = "${enable}"
+func = "find"
+package = "${pkg}"
+filename = "cube.sdf"
+
+# Blocks are executed in sequence, so we can now use the result of the previous one.
+[print_me_baby]
+func = "log"
+severity = "info"
+message = "SUCCESS! A simple cube can be found at ${a_simple_cube}"

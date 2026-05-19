@@ -36,21 +36,21 @@ def _execute_toml(
 
     #
     contexts = {
-        "betterlaunch": dict(
-            f
-            for f in inspect.getmembers(BetterLaunch, inspect.isfunction)
-            if not f.startswith("_")
-        ),
-        "convenience": dict(
-            f
-            for f in inspect.getmembers(convenience, inspect.isfunction)
-            if not f.startswith("_")
-        ),
-        "gazebo": dict(
-            f
-            for f in inspect.getmembers(gazebo, inspect.isfunction)
-            if not f.startswith("_")
-        ),
+        "betterlaunch": {
+            name: func
+            for name, func in inspect.getmembers(BetterLaunch, inspect.isfunction)
+            if not name.startswith("_")
+        },
+        "convenience": {
+            name: func
+            for name, func in inspect.getmembers(convenience, inspect.isfunction)
+            if not name.startswith("_")
+        },
+        "gazebo": {
+            name: func
+            for name, func in inspect.getmembers(gazebo, inspect.isfunction)
+            if not name.startswith("_")
+        },
     }
     results = dict(bl.launch_args)
 
@@ -82,7 +82,7 @@ def _execute_toml(
 
         ctx = req.pop("context", "betterlaunch")
         if ctx not in contexts:
-            raise KeyError(f"{key}: context='{ctx}' is not a valid context")
+            raise KeyError(f"{key}: '{ctx}' is not a valid context")
 
         valid_funcs = contexts[ctx]
 
@@ -99,7 +99,11 @@ def _execute_toml(
         if "children" not in func_sig.parameters:
             children = req.pop("children", None)
 
-        res = func(**req)
+        if ctx == "betterlaunch":
+            res = func(bl, **req)
+        else:
+            res = func(**req)
+            
         results[key] = res
 
         if children:
@@ -183,7 +187,7 @@ def launch_toml(
     screen_log_format: str = None,
     file_log_level: str | int = None,
     file_log_format: str = None,
-    eval_mode: Literal["full", "literal", "none"] = "literal",
+    eval_mode: Literal["full", "literal", "none"] = "full", # TODO
     join: bool = None,
     manage_foreign_nodes: bool = None,
     keep_alive: bool = None,
@@ -261,7 +265,9 @@ def launch_toml(
 
     if not BetterLaunch.is_included():
         if ui is None and "bl_ui" in toml:
-            ui = bool(toml.get("bl_ui", "false").lower() in ("true", "enable", "1"))
+            ui = toml.get("bl_ui")
+            if isinstance(ui, str):
+                ui = bool(ui.lower() in ("true", "enable", "1"))
 
         if colormode is None and "bl_colormode" in toml:
             colormode = Colormode[toml["bl_colormode"]]

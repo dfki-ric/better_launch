@@ -1,3 +1,5 @@
+# Just a slightly more complex example
+
 turtlesim_ns = "turtlesim1"
 use_provided_red = false
 new_background_r = 200
@@ -23,11 +25,3 @@ func = "call_service"
 topic = "/${turtlesim_ns}/spawn"
 service_type = "turtlesim/srv/Spawn"
 request_args = {x = 2.0, y = 2.0, theta = 0.2}
-
-# TOML files are by design less powerful than python launchfiles. This is intentional, as 
-# part of their appeal is having a launch description that can be analyzed and verified 
-# ahead of time. For this reason, calling functions on anything but the BetterLaunch 
-# instance is not supported.
-
-# TODO calling stuff on at least nodes seems kindof tempting...
-# TODO logging setup not working yet
