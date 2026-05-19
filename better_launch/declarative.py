@@ -37,8 +37,14 @@ def _execute_toml(
     #
     contexts = {
         "betterlaunch": {
+            # instance functions
             name: func
             for name, func in inspect.getmembers(BetterLaunch, inspect.isfunction)
+            if not name.startswith("_")
+        } | {
+            # class methods
+            name: func
+            for name, func in inspect.getmembers(BetterLaunch, inspect.ismethod)
             if not name.startswith("_")
         },
         "convenience": {
@@ -54,6 +60,15 @@ def _execute_toml(
     }
     results = dict(bl.launch_args)
 
+    def sanitize(data: dict) -> None:
+        # Remove the comment keys that we kept in order to create help texts and such
+        data.pop("__comment__", None)
+        for key, val in toml.items():
+            if isinstance(val, dict):
+                for key in list(val.keys()):
+                    if key.startswith("__comment_"):
+                        del val[key]
+
     def substitute_all(value: Any):
         if isinstance(value, dict):
             for key, val in value.items():
@@ -62,7 +77,7 @@ def _execute_toml(
             for i, item in enumerate(value):
                 value[i] = substitute_all(item)
         elif isinstance(value, str):
-            new_val = apply_substitutions(value, None, results, eval_type=eval_mode)
+            new_val = apply_substitutions(value, None, results, eval_mode=eval_mode)
             return new_val
 
         return value
@@ -99,11 +114,17 @@ def _execute_toml(
         if "children" not in func_sig.parameters:
             children = req.pop("children", None)
 
+        bl.logger.debug(f"Calling {ctx}:{func_name} ({req})")
         if ctx == "betterlaunch":
-            res = func(bl, **req)
+            if inspect.ismethod(func):
+                # classmethod
+                res = func(**req)
+            else:
+                # instance function
+                res = func(bl, **req)
         else:
             res = func(**req)
-            
+        
         results[key] = res
 
         if children:
@@ -123,17 +144,11 @@ def _execute_toml(
                     )
 
                 for subkey, child in children.items():
+                    sanitize(child)
                     exec_request(subkey, child)
 
-    # Sanitize the launch file
-    toml.pop("__comment__", None)
-    for key, val in toml.items():
-        if isinstance(val, dict):
-            for key in list(val.keys()):
-                if key.startswith("__comment_"):
-                    del val[key]
-
     # Execute the call tables
+    sanitize(toml)
     for key, val in toml.items():
         if isinstance(val, dict):
             exec_request(key, val)
@@ -314,9 +329,8 @@ def launch_toml(
     elif isinstance(eval_mode, str):
         eval_mode = EvalMode(eval_mode)
 
-    argv = None
+    argv = []
     if launch_args:
-        argv = []
         for key, arg in launch_args.items():
             if arg is not None:
                 argv.extend([f"--{key}", str(arg)])

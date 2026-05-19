@@ -369,7 +369,7 @@ def apply_substitutions(
     substitutions: dict[str, Callable] = None,
     context: dict[str, Any] = None,
     *,
-    eval_type: EvalMode = EvalMode.NONE,
+    eval_mode: EvalMode = EvalMode.NONE,
 ) -> Any:
     """Applies substitutions to a string.
 
@@ -413,7 +413,7 @@ def apply_substitutions(
         context = {}
 
     if not substitutions:
-        _eval = partial(sub_eval, context=context, eval_type=eval_type)
+        _eval = partial(sub_eval, context=context, eval_mode=eval_mode)
 
         substitutions = {
             "param:": sub_param,
