@@ -11,6 +11,7 @@ import subprocess
 import queue
 from pprint import pformat
 import json
+import shlex
 
 from better_launch.utils.better_logging import LogSink, ROSLOG_PATTERN_BL
 from .abstract_node import AbstractNode
@@ -31,8 +32,8 @@ class Node(AbstractNode, LiveParamsMixin):
         param_files: str | list[str] = None,
         use_sim_time: bool = False,
         drop_param_qualifiers: bool = False,
-        cmd_args: list[str] = None,
-        exec_args: list[str] = None,
+        cmd_args: str | list[str] = None,
+        exec_args: str | list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
@@ -65,10 +66,10 @@ class Node(AbstractNode, LiveParamsMixin):
             Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
         drop_param_qualifiers : bool, optional
             If True, any namespace/node qualifiers in the passed params are ignored.
-        cmd_args : list[str], optional
-            Additional command line arguments to pass to the node.
-        exec_args : list[str], optional
-            Arguments to prepend to the resolved run command, e.g. for executing the node through gdb.
+        cmd_args : str | list[str], optional
+            Additional command line arguments to pass to the node. If a string is passed it will be split using shlex.
+        exec_args : str | list[str], optional
+            Arguments to prepend to the resolved run command, e.g. for executing the node through gdb. If a string is passed it will be split using shlex.
         env : dict[str, str], optional
             Additional environment variables to set for the node's process. The node process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
         isolate_env : bool, optional
@@ -102,6 +103,12 @@ class Node(AbstractNode, LiveParamsMixin):
             param_files,
             output=output,
         )
+
+        if isinstance(cmd_args, str):
+            cmd_args = shlex.split(cmd_args)
+
+        if isinstance(exec_args, str):
+            exec_args = shlex.split(exec_args)
 
         self.use_sim_time = use_sim_time
         self.drop_param_qualifiers = drop_param_qualifiers

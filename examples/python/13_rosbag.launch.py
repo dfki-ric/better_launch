@@ -4,7 +4,7 @@ from better_launch import BetterLaunch, launch_this, convenience
 
 
 @launch_this
-def kneel_and_bag(pattern: str = "*topic*", test: int = 5):
+def kneel_and_bag(pattern: str = "*topic*"):
     """
     This example mostly serves to raise awareness of one very nice convenience function :)
     """
