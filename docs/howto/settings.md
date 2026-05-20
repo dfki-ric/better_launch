@@ -45,6 +45,10 @@ Every option listed here can be set in the launchfile, as an environment variabl
     
     Overrides the format for messages logged to log files, following the same format as the screen log format.
 
+??? example "use_sim_time *(bool)*"
+
+    Changes the default `use_sim_time` setting of the root group. All nodes will use this setting unless one of their ancestor groups makes a different override. Note that this parameter does not have the `bl-` prefix on the command line (env is as usual) - it felt more intuitive this way.
+
 
 ## TUI Shortcuts
 On some systems the default TUI shortcuts may be inconvenient, e.g. due to conflicts with system or terminal shortcuts. These can be changed by placing a special string in the `BL_TUI_KEYBINDS` environment variable. For example, to change the *Nodes* action to `ctrl-n` and the *Log Level* action to `ctrl-l` you would specify
@@ -57,4 +61,4 @@ The syntax is always `<action>:<keys>` separated by `;`. Valid actions are `exit
 
 ???+ warning
 
-    Take special note of how the quirks around `ctrl-s`, `ctrl-q`, and the Alt/Meta/Option keys. The former can not be bound in most terminals without additional setup, while combinations with the meta key are treated as two separate key presses. This too is documented on the prompt_toolkit website.
+    Take special note of how the quirks around `ctrl-s`, `ctrl-q`, and the Alt/Meta/Option keys. The former cannot be bound in most terminals without additional setup, while combinations with the meta key are treated as two separate key presses. This too is documented on the prompt_toolkit website.

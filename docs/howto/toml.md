@@ -4,15 +4,14 @@ The discussions over at ros discourse revealed that there was a need for launchf
 
 ???+ tip
 
-    This page will give you a general overview. Have a look at the [examples](https://github.com/dfki-ric/better_launch/tree/main/examples) for more details!
+    This page will give you a general overview. Have a look at the [examples](https://github.com/dfki-ric/better_launch/tree/main/examples/toml) for more details!
 
 ???+ example "Feedback welcome!"
 
     The TOML format is an entirely new way of writing launchfiles. While I have faith in the general approach, it may not quite meet the needs yet. [Feedback](https://github.com/dfki-ric/better_launch/issues) is very much welcome!
 
 ## Call Tables
-In TOML launchfiles most tables are so-called *call tables*. These are dictionaries with a `func` key referring to one of the
-public [BetterLaunch](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch) member functions. Most other attributes are treated as keyword arguments to that function. Just like with python launchfiles, call tables are executed in order of appearance, and their return values are stored under the table’s name.
+In TOML launchfiles most tables are so-called *call tables*. These are dictionaries with a `func` key referring to one of the public [BetterLaunch](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch) member functions (the [convenience](../../reference/better_launch/launcher/#better_launch.convenience) and [gazebo](../../reference/better_launch/launcher/#better_launch.gazebo) modules are also supported). Most other attributes are treated as keyword arguments to that function. Just like with python launchfiles, call tables are executed in order of appearance, and their return values are stored under the table’s name.
 
 For example, the following call table will call [bl.find](../../reference/better_launch/launcher/#better_launch.launcher.BetterLaunch.find), pass `better_launch` as the package and `cube.sdf` as the filename, then store the returned value under `a_simple_cube`.
 
@@ -34,7 +33,7 @@ deemed necessary for now:
   - `${<K>}`: value of launch argument or call table `<K>`
   - `${param <N> <P>}`: query node `<N>` for its ROS2 parameter `<P>`
   - `${env <E> <D>}`: environment variable `<E>` (default `<D>`)
-  - `${eval <X>}`: evaluate Python expression `<X>`
+  - `${eval <X>}`: evaluate Python expression `<X>` (disabled by default)
 
 Substitutions may be nested (inner ones resolve first). The following call table will log the path of the cube we previously located:
 
@@ -45,15 +44,15 @@ severity = "info"
 message = "A simple cube can be found at ${a_simple_cube}"
 ```
 
-???+ note
+???+ important
 
-    By default `eval` will use `ast.literal_eval`. This can be changed by creating a global launch argument `bl_eval_mode` and setting it to either `full` (regular `eval`) or `none` (return expression without evaluation).
+    `eval` poses a security risk and is therefore disabled by default. This can be changed by creating a global launch argument `bl_eval_mode` and setting it to either `full` (regular `eval`) or `literal_eval` (only parses literal values).
 
 ## Conditions
-Call tables can be made conditional by adding an `if` or `unless` parameter. The table will only run if this value evaluates to true (false for `unless`) according to python truthiness. Be aware that non-empty strings are also considered true. If a call table doesn't run, `None` will be stored under its name.
+Call tables can be made conditional by adding an `if` or `unless` parameter. The table will only run if this value evaluates to true (or false for `unless`) according to python truthiness. Be aware that non-empty strings are also considered true. If a call table doesn't run, `None` will be stored under its name.
 
 ## Launch Arguments
-Launch arguments can be defined as global parameters before the first table. Their values can be used in substitutions just like any call table result. In addition, you may set the `bl_allow_kwargs` so arbitrary launch arguments can be passed to the launchfile (i.e. for nodes that consume them additional inputs).
+Launch arguments can be defined as global parameters before the first table. Their values can be used in substitutions just like any call table result. In addition, you may set the `bl_allow_kwargs` so arbitrary launch arguments can be passed to the launchfile (i.e. for nodes that consume the additional inputs).
 
 In order to support required launch arguments, *better_launch* makes a small extension to TOML: when defining your launch arguments, instead of assigning them a value you may also assign them one of python's primitive types *without quotes* (e.g. `my_arg = bool`). The launchfile will then require this argument to be passed and handle it as the specified type.
 
