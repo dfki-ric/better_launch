@@ -39,7 +39,6 @@ def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option
     return options
 
 
-# TODO docstrings
 def get_click_bl_options(expose: bool = False) -> list[click.Option]:
     """Get the click options specific to better_launch itself.
 

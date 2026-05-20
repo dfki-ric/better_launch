@@ -9,11 +9,10 @@ __all__ = [
 ]
 
 
-from typing import Sequence, Any, Literal
+from typing import Sequence, Any, Literal, Callable
 import subprocess
 import json
 import yaml
-from fnmatch import fnmatch
 import tempfile
 
 from better_launch import BetterLaunch
@@ -437,43 +436,53 @@ def spawn_controller(
 
 def record_topics(
     topics: list[str] = None,
+    predicate: Callable[[str], bool] = None,
     *,
-    whitelist_globs: list[str] = None,
-    blacklist_globs: list[str] = None,
     bagdir: str = None,
     max_bag_duration: int = 0,
-    max_bag_size: int = 0,
+    max_bag_size: float = 0.0,
     recordings: int = 1,
+    wait: bool = True,
     format: Literal["mcap", "sqlite3"] = "mcap",
     extra_args: list[str] = None,
-):
+) -> None | Node:
     """Record a rosbag.
 
-    Will record the specified topics, or automatically select topics based on currently available topics and arguments.
+    If topics is empty or not specified all currently published topics are used. The list of topics will be filtered by the predicate if provided.
 
     Parameters
     ----------
-    whitelist_globs : list[str], optional
-        A list of glob strings. Only topics matching any of these patterns will be included. Supports the * and ** wildcards.
-    blacklist_globs : list[ſtr], optional
-        A list of glob strings. Only topics matching none of these patterns will be included. Supports the * and ** wildcards.
+    topics : list[str], optional
+        The ROS topics to record. If not specified all currently known topics will be used instead.
+    predicate : Callable[[str], bool], optional
+        A function to decide which topics to record. I suggest to use fnmatch for simple wildcards.
     bagdir : str, optional
         Where to record the bagfile. If not specified it will use the rosbag default (a timestamped folder in the currend working directory).
     max_bag_duration : int, optional
         Start recording a new bagfile after recording for X seconds.
-    max_bag_size : int, optional
+    max_bag_size : float, optional
         Start recording a new bagfile after recording X MB.
     recordings : int, optional
-        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0.
+        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0. Multiple recordings can only be done when `wait` is True.
+    wait : bool, optional
+        If True, wait for the recording to finish before returning. Otherwise the process will be wrapped in a [elements.Node][] object and returned. Must be True if `recordings` is != 1.
     format : Literal["mcap", "sqlite3"], optional
         Rosbag recording format, should be mcap or sqlite3.
     extra_args : Iterable[str], optional
         Additional arguments that will be passed to rosbag.
+
+    Returns
+    -------
+    None | Node
+        Nothing if wait is True, otherwise a [elements.Node][] object wrapping the recording process.
     """
-    if not topics:
-        raise ValueError("No topics to record")
+    if recordings != 1 and not wait:
+        raise ValueError("For multiple recordings wait must be True")
 
     bl = BetterLaunch()
+
+    if not topics:
+        topics = [t for t, _ in bl.shared_node.get_topic_names_and_types()]
 
     cmd = [
         "ros2",
@@ -482,9 +491,9 @@ def record_topics(
         "--storage",
         format,
         "--max-bag-duration",
-        max_bag_duration,
+        int(max_bag_duration),
         "--max-bag-size",
-        max_bag_size * 1024 * 1024,
+        int(max_bag_size * 1024 * 1024),
     ]
 
     if bagdir:
@@ -493,108 +502,70 @@ def record_topics(
     if extra_args:
         cmd.extend(extra_args)
 
-    if whitelist_globs:
-        topics = filter(lambda t: any(fnmatch(t, p) for p in whitelist_globs), topics)
+    if predicate:
+        topics = list(filter(predicate, topics))
 
-    if blacklist_globs:
-        topics = filter(lambda t: not any(fnmatch(t, p) for p in blacklist_globs), topics)
+    if not topics:
+        raise ValueError("No topics left to record")
 
     cmd.extend(topics)
+    cmd = [str(x) for x in cmd]
     count = 0
 
-    while True:
-        bl.logger.critical(f"\n\n### RECORDING {count + 1} ###\n")
-        bl.exec(cmd)
-        count += 1
-        if recordings > 0 and count >= recordings:
-            break
-
-
-def record_current_topics(
-    *,
-    whitelist_globs: list[str] = None,
-    blacklist_globs: list[str] = None,
-    bagdir: str = None,
-    max_bag_duration: int = 0,
-    max_bag_size: int = 0,
-    recordings: int = 1,
-    format: Literal["mcap", "sqlite3"] = "mcap",
-    extra_args: list[str] = None,
-):
-    """Record a rosbag.
-
-    Will record all currently available topics if they match any of the whitelist patterns and none of the blacklist patterns.
-
-    Parameters
-    ----------
-    whitelist_globs : list[str], optional
-        A list of glob strings. Only topics matching any of these patterns will be included. Supports the * and ** wildcards.
-    blacklist_globs : list[ſtr], optional
-        A list of glob strings. Only topics matching none of these patterns will be included. Supports the * and ** wildcards.
-    bagdir : str, optional
-        Where to record the bagfile. If not specified it will use the rosbag default (a timestamped folder in the currend working directory).
-    max_bag_duration : int, optional
-        Start recording a new bagfile after recording for X seconds.
-    max_bag_size : int, optional
-        Start recording a new bagfile after recording X MB.
-    recordings : int, optional
-        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0.
-    format : Literal["mcap", "sqlite3"], optional
-        Rosbag recording format, should be mcap or sqlite3.
-    extra_args : Iterable[str], optional
-        Additional arguments that will be passed to rosbag.
-    """
-    bl = BetterLaunch()
-    topics = [t for t, _ in bl.shared_node.get_topic_names_and_types()]
-    record_topics(
-        topics,
-        whitelist_globs=whitelist_globs,
-        blacklist_globs=blacklist_globs,
-        bagdir=bagdir,
-        max_bag_duration=max_bag_duration,
-        max_bag_size=max_bag_size,
-        recordings=recordings,
-        format=format,
-        extra_args=extra_args,
-    )
+    while True and not bl.is_shutdown:
+        bl.logger.critical(f"\n===== RECORDING {count + 1} =====\n")
+        if wait:
+            bl.exec(cmd)
+            count += 1
+            if recordings > 0 and count >= recordings:
+                break
+        else:
+            return bl.process(cmd)
 
 
 def record_topics_from_file(
     topic_file: str,
+    predicate: Callable[[str], bool] = None,
     *,
-    whitelist_globs: list[str] = None,
-    blacklist_globs: list[str] = None,
     bagdir: str = None,
     max_bag_duration: int = 0,
-    max_bag_size: int = 0,
+    max_bag_size: float = 0,
     recordings: int = 1,
+    wait: bool = True,
     format: Literal["mcap", "sqlite3"] = "mcap",
     extra_args: list[str] = None,
-):
+) -> None | Node:
     """Record a rosbag.
 
     Reads topics to record from a text-file. Empty lines and lines starting with "#" will be ignored.
 
     Parameters
     ----------
-    whitelist_globs : list[str], optional
-        A list of glob strings. Only topics matching any of these patterns will be included. Supports the * and ** wildcards.
-    blacklist_globs : list[ſtr], optional
-        A list of glob strings. Only topics matching none of these patterns will be included. Supports the * and ** wildcards.
+    topic_file : str
+        The file to read the topic list from.
+    predicate : Callable[[str], bool], optional
+        A function to decide which topics to record. I suggest to use fnmatch for simple wildcards.
     bagdir : str, optional
         Where to record the bagfile. If not specified it will use the rosbag default (a timestamped folder in the currend working directory).
     topic_file : str, optional
         Text file with topics to record. Lines starting with "#" will be ignored.
     max_bag_duration : int, optional
         Start recording a new bagfile after recording for X seconds.
-    max_bag_size : int, optional
+    max_bag_size : float, optional
         Start recording a new bagfile after recording X MB.
     recordings : int, optional
-        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0.
+        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0. Multiple recordings can only be done when `wait` is True.
+    wait : bool, optional
+        If True, wait for the recording to finish before returning. Otherwise the process will be wrapped in a [elements.Node][] object and returned. Must be True if `recordings` is != 1.
     format : Literal["mcap", "sqlite3"], optional
         Rosbag recording format, should be mcap or sqlite3.
     extra_args : Iterable[str], optional
         Additional arguments that will be passed to rosbag.
+
+    Returns
+    -------
+    None | Node
+        Nothing if wait is True, otherwise a [elements.Node][] object wrapping the recording process.
     """
     with open(topic_file) as f:
         lines = f.readlines()
@@ -607,14 +578,14 @@ def record_topics_from_file(
 
         topics.append(line)
 
-    record_topics(
+    return record_topics(
         topics,
-        whitelist_globs=whitelist_globs,
-        blacklist_globs=blacklist_globs,
+        predicate=predicate,
         bagdir=bagdir,
         max_bag_duration=max_bag_duration,
         max_bag_size=max_bag_size,
         recordings=recordings,
+        wait=wait,
         format=format,
         extra_args=extra_args,
     )
