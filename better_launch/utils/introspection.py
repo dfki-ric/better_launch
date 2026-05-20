@@ -230,25 +230,13 @@ def get_launchfunc_signature_from_file(
             annotation = ast.unparse(arg.annotation)
         
         # Extract default value
-        default = inspect.Parameter.empty
-        defaults_offset = len(func_node.args.args) - len(func_node.args.defaults)
-        arg_index = func_node.args.args.index(arg)
-        if arg_index >= defaults_offset:
-            default_node = func_node.args.defaults[arg_index - defaults_offset]
-            
-            if isinstance(default_node, ast.Constant):
-                # For constants get the actual value (strings, numbers, etc.)
-                default = default_node.value
-            else:
-                # More complex stuff (expressions, names, etc.) needs unparse
-                default = ast.unparse(default_node)
-
-        # Extract default value
-        default = inspect.Parameter.empty
         defaults_offset = len(func_node.args.args) - len(func_node.args.defaults)
         if idx >= defaults_offset:
             default_node = func_node.args.defaults[idx - defaults_offset]
-            default = ast.unparse(default_node)
+            if isinstance(default_node, ast.Constant):
+                default = default_node.value
+            else:
+                default = ast.unparse(default_node)
 
         params.append(
             inspect.Parameter(
