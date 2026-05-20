@@ -41,7 +41,8 @@ def _execute_toml(
             name: func
             for name, func in inspect.getmembers(BetterLaunch, inspect.isfunction)
             if not name.startswith("_")
-        } | {
+        }
+        | {
             # class methods
             name: func
             for name, func in inspect.getmembers(BetterLaunch, inspect.ismethod)
@@ -124,7 +125,7 @@ def _execute_toml(
                 res = func(bl, **req)
         else:
             res = func(**req)
-        
+
         results[key] = res
 
         if children:
@@ -136,7 +137,10 @@ def _execute_toml(
 
             with res:
                 if isinstance(children, list):
-                    children = {f"{key}.children.{idx}": child for idx, child in enumerate(children)}
+                    children = {
+                        f"{key}.children.{idx}": child
+                        for idx, child in enumerate(children)
+                    }
 
                 if not isinstance(children, dict):
                     raise ValueError(
@@ -197,11 +201,12 @@ def launch_toml(
     # These should largely mirror the launch_this decorator
     ui: bool = None,
     colormode: Colormode = None,
-    print_limit: int = 0,
+    print_limit: int = None,
     screen_log_level: str | int = None,
     screen_log_format: str = None,
     file_log_level: str | int = None,
     file_log_format: str = None,
+    use_sim_time: bool = None,
     eval_mode: str | EvalMode = None,
     join: bool = None,
     manage_foreign_nodes: bool = None,
@@ -223,7 +228,7 @@ def launch_toml(
         executable = "my-node"
         name = "${name}"
 
-    Substitutions are also possible and use a similar syntax as in ROS1 (as shown for the `name` launch argument above). `if` and `unless` conditions can be added as well. 
+    Substitutions are also possible and use a similar syntax as in ROS1 (as shown for the `name` launch argument above). `if` and `unless` conditions can be added as well.
 
     All parameters below can be set through the launch file by declaring them on the global scope with a `bl_` prefix (i.e. `ui` becomes `bl_ui`).
 
@@ -302,6 +307,9 @@ def launch_toml(
         if file_log_format is None and "bl_file_log_format" in toml:
             file_log_format = toml["bl_file_log_format"]
 
+        if use_sim_time is None and "use_sim_time" in toml:
+            use_sim_time = toml["use_sim_time"]
+
         _update_settings(
             ui=ui,
             colormode=colormode,
@@ -310,6 +318,7 @@ def launch_toml(
             screen_log_format=screen_log_format,
             file_log_level=file_log_level,
             file_log_format=file_log_format,
+            use_sim_time=use_sim_time,
         )
 
     if join is None:

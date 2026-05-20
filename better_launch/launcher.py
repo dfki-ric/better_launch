@@ -165,7 +165,10 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
             root_namespace = "/"
         root_namespace = "/" + root_namespace.strip("/")
 
-        self._group_root = Group(None, root_namespace)
+        # Intentionally not exposed as an init argument, as it wouldn't (and shouldn't)
+        # have an effect when an instance is retrieved in an included launch file
+        use_sim_time = Settings().use_sim_time
+        self._group_root = Group(None, root_namespace, use_sim_time)
         self._group_stack = [self._group_root]
 
         self._composition_node = None
@@ -712,7 +715,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             )
 
         base_path = Path(base_path).resolve()
-        
+
         if not filename and subdir in (None, "", "**"):
             self.logger.info(f"find({package}, {filename}, {subdir}):2 -> {base_path}")
             return str(base_path)
@@ -1273,7 +1276,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         return client
 
     @contextmanager
-    def group(self, namespace: str, use_sim_time: bool = None) -> Generator[Group, None, None]:
+    def group(
+        self, namespace: str, use_sim_time: bool = None
+    ) -> Generator[Group, None, None]:
         """Groups are used to bundle nodes into namespaces. While they influence the nodes' topics
         and service name, they have no runtime functionality.
 
@@ -1417,8 +1422,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         """Starts an arbitrary process and wraps it in a Node object.
 
         This method for starting long-running non-ROS processes, similar to ROS2's `ExecuteProcess`. Bare command names are resolved using `shutil.which`.
-        
-        If you instead want to wait for the process to return (and retrieve its output), consider using [BetterLaunch.exec][] instead. 
+
+        If you instead want to wait for the process to return (and retrieve its output), consider using [BetterLaunch.exec][] instead.
 
         Parameters
         ----------
