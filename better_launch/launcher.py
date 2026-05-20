@@ -189,18 +189,17 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
         """Prints our welcome message and some useful information.
         Note that this will not appear in the logs!
         """
+
+        # config_str = "\n".join(
+        #     f"{key}={val}" for key, val in Settings().as_dict().items()
+        # )
+        # \x1b[94;20mSettings:\x1b[0m
+        # {config_str}
+
         # Ascii art based on: https://asciiart.cc/view/10677
-
-        config_str = "\n".join(
-            f"{key}={val}" for key, val in Settings().as_dict().items()
-        )
-
         msg = f"""
 \x1b[1;20mBetter Launch is starting!\x1b[0m
 Please fasten your seatbelts and secure all baggage underneath your chair.
-
-\x1b[94;20mSettings:\x1b[0m
-{config_str}
 
 \x1b[94;20mLaunchfile:\x1b[0m
 {self.launchfile}
@@ -214,7 +213,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     +                 ,' |
            +         /   :
        *          --'   /
-+                \\/ /:/
++                 \\/ /:/
             *     / ://_\\
        +       __/   /
   -            )'-. /
@@ -260,9 +259,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             except (CancelledError, TimeoutError):
                 pass
 
-        self.logger.critical(
-            f"Reminder: log files are at {roslog.launch_config.log_dir}"
-        )
+        print(f"\n => \x1b[94;20mReminder:\x1b[0m log files were saved at {roslog.launch_config.log_dir}")
 
     def get_unique_name(self, name: str = "", check_running_nodes: bool = True) -> str:
         """Returns a unique name. If a name is provided it will be prepended with an underscore.
