@@ -259,7 +259,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             except (CancelledError, TimeoutError):
                 pass
 
-        print(f"\n => \x1b[94;20mReminder:\x1b[0m log files were saved at {roslog.launch_config.log_dir}")
+        print(
+            f"\n => \x1b[94;20mReminder:\x1b[0m log files were saved at {roslog.launch_config.log_dir}"
+        )
 
     def get_unique_name(self, name: str = "", check_running_nodes: bool = True) -> str:
         """Returns a unique name. If a name is provided it will be prepended with an underscore.

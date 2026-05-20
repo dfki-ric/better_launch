@@ -12,6 +12,7 @@ _sentinel = object()
 
 class SubstitutionError(ValueError):
     """Exception type that will be thrown by substitution handlers."""
+
     pass
 
 
@@ -217,7 +218,9 @@ def _parse_substitutions(s: str) -> list[list | str]:
                 # do NOT flush arg_buf: text immediately before a ${...} is part
                 # of the same arg as the substitution (e.g. ['${x}'] is one arg
                 # whose pieces are "['", the sub, and "']")
-                stack.append((current, in_substitution, is_key, in_quote, quote_pieces, arg_buf))
+                stack.append(
+                    (current, in_substitution, is_key, in_quote, quote_pieces, arg_buf)
+                )
                 current = []
                 is_key = True
                 in_substitution = True
@@ -230,7 +233,9 @@ def _parse_substitutions(s: str) -> list[list | str]:
                     raise ValueError("Unbalanced '}' - no matching '${'")
                 flush_arg()
                 completed = current
-                current, in_substitution, is_key, in_quote, quote_pieces, arg_buf = stack.pop()
+                current, in_substitution, is_key, in_quote, quote_pieces, arg_buf = (
+                    stack.pop()
+                )
                 # the sub result attaches to the current arg, not as its own arg —
                 # so adjacent text like ['${sub}'] groups together
                 push_piece(completed)
@@ -354,7 +359,7 @@ def sub_env(key: str, default: Any = _sentinel):
 # ${eval ${arg x} * 5}
 def sub_eval(*args, context: dict, eval_mode: EvalMode):
     expr = " ".join(str(arg) for arg in args)
-    #print("###", expr)
+    # print("###", expr)
     if eval_mode == EvalMode.FULL:
         return eval(expr, {}, dict(context) if context else {})
     elif eval_mode == EvalMode.LITERAL:
@@ -373,7 +378,7 @@ def apply_substitutions(
 ) -> Any:
     """Applies substitutions to a string.
 
-    Substitution strings are expected to follow the pattern: `${key: *args}`, where `key` is a 
+    Substitution strings are expected to follow the pattern: `${key: *args}`, where `key` is a
     substitution type and `*args` are additional arguments to the substitution handler.
 
     If no other substitutions are specified, this function will handle the following ones:
@@ -408,7 +413,7 @@ def apply_substitutions(
     """
     if not isinstance(value, str):
         raise ValueError(f"Value is not a string ({value})")
-    
+
     if not context:
         context = {}
 
@@ -424,7 +429,7 @@ def apply_substitutions(
     # Handle empty strings early
     if not value:
         return value
-    
+
     # This should only raise if the value contains "${" AND has invalid syntax
     parsed = _parse_substitutions(value)
 
@@ -434,7 +439,7 @@ def apply_substitutions(
             # Empty list means empty substitution like ${}
             if not node:
                 raise SubstitutionError("Empty substitution token")
-            
+
             if node[0] == "$":
                 return "".join(str(delve(p)) for p in node[1:])
 
@@ -454,7 +459,9 @@ def apply_substitutions(
                 if sub_key in context:
                     return context[sub_key]
                 else:
-                    raise SubstitutionError(f"Unknown substitution key: {sub_key} (substitutions: {list(substitutions.keys())}, context: {list(context.keys())})")
+                    raise SubstitutionError(
+                        f"Unknown substitution key: {sub_key} (substitutions: {list(substitutions.keys())}, context: {list(context.keys())})"
+                    )
             else:
                 return " ".join(str(e) for e in evaluated)
         else:
@@ -471,5 +478,5 @@ def apply_substitutions(
             return delve(parsed[0])
         else:
             return "".join(str(delve(item)) for item in parsed)
-    
+
     return delve(parsed)

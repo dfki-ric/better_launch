@@ -67,7 +67,7 @@ def get_gazebo_exec() -> str:
         If the executable cannot be located.
     """
     global _gazebo_exec
-    
+
     if not _gazebo_exec:
         # On some systems ros_gz_sim was installed, but the executable was still ign
         _gazebo_exec = shutil.which("gz")
@@ -367,7 +367,7 @@ def spawn_topic_bridge(
     Parameters
     ----------
     bridges : list[str | GazeboBridge]
-        Definitions of topic bridges. This can be either a typical string (`<topic>@<ros2_type><direction><gazebo_type>`) or a [GazeboBridge][] instance. Note that in order to bridge services you will have to specify them as strings for now. 
+        Definitions of topic bridges. This can be either a typical string (`<topic>@<ros2_type><direction><gazebo_type>`) or a [GazeboBridge][] instance. Note that in order to bridge services you will have to specify them as strings for now.
     node_name : str, optional
         The name of the bridge node.
     remaps : dict[str, str], optional
@@ -409,7 +409,7 @@ def spawn_topic_bridge(
         node_name,
         cmd_args=args,
         remaps=all_remaps,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -417,7 +417,7 @@ def spawn_image_bridge(
     *bridges: Union[str, "GazeboBridge"],
     node_name: str = None,
     remaps: dict[str, str] = None,
-    cmd_args: list[str] = None, 
+    cmd_args: list[str] = None,
     qos: str = None,
     **kwargs,
 ) -> Node:
@@ -437,7 +437,7 @@ def spawn_image_bridge(
         The `ROS2 quality of service <https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html>`_ definition to use. Note that this is not supported in all versions of ros-gz-image and may cause the bridge to terminate.
     kwargs : dict[str, Any]
         Additional node arguments.
-    
+
     Returns
     -------
     Node
@@ -457,7 +457,7 @@ def spawn_image_bridge(
                 b = GazeboBridge.from_string(b)
             except ValueError:
                 b = GazeboBridge.from_string(f"{b}@sensor_msgs/msg/Image]gz.msgs.Image")
-            
+
             bridges[i] = b
 
         if not b.is_image_bridge:
@@ -476,10 +476,10 @@ def spawn_image_bridge(
                 all_remaps.setdefault(src.topic + ext, dst + ext)
 
     args = [b.topic for b in bridges]
-    
+
     if cmd_args:
         args.extend(cmd_args)
-    
+
     if qos:
         args.extend(["--ros-args", f"qos:={qos}"])
 
@@ -492,7 +492,7 @@ def spawn_image_bridge(
         node_name,
         remaps=all_remaps,
         cmd_args=args,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -587,7 +587,9 @@ class GazeboBridge:
         if not m:
             raise ValueError(bridge + " is not a valid bridge string")
 
-        return GazeboBridge(m.group(1), m.group(2), m.group(3), m.group(4), remaps=remaps)
+        return GazeboBridge(
+            m.group(1), m.group(2), m.group(3), m.group(4), remaps=remaps
+        )
 
     @classmethod
     def clock_bridge(cls) -> "GazeboBridge":
@@ -625,7 +627,9 @@ class GazeboBridge:
         self,
         topic: str,
         ros2_type: str = None,
-        direction: Literal["ros2gz", "gz2ros", "bidirectional", "[", "]", "@"] = "bidirectional",
+        direction: Literal[
+            "ros2gz", "gz2ros", "bidirectional", "[", "]", "@"
+        ] = "bidirectional",
         gazebo_type: str = None,
         *,
         remaps: dict[str, str] = None,
@@ -660,10 +664,12 @@ class GazeboBridge:
         if not ros2_type:
             bl = BetterLaunch.instance()
             live_topics = bl.shared_node.get_topic_names_and_types()
-            
+
             if topic not in live_topics:
-                raise ValueError(f"Message type not specified and topic {topic} does not exist yet")
-            
+                raise ValueError(
+                    f"Message type not specified and topic {topic} does not exist yet"
+                )
+
             ros2_type = live_topics[topic][0]
 
         if direction not in "[]@":
@@ -681,4 +687,3 @@ class GazeboBridge:
 
     def __str__(self):
         return f"{self.topic}@{self.ros2_type}{self.direction}{self.gazebo_type}"
-

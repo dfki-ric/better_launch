@@ -306,7 +306,7 @@ def spawn_controller_manager(
 
     if params is None:
         params = {}
-    
+
     if robot_description:
         if robot_description.startswith("<?xml"):
             if bl.ros_distro()[0].lower() >= "j":
