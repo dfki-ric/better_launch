@@ -146,7 +146,7 @@ def get_package_for_path(path: str) -> tuple[str, str]:
             path = path.parent
 
             # We can probably stop if are at the file system root :)
-            if path == path.anchor:
+            if path == path.parent:
                 break
 
     return None, None
