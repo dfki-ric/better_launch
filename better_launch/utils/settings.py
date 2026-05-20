@@ -52,6 +52,7 @@ class _Settings:
     file_log_level: int = logging.INFO
     screen_log_format: str = default_screen_format
     file_log_format: str = default_file_format
+    use_sim_time: bool = False
 
     def __init__(self, **kwargs):
         """

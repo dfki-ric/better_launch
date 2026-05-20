@@ -29,6 +29,7 @@ class Node(AbstractNode, LiveParamsMixin):
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
         param_files: str | list[str] = None,
+        use_sim_time: bool = False,
         drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
         exec_args: list[str] = None,
@@ -102,6 +103,7 @@ class Node(AbstractNode, LiveParamsMixin):
             output=output,
         )
 
+        self.use_sim_time = use_sim_time
         self.drop_param_qualifiers = drop_param_qualifiers
         self.exec_args = exec_args or []
         self.cmd_args = cmd_args or []
@@ -226,6 +228,9 @@ class Node(AbstractNode, LiveParamsMixin):
                     self.logger.debug(
                         "Qualified params cannot be passed to namespaced nodes and will be passed unqualified instead"
                     )
+
+                if self.use_sim_time:
+                    final_cmd.extend(["-p", "use_sim_time:=true"])
 
                 for key, value in self._flat_params(drop_qualifiers).items():
                     # Make sure the values are parseable for ROS

@@ -1273,7 +1273,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         return client
 
     @contextmanager
-    def group(self, namespace: str) -> Generator[Group, None, None]:
+    def group(self, namespace: str, use_sim_time: bool = None) -> Generator[Group, None, None]:
         """Groups are used to bundle nodes into namespaces. While they influence the nodes' topics
         and service name, they have no runtime functionality.
 
@@ -1304,6 +1304,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         ----------
         namespace : str
             The group's namespace.
+        use_sim_time : bool, optional
+            Decide whether nodes within this group should use simulated time. Leave as None to use the parent group's use_sim_time setting. The root group defaults to False unless the corresponding environment variable or CLI switch have been modified.
 
         Yields
         ------
@@ -1325,11 +1327,15 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             self._group_stack = [self._group_root]
 
         tip = self.group_tip
+
+        if use_sim_time is None:
+            use_sim_time = tip.use_sim_time
+
         for token in namespace.strip("/").split("/"):
             if token in tip.children:
                 branch = tip.children[token]
             else:
-                branch = Group(tip, token)
+                branch = Group(tip, token, use_sim_time)
                 tip.add_child(branch)
 
             self._group_stack.append(branch)
@@ -1496,6 +1502,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
         param_files: str | list[str] = None,
+        use_sim_time: bool = None,
         drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
         exec_args: list[str] = None,
@@ -1539,6 +1546,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             Any ROS parameters you want to pass to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
         param_files : str | list[str], optional
             Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
+        use_sim_time : bool, optional
+            If set decides whether the node should use simulated time. Otherwise uses the setting from the current [BetterLaunch.group_tip][].
         drop_param_qualifiers : bool, optional
             If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
@@ -1610,6 +1619,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         group = self.group_tip
         namespace = group.assemble_namespace()
 
+        if use_sim_time is None:
+            use_sim_time = group.use_sim_time
+
         node = Node(
             package,
             executable,
@@ -1618,6 +1630,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             remaps=remaps,
             params=params,
             param_files=param_files,
+            use_sim_time=use_sim_time,
             drop_param_qualifiers=drop_param_qualifiers,
             cmd_args=cmd_args,
             exec_args=exec_args,
@@ -1660,6 +1673,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         component_remaps: dict[str, str] = None,
         anonymous: bool = False,
         hidden: bool = False,
+        use_sim_time: bool = None,
         autostart_process: bool = True,
         ros_waittime: float = 3.0,
         output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
@@ -1694,6 +1708,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             If True, the composer name will be appended with a unique suffix to avoid name conflicts. `reuse_existing` will be set to False in this case.
         hidden : bool, optional
             If True, the composer name will be prepended with a "_", hiding it from common listings.
+        use_sim_time : bool, optional
+            If set decides whether the node should use simulated time. Otherwise uses the setting from the current [BetterLaunch.group_tip][]. Only effective when a new composer is created. By ROS2 design, all componentens added to this composer will inherit this setting.
         autostart_process : bool, optional
             If True, start the composer process before returning from this function. Note that setting this to False for a composer will make it unusable as a context object, since you won't be able to load any components.
         ros_waittime : float, optional
@@ -1785,12 +1801,16 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             else:
                 raise ValueError(f"Unknown container mode '{variant}")
 
+            if use_sim_time is None:
+                use_sim_time = group.use_sim_time
+
             node_ref = Node(
                 package,
                 executable,
                 name,
                 namespace,
                 remaps=component_remaps,
+                use_sim_time=use_sim_time,
                 output=output,
             )
 
