@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     )
 
 
+from . import __version__
 from better_launch.elements import (
     Group,
     AbstractNode,
@@ -198,7 +199,7 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
 
         # Ascii art based on: https://asciiart.cc/view/10677
         msg = f"""
-\x1b[1;20mBetter Launch is starting!\x1b[0m
+\x1b[1;20mBetter Launch v{__version__} is starting!\x1b[0m
 Please fasten your seatbelts and secure all baggage underneath your chair.
 
 \x1b[94;20mLaunchfile:\x1b[0m
