@@ -25,7 +25,7 @@ from ament_index_python.packages import (
 
 from better_launch import BetterLaunch
 from better_launch.elements import Node
-from .convenience import static_transform_publisher
+from .convenience import static_transform_publisher, read_robot_description
 
 
 _gazebo_exec = None
@@ -280,6 +280,10 @@ def spawn_model(
     model: str,
     model_source: Literal["topic", "file", "string", "param", "auto"] = "auto",
     spawn_args: dict[str, Any] = None,
+    *,
+    pass_by_topic: bool = True,
+    topic_base_name: str = "/gazebo/models/",
+    xacro_args: list[str] = None,
 ) -> Node:
     """
     Spawns a model into Gazebo under the given name from the specified topic or file.
@@ -298,6 +302,12 @@ def spawn_model(
         Where to read the model from. Auto will try to guess the source based on the content of `model`: does it look like XML, is it a file, is it an existing topic? Otherwise assume it's a ROS2 parameter.
     spawn_args : dict[str, Any], optional
         Additional arguments for spawning the model, such as pose and other options. See [get_gazebo_axes_args][] for defining the model's orientation.
+    pass_by_topic : bool, optional
+        If True and the model is a file or string, pass it by topic instead.
+    topic_base_name : str, optional
+        Use this as the base topic string when `pass_by_topic` is True. The `model_name` will be appended to form the full topic.
+    xacro_args : list[str], optional
+        Arguments to pass to the xacro parser if a xacro file is passed as the model.
 
     Returns
     -------
@@ -318,6 +328,26 @@ def spawn_model(
             model_source = "topic"
         else:
             model_source = "param"
+
+    if model_source == "file":
+        if model.endswith(".xacro") or pass_by_topic:
+            model = read_robot_description(None, model, xacro_args=xacro_args)
+            model_source = "string"
+
+    # Publish as topic instead
+    # Note that any file models will have already been parsed into string
+    if pass_by_topic and model_source == "string":
+        from std_msgs.msg import String
+
+        topic_base_name = topic_base_name.rstrip("/")
+        model_source = "topic"
+
+        pub = bl.publisher(
+            f"{topic_base_name}/{model_name}",
+            String,
+            bl.qos_profile(durability="transient_local"),
+        )
+        pub.publish(String(data=model))
 
     cmd_args = ["-name", model_name, f"-{model_source}", model]
 

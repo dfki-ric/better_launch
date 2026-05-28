@@ -25,7 +25,14 @@ from rclpy.node import (
     Publisher as RosPublisher,
     Subscription as RosSubscriber,
 )
-from rclpy.qos import QoSProfile, HistoryPolicy, ReliabilityPolicy, DurabilityPolicy, LivelinessPolicy, qos_profile_services_default
+from rclpy.qos import (
+    QoSProfile,
+    HistoryPolicy,
+    ReliabilityPolicy,
+    DurabilityPolicy,
+    LivelinessPolicy,
+    qos_profile_services_default,
+)
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 
 if TYPE_CHECKING:
@@ -938,10 +945,13 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
     def qos_profile(
         self,
-        history: Literal["keep_last", "keep_all", "default"] | HistoryPolicy = "keep_all",
+        history: Literal["keep_last", "keep_all", "default"]
+        | HistoryPolicy = "keep_all",
         queue_size: int = 10,
-        reliability: Literal["reliable", "best_effort", "default"] | ReliabilityPolicy = "best_effort",
-        durability: Literal["volatile", "transient_local", "default"] | DurabilityPolicy = "volatile",
+        reliability: Literal["reliable", "best_effort", "default"]
+        | ReliabilityPolicy = "best_effort",
+        durability: Literal["volatile", "transient_local", "default"]
+        | DurabilityPolicy = "volatile",
         deadline: float = 0,
         lifespan: float = 0,
         liveliness: Literal["auto", "manual", "default"] | LivelinessPolicy = "default",
@@ -1004,7 +1014,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 "manual": LivelinessPolicy.MANUAL_BY_TOPIC,
                 "default": LivelinessPolicy.SYSTEM_DEFAULT,
             }[liveliness]
-        
+
         return QoSProfile(
             history,
             queue_size or 10,
@@ -1019,7 +1029,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     def subscriber(
         self,
         topic: str,
-        message_type: type,
+        message_type: str | type,
         callback: Callable[[Any], None],
         qos_profile: QoSProfile | int = 10,
     ) -> RosSubscriber:

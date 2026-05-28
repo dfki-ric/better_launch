@@ -154,6 +154,8 @@ def robot_state_publisher(
     description_file: str,
     subdir: str = None,
     *,
+    pass_by_topic: bool = True,
+    description_topic: str = "/robot_description",
     xacro_args: list[str] = None,
     node_name: str = None,
     **kwargs,
@@ -170,6 +172,10 @@ def robot_state_publisher(
         A path fragment the description file must be located in.
     xacro_args : list of str, optional
         Additional arguments to pass to the Xacro processor when processing `.xacro` files.
+    pass_by_topic : bool, optional
+        If True the robot description will be passed to the state publisher via the `description_topic` topic. Otherwise it will be passed as a parameter.
+    description_topic : str, optional
+        The topic under which the robot description will be published if `pass_by_topic` is True.
     node_name : str, optional
         The name of the node. If not provided the name of the executable will be used. Will be anonymized unless `anonymous=False` is passed.
     **kwargs : dict, optional
@@ -191,15 +197,30 @@ def robot_state_publisher(
 
     kwargs.setdefault("anonymous", True)
     params = kwargs.pop("params", {})
-    params["robot_description"] = robot_description
 
-    return bl.node(
+    if pass_by_topic:
+        params["use_robot_description_topic"] = True
+    else:
+        params["robot_description"] = robot_description
+
+    node = bl.node(
         "robot_state_publisher",
         "robot_state_publisher",
         node_name,
         params=params,
         **kwargs,
     )
+
+    if pass_by_topic:
+        from std_msgs.msg import String
+
+        # Publish late so we don't have to rely on the QoS profile for latching
+        pub = bl.publisher(
+            description_topic, String, bl.qos_profile(durability="transient_local")
+        )
+        pub.publish(String(data=robot_description))
+
+    return node
 
 
 def static_transform_publisher(
