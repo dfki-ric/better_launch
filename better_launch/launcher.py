@@ -25,7 +25,7 @@ from rclpy.node import (
     Publisher as RosPublisher,
     Subscription as RosSubscriber,
 )
-from rclpy.qos import QoSProfile, qos_profile_services_default
+from rclpy.qos import QoSProfile, HistoryPolicy, ReliabilityPolicy, DurabilityPolicy, LivelinessPolicy, qos_profile_services_default
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 
 if TYPE_CHECKING:
@@ -935,6 +935,86 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 return False
 
             time.sleep(0.1)
+
+    def qos_profile(
+        self,
+        history: Literal["keep_last", "keep_all", "default"] | HistoryPolicy = "keep_all",
+        queue_size: int = 10,
+        reliability: Literal["reliable", "best_effort", "default"] | ReliabilityPolicy = "best_effort",
+        durability: Literal["volatile", "transient_local", "default"] | DurabilityPolicy = "volatile",
+        deadline: float = 0,
+        lifespan: float = 0,
+        liveliness: Literal["auto", "manual", "default"] | LivelinessPolicy = "default",
+        alive_timeout: float = 0,
+    ) -> QoSProfile:
+        """Allows callers to quickly create a QoS profile without a million imports. Any value set to `default` will use the underlying RMW's default.
+
+        See [Quality of Service settings](https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html) for details.
+
+        Parameters
+        ----------
+        history : Literal[&quot;keep_last&quot;, &quot;keep_all&quot;, &quot;default&quot;] | HistoryPolicy, optional
+            `keep_all`: store up to N samples according to `queue_size`; `keep_all`: store as many samples as the RMW allows.
+        queue_size : int, optional
+            Number of samples to keep for `history = keep_all`.
+        reliability : Literal[&quot;reliable&quot;, &quot;best_effort&quot;, &quot;default&quot;] | ReliabilityPolicy, optional
+            `reliable`: retry sending on errors; `best_effort`: never retry.
+        durability : Literal[&quot;volatile&quot;, &quot;transient_local&quot;, &quot;default&quot;] | DurabilityPolicy, optional
+            `volatile`: fire and forget; `transient_local`: publisher keeps data available for late-joining subscribers. To create a latched topic configure both publisher and subscriber with `transient_local`.
+        deadline : float, optional
+            Expected maximum time between published messages.
+        lifespan : float, optional
+            How much time is allowed to pass between sending and receiving the message before it will be marked as stale.
+        liveliness : Literal[&quot;auto&quot;, &quot;manual&quot;, &quot;default&quot;] | LivelinessPolicy, optional
+            `auto`: all publishers of a node are considered alive for the `alive_timeout` when any one of them fires; `manual`: publishers have to regularly tell the system that they are alive.
+        alive_timeout : float, optional
+            If a publisher doesn't tell the system it's alive for this amount of time it will be considered dead.
+
+        Returns
+        -------
+        QoSProfile
+            _description_
+        """
+        from rclpy.duration import Duration
+
+        if isinstance(history, str):
+            history = {
+                "keep_last": HistoryPolicy.KEEP_LAST,
+                "keep_all": HistoryPolicy.KEEP_ALL,
+                "default": HistoryPolicy.SYSTEM_DEFAULT,
+            }[history]
+
+        if isinstance(reliability, str):
+            reliability = {
+                "reliable": ReliabilityPolicy.RELIABLE,
+                "best_effort": ReliabilityPolicy.BEST_EFFORT,
+                "default": ReliabilityPolicy.SYSTEM_DEFAULT,
+            }[reliability]
+
+        if isinstance(durability, str):
+            durability = {
+                "volatile": DurabilityPolicy.VOLATILE,
+                "transient_local": DurabilityPolicy.TRANSIENT_LOCAL,
+                "default": DurabilityPolicy.SYSTEM_DEFAULT,
+            }[durability]
+
+        if isinstance(liveliness, str):
+            liveliness = {
+                "auto": LivelinessPolicy.AUTOMATIC,
+                "manual": LivelinessPolicy.MANUAL_BY_TOPIC,
+                "default": LivelinessPolicy.SYSTEM_DEFAULT,
+            }[liveliness]
+        
+        return QoSProfile(
+            history,
+            queue_size or 10,
+            reliability,
+            durability,
+            Duration(seconds=deadline),
+            Duration(seconds=lifespan),
+            liveliness,
+            Duration(seconds=alive_timeout),
+        )
 
     def subscriber(
         self,
