@@ -23,14 +23,16 @@ def parambolage():
 
     # We need a robot state publisher to load the URDF and publish it on [/robot_desciption]
     convenience.robot_state_publisher(
-        package="better_launch",
-        description_file="minimal_robot.urdf",
+        bl.find(
+            package="better_launch",
+            filename="minimal_robot.urdf",
+        ),
         node_name="robot_state_publisher",
         anonymous=False
     )
 
     remaps = {}
-    if bl.ros_distro()[0].lower() < "j":
+    if bl.ros_distro_key() < "j":
         # In versions before Jazzy the controller_manager was subscribing to something weird like 
         # /controller_manager/robot_description
         remaps["~/robot_description"] = "/robot_description"

@@ -303,7 +303,7 @@ def spawn_model(
     spawn_args : dict[str, Any], optional
         Additional arguments for spawning the model, such as pose and other options. See [get_gazebo_axes_args][] for defining the model's orientation.
     pass_by_topic : bool, optional
-        If True and the model is a file or string, pass it by topic instead.
+        If True and the model is a file or string, pass it by topic instead. On ROS versions before lyrical this feature is disabled.
     topic_base_name : str, optional
         Use this as the base topic string when `pass_by_topic` is True. The `model_name` will be appended to form the full topic.
     xacro_args : list[str], optional
@@ -315,6 +315,9 @@ def spawn_model(
         The spawned node instance.
     """
     bl = BetterLaunch.instance()
+
+    if bl.ros_distro_key() < "l":
+        pass_by_topic = False
 
     if spawn_args is None:
         spawn_args = {}

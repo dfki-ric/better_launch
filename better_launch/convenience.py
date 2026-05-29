@@ -10,6 +10,7 @@ __all__ = [
 
 
 from typing import Sequence, Any, Literal, Callable
+import os
 import subprocess
 import json
 import yaml
@@ -110,6 +111,55 @@ def read_robot_description(
         raise ValueError(f"Xacro failed ({e.returncode}): {e.output}") from e
 
 
+# Don't think this is useful enough to be part of the public api
+def _resolve_robot_description(
+    source: str,
+    as_topic: bool,
+    topic: str = "/robot_description",
+    *,
+    xacro_args: list[str] = None,
+) -> str:
+    """Prepares a robot description for passing to another node.
+
+    If `source` points to a file, read it. Then, if `as_topic` is True and `source` looks like xml, create a publisher on `topic` and publish the contents.
+
+    Note that if a topic or anything else that does not match the above criteria is passed in, it will be returned verbatim.
+
+    Parameters
+    ----------
+    source : str
+        A robot description topic, file path, or contents.
+    as_topic : bool
+        If True and either a file path or xml contents were passed, publish the robot description on the specified topic.
+    topic : str, optional
+        Where to publish the robot description contents.
+    xacro_args : list[str], optional
+        Xacro args to be passed to `read_robot_description` if the source is a xacro file.
+
+    Returns
+    -------
+    str
+        The contents of the robot description if a file was loaded, otherwise `source` as is.
+    """
+    from std_msgs.msg import String
+
+    bl = BetterLaunch()
+
+    if os.path.isfile(source):
+        source = read_robot_description(None, source, xacro_args=xacro_args)
+
+    if as_topic and source.lstrip().startswith("<"):
+        source = source.strip()
+        pub = bl.publisher(
+            topic,
+            String,
+            bl.qos_profile(durability="transient_local"),
+        )
+        pub.publish(String(data=source))
+
+    return source
+
+
 def joint_state_publisher(
     use_gui: bool = False, node_name: str = None, **kwargs
 ) -> Node:
@@ -150,34 +200,28 @@ def joint_state_publisher(
 
 
 def robot_state_publisher(
-    package: str,
-    description_file: str,
-    subdir: str = None,
+    robot_description: str = None,
     *,
+    node_name: str = None,
     pass_by_topic: bool = True,
     description_topic: str = "/robot_description",
     xacro_args: list[str] = None,
-    node_name: str = None,
     **kwargs,
 ) -> Node:
-    """Start a Robot State Publisher node using the given URDF/Xacro file. The file is resolved using [BetterLaunch.find][].
+    """Start a Robot State Publisher node from a robot description. 
 
     Parameters
     ----------
-    package : str
-        The name of the package containing the robot description file. May be `None` to use this launch file's package (see [BetterLaunch.find][]).
-    description_file : str
-        The name of the robot description for the robot. Typically a .sdf, .urdf or .xacro file.
-    subdir : str, optional
-        A path fragment the description file must be located in.
-    xacro_args : list of str, optional
-        Additional arguments to pass to the Xacro processor when processing `.xacro` files.
-    pass_by_topic : bool, optional
-        If True the robot description will be passed to the state publisher via the `description_topic` topic. Otherwise it will be passed as a parameter.
-    description_topic : str, optional
-        The topic under which the robot description will be published if `pass_by_topic` is True.
+    robot_description : str, optional
+        Robot description the state publisher will use. This can be a urdf/xacro file path (e.g. from [BetterLaunch.find][]), a topic, or an xml string as returned by [read_robot_description][]. See also `pass_by_topic`. If not set it will be read from `/robot_description` (subject to remaps).
     node_name : str, optional
         The name of the node. If not provided the name of the executable will be used. Will be anonymized unless `anonymous=False` is passed.
+    xacro_args : list of str, optional
+        Additional arguments to pass to the Xacro processor when a `.xacro` file was passed.
+    pass_by_topic : bool, optional
+        If True and the value provided for `robot_description` is either a file or xml string, the description will be passed to the controller manager via a topic rather than a ROS parameter. On ROS versions before lyrical this feature is disabled.
+    description_topic : str, optional
+        The topic under which the robot description will be published if `pass_by_topic` is True.
     **kwargs : dict, optional
         Additional arguments for the node, such as remappings or parameters.
 
@@ -188,19 +232,57 @@ def robot_state_publisher(
     """
     bl = BetterLaunch.instance()
 
-    robot_description = read_robot_description(
-        package,
-        description_file,
-        subdir,
-        xacro_args=xacro_args,
-    )
+    if bl.ros_distro_key() < "l":
+        pass_by_topic = False
 
     kwargs.setdefault("anonymous", True)
     params = kwargs.pop("params", {})
+    remaps = kwargs.pop("remaps", {})
 
-    if pass_by_topic:
+    if not robot_description:
+        robot_description = "/robot_description"
+
+    robot_description = _resolve_robot_description(
+        robot_description,
+        pass_by_topic,
+        description_topic,
+        xacro_args=xacro_args,
+    )
+
+    if not robot_description.lstrip().startswith("<"):
+        # Input arg was not a file or xml content string, assume it's a topic
+        if bl.ros_distro_key() < "l":
+            # Before lyrical we need to read the topic and pass it as a parameter
+            rd_msg = bl.receive_message(
+                robot_description, "std_msgs/msg/String", None, timeout=1.0
+            )
+            if not rd_msg:
+                raise ValueError(
+                    f"Failed to read robot description from {robot_description}"
+                )
+
+            robot_description = rd_msg.data
+            params["robot_description"] = robot_description
+        else:
+            # On lyrical and higher we can simply forward the assumed topic string
+            if remaps.get("robot_description") not in (None, description_topic):
+                raise ValueError(
+                    "Cannot remap robot_description to a different topic when pass_by_topic is True, modify description_topic instead"
+                )
+
+            remaps["robot_description"] = robot_description
+            params["use_robot_description_topic"] = True
+    elif pass_by_topic:
+        # We managed to read the description contents and want to pass them by topic
+        if remaps.get("robot_description") not in (None, description_topic):
+            raise ValueError(
+                "Cannot remap robot_description to a different topic when pass_by_topic is True, modify description_topic instead"
+            )
+
+        remaps["robot_description"] = description_topic
         params["use_robot_description_topic"] = True
     else:
+        # We received description contents that should be passed by parameter instead of topic
         params["robot_description"] = robot_description
 
     node = bl.node(
@@ -208,17 +290,9 @@ def robot_state_publisher(
         "robot_state_publisher",
         node_name,
         params=params,
+        remaps=remaps,
         **kwargs,
     )
-
-    if pass_by_topic:
-        from std_msgs.msg import String
-
-        # Publish late so we don't have to rely on the QoS profile for latching
-        pub = bl.publisher(
-            description_topic, String, bl.qos_profile(durability="transient_local")
-        )
-        pub.publish(String(data=robot_description))
 
     return node
 
@@ -295,13 +369,18 @@ def spawn_controller_manager(
     params: dict[str, Any] = None,
     cmd_args: list[str] = None,
     name: str = "controller_manager",
+    pass_by_topic: bool = True,
+    description_topic: str = "/robot_description",
+    xacro_args: list[str] = None,
 ) -> Node:
     """Spawn a new controller manager.
 
     Parameters
     ----------
+    param_files : str | list[str], optional
+        One or more config files to be read by the controller manager. These will also be passed on to any controllers loaded and are often the only way to provide them with namespaced parameters.
     robot_description : str, optional
-        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
+        Robot description to pass to the controller. This can be a urdf/xacro file path (e.g. from [BetterLaunch.find][]), a topic, or an xml string as returned by [read_robot_description][]. See also `pass_by_topic`. If not set the manager's default is used (`~/robot_description`, subject to remaps).
     remaps : dict[str, str], optional
         Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.
     params : str | dict[str, Any], optional
@@ -309,7 +388,14 @@ def spawn_controller_manager(
     cmd_args: list[str], optional
         Additional CLI arguments to pass to the spawner command (e.g. `--load-only`).
     name : str, optional
-        The name the controller manager node should use. The rename is qualified and so won't affect controllers spawned later (see `this document <https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process>`_ for details). Note however that many nodes and CLI programs (e.g. `ros2 control`) expect the manager to be named `controller_manager` and won't work properly otherwise.
+    pass_by_topic : bool, optional
+        If True and the value provided for `robot_description` is either a file or xml string, the description will be passed to the controller manager via a topic rather than a ROS parameter. Automatically enabled on jazzy and newer, where passing by parameter is no longer supported.
+    description_topic : str, optional
+        Where to publish the robot description if `pass_by_topic` is True.
+    xacro_args : list[str], optional
+        Additional arguments to pass to the Xacro processor when a `.xacro` robot description file was passed.
+
+        The name the controller manager node should use. The rename is qualified and so won't affect controllers spawned later (see [this document](https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process) for details). Note however that many nodes and CLI programs (e.g. `ros2 control`) expect the manager to be named `controller_manager` and won't work properly otherwise.
 
     Returns
     -------
@@ -329,20 +415,32 @@ def spawn_controller_manager(
         params = {}
 
     if robot_description:
-        if robot_description.startswith("<?xml"):
-            if bl.ros_distro()[0].lower() >= "j":
-                raise ValueError(
-                    "Passing a robot description by value is deprecated in ROS Jazzy and beyond"
-                )
-            params["robot_description"] = robot_description
-        else:
-            # Assume it's a topic
+        # Passing by parameter is not supported in jazzy and onwwards
+        if bl.ros_distro_key() >= "j":
+            pass_by_topic = True
+
+        robot_description = _resolve_robot_description(
+            robot_description,
+            pass_by_topic,
+            description_topic,
+            xacro_args=xacro_args,
+        )
+
+        if pass_by_topic:
             if remaps is None:
                 remaps = {}
-            remaps["robot_description"] = robot_description
+            elif remaps.get("robot_description") not in (None, description_topic):
+                raise ValueError(
+                    "Cannot remap robot_description to a different topic when pass_by_topic is True, modify description_topic instead"
+                )
+
+            remaps["robot_description"] = description_topic
+        else:
+            # Pass it as a parameter
+            params["robot_description"] = robot_description
 
     else:
-        if bl.ros_distro()[0].lower() < "j":
+        if bl.ros_distro_key() < "j":
             bl.logger.warning(
                 "Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!"
             )
@@ -398,7 +496,7 @@ def spawn_controller(
     if params:
         # Passing controller params directly is only supported in Jazzy and newer, so we
         # write them to a yaml instead, then pass them as a param-file
-        if isinstance(params, dict) and bl.ros_distro()[0].lower() < "j":
+        if isinstance(params, dict) and bl.ros_distro_key() < "j":
             data = yaml.serialize(params).splitlines()
 
             tmp = tempfile.NamedTemporaryFile("w+", suffix=".yaml")
@@ -438,7 +536,7 @@ def spawn_controller(
             raise ValueError(f"Controller params of type {type(params)} not supported")
 
     if remaps:
-        if bl.ros_distro()[0].lower() < "j":
+        if bl.ros_distro_key() < "j":
             raise ValueError(
                 "Passing controller params directly is only supported in Jazzy and newer"
             )
