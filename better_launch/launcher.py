@@ -71,6 +71,7 @@ from better_launch.ros import logging as roslog
 
 _bl_singleton_instance = "__better_launch_instance"
 _bl_include_args = "__better_launch_include_args"
+_unset = object()
 
 
 class BetterLaunchMeta(type):
@@ -480,6 +481,10 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     def ros_distro() -> str:
         """Returns the name of the currently sourced ros distro (i.e. *$ROS_DISTRO*)."""
         return os.environ["ROS_DISTRO"]
+
+    @staticmethod
+    def ros_distro_key() -> str:
+        return BetterLaunch.ros_distro()[0].lower()
 
     @property
     def launchfile(self) -> str:
@@ -949,7 +954,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         | HistoryPolicy = "keep_all",
         queue_size: int = 10,
         reliability: Literal["reliable", "best_effort", "default"]
-        | ReliabilityPolicy = "best_effort",
+        | ReliabilityPolicy = "reliable",
         durability: Literal["volatile", "transient_local", "default"]
         | DurabilityPolicy = "volatile",
         deadline: float = 0,
@@ -1016,14 +1021,14 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             }[liveliness]
 
         return QoSProfile(
-            history,
-            queue_size or 10,
-            reliability,
-            durability,
-            Duration(seconds=deadline),
-            Duration(seconds=lifespan),
-            liveliness,
-            Duration(seconds=alive_timeout),
+            history=history,
+            depth=queue_size or 10,
+            reliability=reliability,
+            durability=durability,
+            lifespan=Duration(seconds=deadline),
+            deadline=Duration(seconds=lifespan),
+            liveliness=liveliness,
+            liveliness_lease_duration=Duration(seconds=alive_timeout),
         )
 
     def subscriber(
@@ -1126,6 +1131,37 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             time.sleep(time_to_publish)
 
         pub.destroy()
+
+    def receive_message(
+        self,
+        topic: str,
+        message_type: str | type,
+        default: Any = _unset,
+        qos_profile: QoSProfile | int = 10,
+        *,
+        timeout: float = None,
+    ) -> Any:
+        from concurrent.futures import Future
+
+        if isinstance(message_type, str):
+            message_type = self.get_ros_message_type(message_type)
+
+        ret = Future()
+
+        def cb(msg: Any) -> None:
+            ret.set_result(msg)
+
+        sub = self.subscriber(topic, message_type, cb, qos_profile)
+
+        try:
+            return ret.result(timeout)
+        except TimeoutError:
+            if default is not _unset:
+                return default
+
+            raise
+        finally:
+            sub.destroy()
 
     def service(
         self,
