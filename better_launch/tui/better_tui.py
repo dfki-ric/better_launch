@@ -150,8 +150,8 @@ class BetterTui:
         self.keybinds = {
             "exit": ["c-c"],
             "mute": ["space"],
-            "nodes": ["f1"],
-            "loglevel": ["f9"],
+            "nodes": ["tab"],
+            "loglevel": ["x"],
             "cancel": ["escape"],
             "enter": ["enter"],
             "next": ["tab"],
