@@ -1,9 +1,5 @@
 # :pager: The TUI
 
-???+ tip
-
-    It is possible to change the key bindings. The [settings page](settings.md#tui-shortcuts) contains further details.
-
 *better_launch* comes with a sneaky, unobstrusive TUI (terminal user interface) based on [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit), which will hover below the log output. You can start it by either passing `ui=True` to the `launch_this` wrapper, or by adding `--bl-ui true` on the command line. Use *\<tab>* to switch between menu items.
 
 ```bash
@@ -15,21 +11,27 @@ bl better_launch 02_ui.launch.py
 
 See the single line at the bottom of the terminal? That's the TUI, and it will never take up more than 3 lines! Despite its simplicity, the TUI allows you a comfortable degree of control over all nodes managed by the *better_launch* process it is running in:
 
-!!! quote "list nodes and their status"
+??? quote "list nodes and their status"
 
     ![TUI](../assets/images/tui_search.png)
 
-!!! quote "control nodes (start, stop, lifecycle, ...)"
+??? quote "control nodes (start, stop, lifecycle, ...)"
 
     ![TUI](../assets/images/tui_node_ctrl.png)
 
-!!! quote "change a node's log level"
+??? quote "change a node's log level"
 
     ![TUI](../assets/images/tui_loglevel.png)
 
-!!! quote "see a node's services and topics"
+??? quote "see a node's services and topics"
 
     ![TUI](../assets/images/tui_node_info.png)
+
+---
+
+???+ tip
+
+    It is possible to change the key bindings. The [settings page](settings.md#tui-shortcuts) contains further details.
 
 ## Foreign nodes
 
