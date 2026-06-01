@@ -760,6 +760,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         subdir: str = None,
         *,
         qualifier: str | Node = None,
+        strip_qualifiers: bool = True,
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through [find][].
 
@@ -791,8 +792,10 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             The name of the config file to locate.
         subdir : str, optional
             A path fragment that the config file must be located in.
-        qualifier : str | Node, optional
-            Used to specifiy which section of the config to return.
+        qualifier : str, optional
+            Used to specifiy which section of the config to return. E.g. if the yaml contains `{A: {B: C, D: E}}`, then the qualifier "A/B" will return `{A: {B: C}}`. The qualifier supports globbing patterns like `*` and `**` and will ignore `ros__parameters` keys.
+        strip_qualifiers : bool, optional
+            If True and a qualifier was passed, the qualifier will not be part of the returned dict. Set to True if you want some inner part of the params, e.g. only the params for a specific node. Set to False if you want a slice of the full params, e.g. all params for nodes in a specific namespace.
 
         Returns
         -------
@@ -1629,7 +1632,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         use_sim_time: bool = None,
         drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
-        exec_args: list[str] = None,
+        prefix_args: list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
@@ -1676,7 +1679,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
-        exec_args : list[str], optional
+        prefix_args : list[str], optional
             Arguments to prepend to the resolved run command, e.g. for executing the node through gdb.
         env : dict[str, str], optional
             Additional environment variables to set for the node's process. The node process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
@@ -1757,7 +1760,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             use_sim_time=use_sim_time,
             drop_param_qualifiers=drop_param_qualifiers,
             cmd_args=cmd_args,
-            exec_args=exec_args,
+            prefix_args=prefix_args,
             env=env,
             isolate_env=isolate_env,
             log_level=log_level,

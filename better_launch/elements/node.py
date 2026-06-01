@@ -33,7 +33,7 @@ class Node(AbstractNode, LiveParamsMixin):
         use_sim_time: bool = False,
         drop_param_qualifiers: bool = False,
         cmd_args: str | list[str] = None,
-        exec_args: str | list[str] = None,
+        prefix_args: str | list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
@@ -68,7 +68,7 @@ class Node(AbstractNode, LiveParamsMixin):
             If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : str | list[str], optional
             Additional command line arguments to pass to the node. If a string is passed it will be split using shlex.
-        exec_args : str | list[str], optional
+        prefix_args : str | list[str], optional
             Arguments to prepend to the resolved run command, e.g. for executing the node through gdb. If a string is passed it will be split using shlex.
         env : dict[str, str], optional
             Additional environment variables to set for the node's process. The node process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
@@ -107,12 +107,12 @@ class Node(AbstractNode, LiveParamsMixin):
         if isinstance(cmd_args, str):
             cmd_args = shlex.split(cmd_args)
 
-        if isinstance(exec_args, str):
-            exec_args = shlex.split(exec_args)
+        if isinstance(prefix_args, str):
+            prefix_args = shlex.split(prefix_args)
 
         self.use_sim_time = use_sim_time
         self.drop_param_qualifiers = drop_param_qualifiers
-        self.exec_args = exec_args or []
+        self.prefix_args = prefix_args or []
         self.cmd_args = cmd_args or []
         self.env = env or {}
         self.isolate_env = isolate_env
@@ -183,7 +183,7 @@ class Node(AbstractNode, LiveParamsMixin):
         try:
             cmd = launcher.find(f"{self.package}/lib", self.executable)
 
-            final_cmd = self.exec_args + [cmd]
+            final_cmd = self.prefix_args + [cmd]
             if self.cmd_args:
                 final_cmd.extend(self.cmd_args)
 
