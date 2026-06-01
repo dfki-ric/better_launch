@@ -340,7 +340,7 @@ class Composer(AbstractNode):
             self.managed_components.clear()
             return
 
-        for comp in self.managed_components:
+        for comp in reversed(self.managed_components):
             try:
                 comp.shutdown(reason, signum, timeout)
             except Exception as e:
@@ -414,8 +414,9 @@ class Composer(AbstractNode):
             req.parameters.extend(
                 [
                     # Parameter will initialize based on the value's type
-                    Parameter(name=k, value=v).to_parameter_msg()
-                    for k, v in component._flat_params().items()
+                    # #58: components don't seem to handle qualifiers
+                    Parameter(name=k.replace(":", "."), value=v).to_parameter_msg()
+                    for k, v in component._flat_params(drop_qualifiers=True).items()
                 ]
             )
         except Exception as e:

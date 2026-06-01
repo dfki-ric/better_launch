@@ -2,7 +2,7 @@
 
 ???+ tip
 
-    *better_launch* comes with many example launchfiles that will cover all the essentials and some advanced use cases. They can be found in the [repo](https://github.com/dfki-ric/better_launch/tree/main/examples). This chapter will serve as a more general introduction.
+    *better_launch* comes with many example launchfiles that will cover all the essentials and some advanced use cases. They can be found in the [repo](https://github.com/dfki-ric/better_launch/tree/main/examples/python). This chapter will serve as a more general introduction.
 
 ## Header
 A *better_launch* python launchfile will usually start with the basic imports followed by your decorated main launch function: 

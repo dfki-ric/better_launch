@@ -2,11 +2,14 @@ from typing import Any, Callable, Generator, Iterable, Literal, TYPE_CHECKING
 import importlib
 import sys
 import os
+import re
 import signal
 import inspect
 import time
 import threading
 import subprocess
+import shlex
+import shutil
 from fnmatch import fnmatch
 from pathlib import Path
 from concurrent.futures import Future, CancelledError, TimeoutError
@@ -22,8 +25,15 @@ from rclpy.node import (
     Publisher as RosPublisher,
     Subscription as RosSubscriber,
 )
-from rclpy.qos import QoSProfile, qos_profile_services_default
-from ament_index_python.packages import get_package_prefix
+from rclpy.qos import (
+    QoSProfile,
+    HistoryPolicy,
+    ReliabilityPolicy,
+    DurabilityPolicy,
+    LivelinessPolicy,
+    qos_profile_services_default,
+)
+from ament_index_python.packages import get_package_prefix, get_package_share_directory
 
 if TYPE_CHECKING:
     # Surprisingly large imports, so we only import them if we actually need them
@@ -33,6 +43,7 @@ if TYPE_CHECKING:
     )
 
 
+from . import __version__
 from better_launch.elements import (
     Group,
     AbstractNode,
@@ -54,11 +65,13 @@ from better_launch.utils.introspection import (
 from better_launch.utils.settings import Settings, severity_to_loglevel
 from better_launch.utils.better_logging import LogSink
 from better_launch.utils.random_names import get_unique_word
+from better_launch.utils.glob_dict import glob_dict, merge_and_explode
 from better_launch.ros.ros_adapter import ROSAdapter
 from better_launch.ros import logging as roslog
 
 _bl_singleton_instance = "__better_launch_instance"
 _bl_include_args = "__better_launch_include_args"
+_unset = object()
 
 
 class BetterLaunchMeta(type):
@@ -144,7 +157,7 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
         """
         if not name:
             if not BetterLaunch._launchfile:
-                frame = find_calling_frame(self.__init__, -1)
+                frame = find_calling_frame(self.__init__)
                 BetterLaunch._launchfile = frame.filename
             name = os.path.basename(BetterLaunch._launchfile)
 
@@ -161,7 +174,10 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
             root_namespace = "/"
         root_namespace = "/" + root_namespace.strip("/")
 
-        self._group_root = Group(None, root_namespace)
+        # Intentionally not exposed as an init argument, as it wouldn't (and shouldn't)
+        # have an effect when an instance is retrieved in an included launch file
+        use_sim_time = Settings().use_sim_time
+        self._group_root = Group(None, root_namespace, use_sim_time)
         self._group_stack = [self._group_root]
 
         self._composition_node = None
@@ -182,18 +198,17 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
         """Prints our welcome message and some useful information.
         Note that this will not appear in the logs!
         """
+
+        # config_str = "\n".join(
+        #     f"{key}={val}" for key, val in Settings().as_dict().items()
+        # )
+        # \x1b[94;20mSettings:\x1b[0m
+        # {config_str}
+
         # Ascii art based on: https://asciiart.cc/view/10677
-
-        config_str = "\n".join(
-            f"{key}={val}" for key, val in Settings().as_dict().items()
-        )
-
         msg = f"""
-\x1b[1;20mBetter Launch is starting!\x1b[0m
+\x1b[1;20mBetter Launch v{__version__} is starting!\x1b[0m
 Please fasten your seatbelts and secure all baggage underneath your chair.
-
-\x1b[94;20mSettings:\x1b[0m
-{config_str}
 
 \x1b[94;20mLaunchfile:\x1b[0m
 {self.launchfile}
@@ -207,7 +222,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     +                 ,' |
            +         /   :
        *          --'   /
-+                \\/ /:/
++                 \\/ /:/
             *     / ://_\\
        +       __/   /
   -            )'-. /
@@ -253,8 +268,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             except (CancelledError, TimeoutError):
                 pass
 
-        self.logger.critical(
-            f"Reminder: log files are at {roslog.launch_config.log_dir}"
+        print(
+            f"\n => \x1b[94;20mReminder:\x1b[0m log files were saved at {roslog.launch_config.log_dir}"
         )
 
     def get_unique_name(self, name: str = "", check_running_nodes: bool = True) -> str:
@@ -279,7 +294,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         while True:
             if self.short_unique_names:
-                u = secrets.token_hex(4)
+                u = secrets.token_hex(2)
             else:
                 u = get_unique_word()
 
@@ -290,7 +305,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 return u
 
     def get_groups(self) -> list[Group]:
-        """Returns a list of all in the order they were created.
+        """Returns a list of all groups in the order they were created.
 
         Returns
         -------
@@ -467,6 +482,10 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         """Returns the name of the currently sourced ros distro (i.e. *$ROS_DISTRO*)."""
         return os.environ["ROS_DISTRO"]
 
+    @staticmethod
+    def ros_distro_key() -> str:
+        return BetterLaunch.ros_distro()[0].lower()
+
     @property
     def launchfile(self) -> str:
         """The path of the (main) *better_launch* launchfile being executed."""
@@ -597,10 +616,11 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         else:
             self.logger.info(f"Shutdown: {reason}")
 
-        # Tell all nodes to shut down
-        for n in self.get_nodes(
+        # Tell all nodes to shut down in opposite order
+        all_nodes = self.get_nodes(
             include_components=False, include_launch_service=True, include_foreign=False
-        ):
+        )
+        for n in reversed(all_nodes):
             try:
                 n.shutdown(reason, signum)
             except NotImplementedError:
@@ -651,13 +671,15 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         If the `filename` is absolute, all other arguments will be ignored and the filename will be returned.
 
-        If `package` is provided, the corresponding ROS2 package path will be used as the base path. Else we attempt to locate the current launch file's package by searching its directory and parent directories for a `package.xml`. If the package cannot be determined the current working dir is used as the base path.
+        When `package` names a package discoverable by ament, the corresponding ROS2 package path will be used as the base path. Instead of a package name you may also provide an absolute path, in which case it will become the base path. Any path elements after the package name will be appended to the base path. For example, to find files inside the package's shared files, specify the package as `<package>/share`.
+
+        Otherwise, if `package` was not specified we attempt to locate the current launch file's package by searching its directory and parent directories for a `package.xml`. If the package cannot be determined an exception is raised.
+
+        `subdir` accepts [glob](https://docs.python.org/3/library/glob.html) patterns and can be used to resolve ambiguities, e.g. `lib/**` (anywhere inside the package's lib folder) or `share/` (directly inside the share folder). If not specified, "**" will be used (any file or directory inside the base path).
+
+        If only `subdir` is provided but not `filename`, the first matching candidate is returned. Otherwise the discovered candidates will be searched for the given filename.
 
         If neither `subdir` nor `filename` is provided the base path will be returned.
-
-        If `filename` is provided but `subdir` is not, the base path will be searched recursively for the given filename. Otherwise, `subdir` will be used to locate valid candidate files and directories within the base path, allowing patterns like `**/lib/` (any lib folder) and `*.py` (any python file).
-
-        If only `subdir` is provided but not `filename`, the first candidate is returned. Otherwise the discovered candidates will be searched for the given filename.
 
         Parameters
         ----------
@@ -676,7 +698,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         Raises
         ------
         ValueError
-            If `package` contains path separators, or if a `filename` is provided but could not be found within base path.
+            If the base path could not be determined, or if a `filename` is provided but could not be found within base path.
         """
         if filename and os.path.isabs(filename):
             self.logger.info(f"find({package}, {filename}, {subdir}):1 -> {filename}")
@@ -684,45 +706,48 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         if not package:
             package, _ = get_package_for_path(os.path.dirname(self.launchfile))
+            self.logger.warning(
+                f"find: package not provided, resolved {self.launchfile} to {package}"
+            )
 
         if package:
-            if "/" in package or os.path.sep in package:
-                raise ValueError(
-                    f"Package must be a single name, not a path ({package})"
-                )
-            base_path = get_package_prefix(package)
+            if os.path.isabs(package):
+                base_path = package
+            else:
+                parts = Path(package).parts
+                if len(parts) > 1:
+                    package = parts[0]
+                    package_path = Path(get_package_prefix(parts[0]))
+                    base_path = str(package_path.joinpath(*parts[1:]))
+                else:
+                    base_path = get_package_prefix(package)
         else:
-            base_path = os.getcwd()
+            raise ValueError(
+                f"find({package}, {filename}, {subdir}): could not determine package"
+            )
+
+        base_path = Path(base_path).resolve()
 
         if not filename and subdir in (None, "", "**"):
             self.logger.info(f"find({package}, {filename}, {subdir}):2 -> {base_path}")
-            return base_path
+            return str(base_path)
 
         if not subdir:
             subdir = "**"
 
-        for candidate in Path(base_path).glob(subdir):
-            if not filename:
-                # Return the first candidate
-                ret = str(candidate.resolve().absolute())
-                self.logger.info(f"find({package}, {filename}, {subdir}):3 -> {ret}")
-                return ret
+        # In some workspaces, package files are not collected in their own package folders.
+        # Instead, workspace/install has global include, bin, lib, share, etc. folders where
+        # all the package files are placed, which is quite annoying for us. We fix this by
+        # requiring the filename to appear after the package name without trying to guess
+        # how the package files are organized.
+        pattern = f"**/{package}/{subdir}/"
+        if filename:
+            pattern += filename
 
-            if candidate.is_file() and candidate.match(f"**/{filename}"):
-                # We found a match
-                ret = str(candidate.resolve().absolute())
-                self.logger.info(f"find({package}, {filename}, {subdir}):4 -> {ret}")
-                return ret
-
-            elif candidate.is_dir():
-                # Candidate is a dir, search the filename within
-                ret = next(candidate.glob(f"**/{filename}"), None)
-                if ret:
-                    ret = str(ret.resolve().absolute())
-                    self.logger.info(
-                        f"find({package}, {filename}, {subdir}):5 -> {ret}"
-                    )
-                    return ret
+        for candidate in base_path.glob(pattern):
+            candidate = candidate.resolve()
+            if candidate.exists():
+                return str(candidate)
 
         raise ValueError(
             f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
@@ -738,13 +763,21 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through [find][].
 
-        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether `qualifier` was passed. Otherwise, if `qualifier` is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.
+        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether a `qualifier` was passed. Otherwise, the loaded config dict is searched for a matching section. If no matching section can be found the returned dict will be empty.
 
-        The following wildcards are supported for parameter sections:
-        * `/**`: matches any number of tokens, may be followed by additional tokens and a node name
-        * `/*`: skips a single namespace token, or ignores the node's name if at the end
+        Globbing is used for matching qualifiers to paths, so the following wildcards are supported:
+        * `**`: matches any number of tokens, may be followed by additional tokens and a node name
+        * `*`: skips a single namespace token, or ignores the node's name if at the end
 
-        Note that *better_launch* could not care less whether you put `ros__parameters` in your configs - if it is there it will be silently discarded.
+        Note that *better_launch* does not require you to place `ros__parameters` in your configs. If it exists it will later be used to match parameters to namespaces and nodes. For example, a config like
+
+        ```yaml
+        my_node:
+            ros__parameters:
+                int_of_fury: 5
+        ```
+
+        will be passed to a ROS2 node process as `-p my_node:int_of_fury:=5` and thus become specific to any node named `my_node`.
 
         .. seealso::
 
@@ -777,46 +810,47 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         with open(path) as f:
             content = f.read()
-            params = yaml.safe_load(content)
+            # The default yaml loader requires a dot when writing floats in scientific notation,
+            # whereas the json spec treats it as optional.
+            # This fixes #59 based on https://stackoverflow.com/a/30462009/2061551
+            loader = yaml.SafeLoader
+            loader.add_implicit_resolver(
+                "tag:yaml.org,2002:float",
+                re.compile(
+                    """^(?:
+                        [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+                        |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+                        |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+                        |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+                        |[-+]?\\.(?:inf|Inf|INF)
+                        |\\.(?:nan|NaN|NAN))$""",
+                    re.X,
+                ),
+                list("-+0123456789."),
+            )
+            params = yaml.load(content, Loader=loader)
 
-        # No node- or namespace specific sections
-        if "ros__parameters" in params:
-            return params["ros__parameters"]
-
-        # Return the entire config if it doesn't follow the ros pattern
-        if not qualifier:
-            return params
-
-        if not qualifier.endswith("*"):
-            qualifier += "/*"
-
-        final_params = {}
-
-        # Depth-first search through the params to find any "ros__parameters" keys
-        todo = [("", params)]
-        while todo:
-            path, cur = todo.pop(0)
-
-            for key, val in cur.items():
-                if key in ("*", "**", "/**", "ros__parameters"):
-                    val = val.get("ros__parameters", val)
-
-                    # Global parameters should always be included
-                    if (
-                        not path
-                        or fnmatch(path, qualifier)
-                    ):
-                        for param_name, param_val in val.items():
-                            final_params[param_name] = param_val
-
-                elif fnmatch(f"{path}/{key}", qualifier):
-                    final_params[key] = val
-
+        def concatenate_branches(sub: dict, prefix: str = "") -> dict:
+            res = {}
+            for key, val in sub.items():
+                path = f"{prefix}/{key}" if prefix else key
+                if key == "ros__parameters":
+                    res[path] = val
                 elif isinstance(val, dict):
-                    branch_path = f"{path}/{key}" if path else key
-                    todo.append((branch_path, val))
+                    res.update(concatenate_branches(val, path))
+                else:
+                    res[path] = val
 
-        return final_params
+            return res
+
+        if "ros__parameters" in content:
+            # Each ros__parameters block should get its own path key
+            params = concatenate_branches(params)
+
+        if qualifier:
+            params = glob_dict(params, qualifier, strip=strip_qualifiers)
+
+        return params
 
     def get_ros_message_type(self, message_string: str) -> type:
         """Loads a ROS2 message type from a string representation.
@@ -907,10 +941,93 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
             time.sleep(0.1)
 
+    def qos_profile(
+        self,
+        history: Literal["keep_last", "keep_all", "default"]
+        | HistoryPolicy = "keep_all",
+        queue_size: int = 10,
+        reliability: Literal["reliable", "best_effort", "default"]
+        | ReliabilityPolicy = "reliable",
+        durability: Literal["volatile", "transient_local", "default"]
+        | DurabilityPolicy = "volatile",
+        deadline: float = 0,
+        lifespan: float = 0,
+        liveliness: Literal["auto", "manual", "default"] | LivelinessPolicy = "default",
+        alive_timeout: float = 0,
+    ) -> QoSProfile:
+        """Allows callers to quickly create a QoS profile without a million imports. Any value set to `default` will use the underlying RMW's default.
+
+        See [Quality of Service settings](https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html) for details.
+
+        Parameters
+        ----------
+        history : Literal[&quot;keep_last&quot;, &quot;keep_all&quot;, &quot;default&quot;] | HistoryPolicy, optional
+            `keep_all`: store up to N samples according to `queue_size`; `keep_all`: store as many samples as the RMW allows.
+        queue_size : int, optional
+            Number of samples to keep for `history = keep_all`.
+        reliability : Literal[&quot;reliable&quot;, &quot;best_effort&quot;, &quot;default&quot;] | ReliabilityPolicy, optional
+            `reliable`: retry sending on errors; `best_effort`: never retry.
+        durability : Literal[&quot;volatile&quot;, &quot;transient_local&quot;, &quot;default&quot;] | DurabilityPolicy, optional
+            `volatile`: fire and forget; `transient_local`: publisher keeps data available for late-joining subscribers. To create a latched topic configure both publisher and subscriber with `transient_local`.
+        deadline : float, optional
+            Expected maximum time between published messages.
+        lifespan : float, optional
+            How much time is allowed to pass between sending and receiving the message before it will be marked as stale.
+        liveliness : Literal[&quot;auto&quot;, &quot;manual&quot;, &quot;default&quot;] | LivelinessPolicy, optional
+            `auto`: all publishers of a node are considered alive for the `alive_timeout` when any one of them fires; `manual`: publishers have to regularly tell the system that they are alive.
+        alive_timeout : float, optional
+            If a publisher doesn't tell the system it's alive for this amount of time it will be considered dead.
+
+        Returns
+        -------
+        QoSProfile
+            _description_
+        """
+        from rclpy.duration import Duration
+
+        if isinstance(history, str):
+            history = {
+                "keep_last": HistoryPolicy.KEEP_LAST,
+                "keep_all": HistoryPolicy.KEEP_ALL,
+                "default": HistoryPolicy.SYSTEM_DEFAULT,
+            }[history]
+
+        if isinstance(reliability, str):
+            reliability = {
+                "reliable": ReliabilityPolicy.RELIABLE,
+                "best_effort": ReliabilityPolicy.BEST_EFFORT,
+                "default": ReliabilityPolicy.SYSTEM_DEFAULT,
+            }[reliability]
+
+        if isinstance(durability, str):
+            durability = {
+                "volatile": DurabilityPolicy.VOLATILE,
+                "transient_local": DurabilityPolicy.TRANSIENT_LOCAL,
+                "default": DurabilityPolicy.SYSTEM_DEFAULT,
+            }[durability]
+
+        if isinstance(liveliness, str):
+            liveliness = {
+                "auto": LivelinessPolicy.AUTOMATIC,
+                "manual": LivelinessPolicy.MANUAL_BY_TOPIC,
+                "default": LivelinessPolicy.SYSTEM_DEFAULT,
+            }[liveliness]
+
+        return QoSProfile(
+            history=history,
+            depth=queue_size or 10,
+            reliability=reliability,
+            durability=durability,
+            lifespan=Duration(seconds=deadline),
+            deadline=Duration(seconds=lifespan),
+            liveliness=liveliness,
+            liveliness_lease_duration=Duration(seconds=alive_timeout),
+        )
+
     def subscriber(
         self,
         topic: str,
-        message_type: type,
+        message_type: str | type,
         callback: Callable[[Any], None],
         qos_profile: QoSProfile | int = 10,
     ) -> RosSubscriber:
@@ -1007,6 +1124,37 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             time.sleep(time_to_publish)
 
         pub.destroy()
+
+    def receive_message(
+        self,
+        topic: str,
+        message_type: str | type,
+        default: Any = _unset,
+        qos_profile: QoSProfile | int = 10,
+        *,
+        timeout: float = None,
+    ) -> Any:
+        from concurrent.futures import Future
+
+        if isinstance(message_type, str):
+            message_type = self.get_ros_message_type(message_type)
+
+        ret = Future()
+
+        def cb(msg: Any) -> None:
+            ret.set_result(msg)
+
+        sub = self.subscriber(topic, message_type, cb, qos_profile)
+
+        try:
+            return ret.result(timeout)
+        except TimeoutError:
+            if default is not _unset:
+                return default
+
+            raise
+        finally:
+            sub.destroy()
 
     def service(
         self,
@@ -1247,7 +1395,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         return client
 
     @contextmanager
-    def group(self, namespace: str) -> Generator[Group, None, None]:
+    def group(
+        self, namespace: str, use_sim_time: bool = None
+    ) -> Generator[Group, None, None]:
         """Groups are used to bundle nodes into namespaces. While they influence the nodes' topics
         and service name, they have no runtime functionality.
 
@@ -1278,6 +1428,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         ----------
         namespace : str
             The group's namespace.
+        use_sim_time : bool, optional
+            Decide whether nodes within this group should use simulated time. Leave as None to use the parent group's use_sim_time setting. The root group defaults to False unless the corresponding environment variable or CLI switch have been modified.
 
         Yields
         ------
@@ -1299,11 +1451,15 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             self._group_stack = [self._group_root]
 
         tip = self.group_tip
+
+        if use_sim_time is None:
+            use_sim_time = tip.use_sim_time
+
         for token in namespace.strip("/").split("/"):
             if token in tip.children:
                 branch = tip.children[token]
             else:
-                branch = Group(tip, token)
+                branch = Group(tip, token, use_sim_time)
                 tip.add_child(branch)
 
             self._group_stack.append(branch)
@@ -1321,7 +1477,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     # be there. By making it a class method it can still be used without a BL instance.
     @classmethod
     def exec(cls, cmd: str | list[str]) -> str:
-        """Run the specified command and return its output. The command can either be an absolute path to an executable or any file found on `PATH`.
+        """Run the specified command, await its termination and return its output. Bare commands are resolved using `shutil.which`.
+
+        For long-lived commands that you don't want to wait for, consider using [BetterLaunch.process][] instead.
 
         Parameters
         ----------
@@ -1339,7 +1497,11 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             If the command had a non-zero exit code. See the raised error's `returncode` and `output` attributes for details.
         """
         if isinstance(cmd, str):
-            cmd = cmd.split(" ")
+            cmd = shlex.split(cmd)
+
+        executable = cmd[0]
+        if not os.path.isabs(executable) and os.sep not in executable:
+            cmd[0] = shutil.which(executable)
 
         bl = BetterLaunch.instance()
         if bl:
@@ -1361,6 +1523,100 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         return ret
 
+    def process(
+        self,
+        cmd: str | list[str],
+        name: str = None,
+        *,
+        env: dict[str, str] = None,
+        isolate_env: bool = False,
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
+        anonymous: bool = False,
+        on_exit: Callable = None,
+        max_respawns: int = 0,
+        respawn_delay: float = 0.0,
+        use_shell: bool = False,
+        autostart_process: bool = True,
+    ) -> Node:
+        """Starts an arbitrary process and wraps it in a Node object.
+
+        This method for starting long-running non-ROS processes, similar to ROS2's `ExecuteProcess`. Bare command names are resolved using `shutil.which`.
+
+        If you instead want to wait for the process to return (and retrieve its output), consider using [BetterLaunch.exec][] instead.
+
+        Parameters
+        ----------
+        cmd : str | list[str]
+            The command to execute. If a string is provided, it will be split using `shlex.split`.
+        name : str, optional
+            The name of the process. If not provided, it will be derived from the command.
+        env : dict[str, str], optional
+            Additional environment variables to set for the process. The process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
+        isolate_env : bool, optional
+            If True, the process' env will not be inherited from the parent process and only those passed via `env` will be used.
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
+            Determines if and where this process' output should be directed. Defaults to `LogSink.SCREEN`.
+        anonymous : bool, optional
+            If True, the process name will be appended with a unique suffix to avoid name conflicts.
+        on_exit : Callable, optional
+            A function to call when the process terminates (after any possible respawns).
+        max_respawns : int, optional
+            How often to restart the process if it terminates.
+        respawn_delay : float, optional
+            How long to wait before restarting the process after it terminates.
+        use_shell : bool, optional
+            If True, invoke the executable via the system shell.
+        autostart_process : bool, optional
+            If True, start the process before returning from this function.
+
+        Returns
+        -------
+        Node
+            The node object wrapping the process.
+
+        Raises
+        ------
+        ValueError
+            If the command is empty.
+        FileNotFoundError
+            If the executable cannot be found.
+        """
+        if not cmd:
+            raise ValueError("Command cannot be empty")
+
+        if isinstance(cmd, str):
+            cmd = shlex.split(cmd)
+
+        executable = cmd[0]
+        cmd_args = cmd[1:]
+
+        if name is None:
+            name = os.path.basename(executable)
+
+        # Resolve executable to absolute path if it's not already one
+        if not os.path.isabs(executable) and os.sep not in executable:
+            resolved_executable = shutil.which(executable)
+            if resolved_executable is None:
+                raise FileNotFoundError(f"Executable '{executable}' not found in PATH")
+            executable = resolved_executable
+
+        return self.node(
+            package="",
+            executable=executable,
+            name=name,
+            cmd_args=cmd_args,
+            raw=True,
+            env=env,
+            isolate_env=isolate_env,
+            output=output,
+            anonymous=anonymous,
+            on_exit=on_exit,
+            max_respawns=max_respawns,
+            respawn_delay=respawn_delay,
+            use_shell=use_shell,
+            autostart_process=autostart_process,
+        )
+
     def node(
         self,
         package: str,
@@ -1369,7 +1625,11 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         *,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
+        param_files: str | list[str] = None,
+        use_sim_time: bool = None,
+        drop_param_qualifiers: bool = False,
         cmd_args: list[str] = None,
+        exec_args: list[str] = None,
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
@@ -1408,8 +1668,16 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
             Any ROS parameters you want to pass to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
+        param_files : str | list[str], optional
+            Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
+        use_sim_time : bool, optional
+            If set decides whether the node should use simulated time. Otherwise uses the setting from the current [BetterLaunch.group_tip][].
+        drop_param_qualifiers : bool, optional
+            If True, any namespace/node qualifiers in the passed params are ignored.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
+        exec_args : list[str], optional
+            Arguments to prepend to the resolved run command, e.g. for executing the node through gdb.
         env : dict[str, str], optional
             Additional environment variables to set for the node's process. The node process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
         isolate_env : bool, optional
@@ -1461,7 +1729,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if name is None:
             name = f"{package}_{executable}"
             if not anonymous:
-                self.logger.warning(f"Name of node {package}/{executable} not set, will use anonymous name")
+                self.logger.warning(
+                    f"Name of node {package}/{executable} not set, will use anonymous name"
+                )
                 anonymous = True
 
         if anonymous:
@@ -1473,6 +1743,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         group = self.group_tip
         namespace = group.assemble_namespace()
 
+        if use_sim_time is None:
+            use_sim_time = group.use_sim_time
+
         node = Node(
             package,
             executable,
@@ -1480,7 +1753,11 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             namespace,
             remaps=remaps,
             params=params,
+            param_files=param_files,
+            use_sim_time=use_sim_time,
+            drop_param_qualifiers=drop_param_qualifiers,
             cmd_args=cmd_args,
+            exec_args=exec_args,
             env=env,
             isolate_env=isolate_env,
             log_level=log_level,
@@ -1520,6 +1797,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         component_remaps: dict[str, str] = None,
         anonymous: bool = False,
         hidden: bool = False,
+        use_sim_time: bool = None,
         autostart_process: bool = True,
         ros_waittime: float = 3.0,
         output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
@@ -1554,6 +1832,8 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             If True, the composer name will be appended with a unique suffix to avoid name conflicts. `reuse_existing` will be set to False in this case.
         hidden : bool, optional
             If True, the composer name will be prepended with a "_", hiding it from common listings.
+        use_sim_time : bool, optional
+            If set decides whether the node should use simulated time. Otherwise uses the setting from the current [BetterLaunch.group_tip][]. Only effective when a new composer is created. By ROS2 design, all componentens added to this composer will inherit this setting.
         autostart_process : bool, optional
             If True, start the composer process before returning from this function. Note that setting this to False for a composer will make it unusable as a context object, since you won't be able to load any components.
         ros_waittime : float, optional
@@ -1645,12 +1925,16 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             else:
                 raise ValueError(f"Unknown container mode '{variant}")
 
+            if use_sim_time is None:
+                use_sim_time = group.use_sim_time
+
             node_ref = Node(
                 package,
                 executable,
                 name,
                 namespace,
                 remaps=component_remaps,
+                use_sim_time=use_sim_time,
                 output=output,
             )
 
@@ -1734,7 +2018,9 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if not name:
             name = f"{package}_{plugin.replace('::', '_')}"
             if not anonymous:
-                self.logger.warning(f"Name of {package}::{plugin} not set, will use anonymous name")
+                self.logger.warning(
+                    f"Name of {package}::{plugin} not set, will use anonymous name"
+                )
                 anonymous = True
 
         if anonymous:
@@ -1803,7 +2089,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         # TODO verify this works
         for func in (cls.include, _expose_ros2_launch_function):
             try:
-                find_calling_frame(func, 0)
+                find_calling_frame(func)
                 return True
             except ValueError:
                 pass

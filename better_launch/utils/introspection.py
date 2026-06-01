@@ -81,6 +81,8 @@ def find_calling_frame(func: Callable, thread_id: int = -1) -> inspect.FrameInfo
     ValueError
         If no such frame could be found.
     """
+    # NOTE: be careful with this, not using the correct thread_id can cause very subtle issues.
+    # See https://github.com/dfki-ric/better_launch/issues/53 for details
     stack = get_stack(thread_id)
     func_frame = None
 
@@ -221,24 +223,19 @@ def get_launchfunc_signature_from_file(
 
     # Extract function signature
     params = []
-    for arg in func_node.args.args:
+    for idx, arg in enumerate(func_node.args.args):
         arg_name = arg.arg
         annotation = inspect.Parameter.empty
         if arg.annotation:
             annotation = ast.unparse(arg.annotation)
         
         # Extract default value
-        default = inspect.Parameter.empty
         defaults_offset = len(func_node.args.args) - len(func_node.args.defaults)
-        arg_index = func_node.args.args.index(arg)
-        if arg_index >= defaults_offset:
-            default_node = func_node.args.defaults[arg_index - defaults_offset]
-            
+        if idx >= defaults_offset:
+            default_node = func_node.args.defaults[idx - defaults_offset]
             if isinstance(default_node, ast.Constant):
-                # For constants get the actual value (strings, numbers, etc.)
                 default = default_node.value
             else:
-                # More complex stuff (expressions, names, etc.) needs unparse
                 default = ast.unparse(default_node)
 
         params.append(

@@ -75,7 +75,9 @@ class LaunchFile:
         for launch_cls in LaunchFile.__subclasses__():
             try:
                 return launch_cls(filepath)
-            except ValueError:
+            except Exception:
+                # May throw a variety of errors like FileNotFound (dead symlinks), parsing
+                # errors, permission errors... we just don't want to interrupt the autocomplete
                 pass
 
         raise ValueError(f"{filepath} is not a valid launch file")
@@ -152,7 +154,8 @@ class BetterLaunchPython(LaunchFile):
             if arg is not None:
                 args.extend([f"--{key}", arg])
 
-        # This does NOT return and will replace our executable with the new executable in the same process
+        # This does NOT return and will replace our executable with the new executable 
+        # in the same process
         os.execvp("python3", [str(a) for a in args])
 
 
@@ -163,17 +166,15 @@ class BetterLaunchToml(LaunchFile):
     def _get_launch_params_and_doc_bl_toml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
-        from better_launch.declarative import (
-            load_toml,
-            _get_toml_args,
-        )
+        from better_launch.declarative import _get_toml_args
+        from better_launch.toml import load as load_toml
 
         toml = load_toml(filepath)
         doc = toml.get("__comment__")
         declared_args = _get_toml_args(toml)
 
         options = get_click_options(declared_args)
-        # We'll stay within the same process, so there's no need to expose these on the CLI
+        # We'll stay in the same process, so there's no need to expose these on the CLI
         options.extend(get_click_bl_options(expose=False))
 
         return options, doc
@@ -183,17 +184,16 @@ class BetterLaunchToml(LaunchFile):
         super().__init__(filepath, params, doc)
 
     def run(self, ctx: click.Context, **kwargs) -> None:
+        from better_launch.declarative import launch_toml
+
         print(
             f"Calling launch_toml: {self.name}, args={kwargs}",
             flush=True,
         )
 
-        from better_launch.declarative import launch_toml
-
         # Since the toml files are not executable, we need something else to run them. We
         # could create another script with a main function, but I don't think there's much
         # of a point to this.
-        # TODO pass overrides?
         launch_toml(self.filepath, launch_args=kwargs)
 
 
@@ -215,7 +215,7 @@ class Ros2LaunchFile(LaunchFile):
 
         if default:
             # Yes ROS2, I also think that simple things are boring and uninspiring...
-            default = parameter_value_to_python(get_parameter_value(default))
+            default = parameter_value_to_python(get_parameter_value(str(default)))
 
         if choices:
             ptype = click.Choice(choices)

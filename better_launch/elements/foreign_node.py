@@ -7,6 +7,7 @@ import logging
 from fnmatch import fnmatch
 import re
 import json
+from pathlib import Path
 import threading
 from xml.etree import ElementTree
 
@@ -114,49 +115,46 @@ def get_package_for_path(path: str) -> tuple[str, str]:
     tuple[str, str]
         The package name and path to the package, or (None, None) if the package could not be determined.
     """
-    path = os.path.normpath(os.path.abspath(os.path.dirname(path)))
+    path: Path = Path(path).resolve()
     ros_packages = get_packages_with_prefixes()
 
     for pkg, pkg_path in ros_packages.items():
         # Try to find the package in the currently registered packages
-        if path.startswith(pkg_path):
+        if path.name.startswith(pkg_path):
             return pkg, pkg_path
     else:
         # Not a package currently sourced, look for a package.xml somewhere on the path. This search
         # is somewhat expensive, but we expect it to be rare since usually packages should already
         # be sourced 99.9% of the time
-        while os.path.sep in path:
-            # The package.xml is usually found in install/<package>/share/<package>
-            package_candidate = os.path.basename(path)
-            candidates = [
-                os.path.join("share", package_candidate, "package.xml"),
-                "package.xml",
-            ]
+        while True:
+            # Launch files are usually inside a subfolder of share/<package>/launch/, and the 
+            # package.xml should be in share/<package>
+            package_xml = (path / "package.xml").resolve()
 
-            for package_xml in candidates:
-                if os.path.isfile(package_xml):
-                    # Unfortunately the package name can be different from the package's folder, so
-                    # we get it from the package.xml instead
-                    tree = ElementTree.parse(package_xml)
-                    root = tree.getroot()
-                    if root.tag != "package":
-                        # Not an actual package file
-                        continue
-
+            if package_xml.is_file():
+                # Unfortunately the package name can be different from the package's folder, so
+                # we get it from the package.xml instead
+                tree = ElementTree.parse(package_xml)
+                root = tree.getroot()
+                if root.tag == "package":
                     name_tag = root.find("name")
-                    if name_tag:
+                    if name_tag is not None:
                         # Found it!
-                        return name_tag.text, path
+                        return name_tag.text, str(path)
 
-            # Go up one level
-            path = path.rsplit(os.path.sep, maxsplit=1)[0]
+            # Not an actual package file, go up one level
+            path = path.parent
+
+            # We can probably stop if are at the file system root :)
+            if path == path.parent:
+                break
 
     return None, None
 
 
 def parse_process_args(
     process: psutil.Process, node: AbstractNode = None
-) -> tuple[str, str, dict[str, str], dict[str, str], list[str]]:
+) -> tuple[str, str, dict[str, str], dict[str, str], list[str], list[str]]:
     """Parse ROS2 command line arguments and return the user-specified parts.
 
     In particular, this will return the passed ROS2 params, remaps and additional command line arguments. Special ROS2 arguments like `--ros-args`, `--remap`, etc. will not be included. A node may be passed in order to resolve `nodename:key:=value` style args and load parameter files from `--params-file`.
@@ -171,14 +169,15 @@ def parse_process_args(
     Returns
     -------
     tuple[dict[str, str], dict[str, str], list[str]]
-        The node's namespace and name, followed by its ROS2 params, remaps and additional command line args.
+        The node's (namespace, name, remaps, params, param_files, cmd_args).
     """
     from better_launch import BetterLaunch
 
     node_name = ""
     namespace = ""
-    params = {}
     remaps = {}
+    params = {}
+    param_files = []
     additional_args = []
     is_ros_args = False
     skip = 1
@@ -197,12 +196,7 @@ def parse_process_args(
             continue
 
         if is_ros_args:
-            if arg in ["-p", "--param"]:
-                skip = 1
-                key, val = cmd_args[i + 1].split(":=")
-                params[key] = val
-
-            elif arg in ["-r", "--remap"]:
+            if arg in ["-r", "--remap"]:
                 skip = 1
                 key, val = cmd_args[i + 1].split(":=")
                 if key == "__ns":
@@ -241,11 +235,15 @@ def parse_process_args(
                         node_name = val
                     else:
                         remaps[key] = val
+            
+            elif arg in ["-p", "--param"]:
+                skip = 1
+                key, val = cmd_args[i + 1].split(":=")
+                params[key] = val
 
             elif arg == "--params-file":
                 skip = 1
-                param_file = cmd_args[i + 1]
-                params.update(bl.load_params(None, param_file, qualifier=node))
+                param_files.append(cmd_args[i + 1])
 
             else:
                 # No special handling
@@ -254,7 +252,7 @@ def parse_process_args(
             # Nothing we handle, assume it's a regular command line arg
             additional_args.append(arg)
 
-    return namespace, node_name, params, remaps, additional_args
+    return namespace, node_name, remaps, params, param_files, additional_args
 
 
 def find_foreign_nodes() -> list[AbstractNode]:
@@ -308,7 +306,7 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
 
         bl = BetterLaunch.instance()
 
-        namespace, name, params, remaps, additional_args = parse_process_args(process)
+        namespace, name, params, param_files, remaps, additional_args = parse_process_args(process)
         exec_dir = os.path.dirname(process.cmdline()[0])
         package, _ = get_package_for_path(exec_dir)
 
@@ -325,6 +323,7 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
             namespace,
             remaps=remaps,
             params=params,
+            param_files=param_files,
             cmd_args=additional_args,
         )
 
@@ -337,6 +336,7 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
         *,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
+        param_files: list[str] = None,
         cmd_args: list[str] = None,
         output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ):
@@ -360,6 +360,8 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
             Tells the node to replace any topics it wants to interact with according to the provided dict.
         params : str | dict[str, Any], optional
             Any arguments you want to provide to the node. These are the args you would typically have to declare in your launch file. A string will be interpreted as a path to a yaml file which will be lazy loaded using [BetterLaunch.load_params][].
+        param_files : list[str], optional
+            Paths to parameter files that will be passed to the node as is. If both param_files and params are present, param_files will be passed first (same order), followed by the params.
         cmd_args : list[str], optional
             Additional command line arguments to pass to the node.
         output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
@@ -372,6 +374,7 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
             namespace,
             remaps=remaps,
             params=params,
+            param_files=param_files,
             output=output,
         )
 
@@ -443,16 +446,21 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
 
         final_cmd = [self.executable] + self.cmd_args + ["--ros-args"]
 
-        # Attach node parameters
-        for key, value in self._flat_params().items():
-            # Make sure the values are parseable for ROS
-            final_cmd.extend(["-p", f"{key}:={json.dumps(value)}"])
-
         # Special args and remaps
         # launch_ros/actions/node.py:206
         for src, dst in self._ros_args().items():
             # launch_ros/actions/node.py:481
             final_cmd.extend(["-r", f"{src}:={dst}"])
+
+        # Pass param files first
+        # TODO this changes the order of arguments in which the original process was invoked...
+        for path in self.param_files:
+            final_cmd.extend(["--param-file", path])
+
+        # Attach node parameters
+        for key, value in self._flat_params().items():
+            # Make sure the values are parseable for ROS
+            final_cmd.extend(["-p", f"{key}:={json.dumps(value)}"])
 
         self.logger.info(f"Starting process '{' '.join(final_cmd)}'")
 

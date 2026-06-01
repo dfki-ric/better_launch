@@ -1,6 +1,7 @@
 from typing import Any, Iterable
 import signal
 import time
+from fnmatch import fnmatch
 
 import better_launch.ros.logging as roslog
 from better_launch.utils.better_logging import LogSink, configure_logger
@@ -19,6 +20,7 @@ class AbstractNode:
         namespace: str,
         remaps: dict[str, str] = None,
         params: str | dict[str, Any] = None,
+        param_files: str | list[str] = None,
         *,
         output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ):
@@ -36,8 +38,10 @@ class AbstractNode:
             The node's namespace. Must be absolute, i.e. start with a '/'.
         remaps : dict[str, str], optional
             Topic remaps for this node.
-        params : str | dict[str, Any], optional
-            Node parameters. If a string is passed it will be lazy loaded with [BetterLaunch.find][].
+        params : dict[str, Any], optional
+            Node parameters. If a string is passed it will be lazy loaded with [BetterLaunch.load_params][].
+        param_files : str | list[str], optional
+            Paths to parameter files that will be passed to the node as is.
         output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See [configure_logger][] for details.
 
@@ -62,12 +66,16 @@ class AbstractNode:
         self._node_id = _node_counter
         _node_counter += 1
 
+        if isinstance(param_files, str):
+            param_files = [param_files]
+
         self._pkg = package
         self._exec = executable
         self._name = name
         self._namespace = namespace
-        self._remaps = remaps or {}
-        self._params = params or {}
+        self._remaps: dict[str, str] = remaps or {}
+        self._params: str | dict[str, str] = params or {}
+        self._param_files: list[str] = param_files or []
         self._lifecycle_manager: LifecycleManager = None
 
         self.logger = roslog.get_logger(self.fullname)
@@ -107,7 +115,7 @@ class AbstractNode:
 
     @property
     def params(self) -> dict[str, Any]:
-        """The ROS params that were passed to this node. If a string was passed it is assumed to be a filepath and will be loaded with [BetterLaunch.find][]."""
+        """The ROS params that were passed to this node. If a string was passed it is assumed to be a filepath and will be loaded with [BetterLaunch.load_params][]."""
         if isinstance(self._params, str):
             from better_launch import BetterLaunch
 
@@ -115,9 +123,14 @@ class AbstractNode:
             if not bl:
                 return self._params
 
-            self._params = bl.load_params(None, self._params, qualifier=self)
+            self._params = bl.load_params(None, self._params, qualifier=self.fullname)
 
         return self._params
+
+    @property
+    def param_files(self) -> list[str]:
+        """Any param files that should be passed to the node as paths."""
+        return self._param_files
 
     @property
     def remaps(self) -> dict[str, str]:
@@ -129,32 +142,13 @@ class AbstractNode:
         """True if the node is currently running."""
         raise NotImplementedError()
 
-    def _ros_args(self) -> dict[str, str]:
-        """Returns this node's ROS args, e.g. remaps and special parameters like namespace and name.
-
-        .. seealso::
-
-            `Passing ROS arguments to nodes via the command-line <https://docs.ros.org/en/jazzy/How-To-Guides/Node-arguments.html>`_
-
-        Returns
-        -------
-        dict[str, str]
-            A dict containing the
-        """
-        ros_args = dict(self.remaps)
-
-        if self.namespace:
-            # Why do I hear mad hatter music???
-            # See launch_ros/actions/node.py:495
-            ros_args["__ns"] = self.namespace
-
-        if self.name:
-            ros_args["__node"] = self.name
-
-        return ros_args
-
-    def _flat_params(self) -> dict[str, Any]:
+    def _flat_params(self, drop_qualifiers: bool = False) -> dict[str, Any]:
         """Flattens this node's ROS parameters so they conform to what ROS expects.
+
+        Parameters
+        ----------
+        drop_qualifiers : bool, optional
+            If True, remove additional node/namespace qualifiers from the returned dict. Qualifiers will still be used to match this node if present, i.e. parameters with qualifiers not matching this node will not be included.
 
         Returns
         -------
@@ -182,6 +176,38 @@ class AbstractNode:
                     new_key = f"{path}.{key}" if path else key
                     delve(val, new_key)
             else:
+                rp_idx = path.find("ros__parameters")
+                if rp_idx >= 0:
+                    qualifier = path[:rp_idx].rstrip("./")
+                    param = path[rp_idx + 15 :].lstrip(".")
+
+                    if qualifier:
+                        if not qualifier.startswith("/"):
+                            qualifier = "**/" + qualifier
+
+                        if qualifier.endswith("/"):
+                            ns_qualifier = qualifier
+                            node_qualifier = None
+                        else:
+                            ns_qualifier, node_qualifier = qualifier.rsplit("/", maxsplit=1)
+                            if not ns_qualifier:
+                                ns_qualifier = "**"
+                            if node_qualifier in ("*", "**"):
+                                node_qualifier = None
+
+                        if not fnmatch(self.namespace, ns_qualifier):
+                            return
+
+                        if not drop_qualifiers and node_qualifier:
+                            # On the command line ROS only allows the name for qualification,
+                            # which is fine since we already used the full qualifier for matching
+                            path = f"{node_qualifier}:{param}"
+                        else:
+                            # Only the namespace was qualified and this node matched
+                            path = param
+                    else:
+                        path = param
+
                 ret[path] = data
 
         delve(self.params, "")
@@ -206,7 +232,9 @@ class AbstractNode:
         """Start this node. Once this succeeds, [is_running][] will return True."""
         raise NotImplementedError()
 
-    def shutdown(self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0) -> None:
+    def shutdown(
+        self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0
+    ) -> None:
         """Shutdown this node. Once this succeeds, [is_running][] will return False.
 
         Parameters
@@ -216,7 +244,7 @@ class AbstractNode:
         signum : int, optional
             The signal that should be send to the node (if supported).
         timeout : float, optional
-            How long to wait for the node to shutdown before returning. Don't wait if timeout is 0.0. Wait forever if timeout is None. 
+            How long to wait for the node to shutdown before returning. Don't wait if timeout is 0.0. Wait forever if timeout is None.
 
         Raises
         ------
@@ -352,7 +380,9 @@ class AbstractNode:
         from better_launch import BetterLaunch
 
         bl = BetterLaunch.instance()
-        topics = bl.shared_node.get_publisher_names_and_types_by_node(self.name, self.namespace)
+        topics = bl.shared_node.get_publisher_names_and_types_by_node(
+            self.name, self.namespace
+        )
         return dict(topics)
 
     def get_subscribed_topics(self) -> dict[str, list[str]]:
@@ -369,7 +399,9 @@ class AbstractNode:
         from better_launch import BetterLaunch
 
         bl = BetterLaunch.instance()
-        topics = bl.shared_node.get_subscriber_names_and_types_by_node(self.name, self.namespace)
+        topics = bl.shared_node.get_subscriber_names_and_types_by_node(
+            self.name, self.namespace
+        )
         return dict(topics)
 
     def get_info_sheet(self) -> str:
@@ -395,7 +427,7 @@ class AbstractNode:
         return f"""\
 \x1b[1m{self.name} ({self.__class__.__name__})\x1b[0m
   Status:    {status}
-  Lifecycle: {self.lifecycle.current_stage.name if self.lifecycle else 'None'}
+  Lifecycle: {self.lifecycle.current_stage.name if self.lifecycle else "None"}
   Package:   {self.package}
   Command:   {self.executable}
   Namespace: {self.namespace}

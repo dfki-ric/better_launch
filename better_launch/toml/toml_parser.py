@@ -4,8 +4,8 @@ import re
 
 class TomlReader:
     def __init__(self, text: str | list[str]):
-        """TOML parser with better comment handling compared to existing ones. 
-        
+        """TOML parser with better comment handling compared to existing ones.
+
         Noticably, this parser will preserve and associate comments that appear *before* the key they are describing. Comments appear in the same dict as their associated key under the key `__comment_<key>__`. In addition, a comment at the start of the file will be retained as well. This root comment has the key `__comment__`.
 
         Some standard features are not supported right now:
@@ -25,7 +25,7 @@ class TomlReader:
             self.lines = text
         else:
             self.lines = text.splitlines()
-        
+
         self.data: dict[str, Any] = {}
         self.current_table = self.data
         self.table_path: list[str] = []
@@ -270,12 +270,12 @@ class TomlReader:
 
         # Type annotations: key = int, key = str, etc.
         type_map = {
-            'int': int,
-            'float': float,
-            'str': str,
-            'bool': bool,
-            'list': list,
-            'dict': dict,
+            "int": int,
+            "float": float,
+            "str": str,
+            "bool": bool,
+            "list": list,
+            "dict": dict,
         }
         if value_str in type_map:
             return type_map[value_str]

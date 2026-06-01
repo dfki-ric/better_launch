@@ -1,0 +1,40 @@
+# TOML files are by design less powerful than python launchfiles. This is intentional, as 
+# part of their appeal is having a launch description that can be analyzed and verified 
+# ahead of time. For this reason, calling functions on anything but one of the `contexts`
+# is not supported.
+# 
+# There are currently three contexts available:
+# - betterlaunch (the default)
+# - convenience
+# - gazebo
+
+# ======================================================================
+
+# To use a different context, simply pass the `context` parameter to a 
+# call block, then pass its function args as usual.
+[convenience_test]
+context = "convenience"
+func = "static_transform_publisher"
+parent_frame = "world"
+child_frame = "better_launch"
+pos = [1, 1, 1]
+
+# ======================================================================
+
+# And a gazebo example for good measure
+[find_cube]
+func = "find"
+package = "better_launch"
+filename = "cube.sdf"
+
+[gazebo_launch]
+context = "gazebo"
+func = "gazebo_launch"
+package = "better_launch"
+world_file = "test.world"
+
+[gazebo_cube]
+context = "gazebo"
+func = "spawn_model"
+model_name = "cube"
+model = "${find_cube}" 

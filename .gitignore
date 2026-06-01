@@ -1,4 +1,5 @@
 .vscode
+examples/test.launch.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

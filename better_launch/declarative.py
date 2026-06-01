@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any
 import inspect
 import contextlib
 import logging
@@ -8,7 +8,7 @@ from better_launch.wrapper import _exec_launch_func
 from better_launch.utils.settings import Colormode, _update_settings
 from better_launch.utils.click import DeclaredArg
 from better_launch.toml.toml_parser import load as load_toml
-from better_launch.toml.substitutions import apply_substitutions
+from better_launch.toml.substitutions import EvalMode, apply_substitutions
 
 
 current_toml_format_version = 1
@@ -16,7 +16,7 @@ current_toml_format_version = 1
 
 def _execute_toml(
     toml: dict[str, Any],
-    eval_mode: Literal["full", "literal", "none"] = "literal",
+    eval_mode: EvalMode,
     **kwargs,
 ) -> dict[str, Any]:
     """Execute each call table and apply substitutions."""
@@ -36,23 +36,39 @@ def _execute_toml(
 
     #
     contexts = {
-        "betterlaunch": dict(
-            f
-            for f in inspect.getmembers(BetterLaunch, inspect.isfunction)
-            if not f.startswith("_")
-        ),
-        "convenience": dict(
-            f
-            for f in inspect.getmembers(convenience, inspect.isfunction)
-            if not f.startswith("_")
-        ),
-        "gazebo": dict(
-            f
-            for f in inspect.getmembers(gazebo, inspect.isfunction)
-            if not f.startswith("_")
-        ),
+        "betterlaunch": {
+            # instance functions
+            name: func
+            for name, func in inspect.getmembers(BetterLaunch, inspect.isfunction)
+            if not name.startswith("_")
+        }
+        | {
+            # class methods
+            name: func
+            for name, func in inspect.getmembers(BetterLaunch, inspect.ismethod)
+            if not name.startswith("_")
+        },
+        "convenience": {
+            name: func
+            for name, func in inspect.getmembers(convenience, inspect.isfunction)
+            if not name.startswith("_")
+        },
+        "gazebo": {
+            name: func
+            for name, func in inspect.getmembers(gazebo, inspect.isfunction)
+            if not name.startswith("_")
+        },
     }
     results = dict(bl.launch_args)
+
+    def sanitize(data: dict) -> None:
+        # Remove the comment keys that we kept in order to create help texts and such
+        data.pop("__comment__", None)
+        for key, val in toml.items():
+            if isinstance(val, dict):
+                for key in list(val.keys()):
+                    if key.startswith("__comment_"):
+                        del val[key]
 
     def substitute_all(value: Any):
         if isinstance(value, dict):
@@ -62,7 +78,7 @@ def _execute_toml(
             for i, item in enumerate(value):
                 value[i] = substitute_all(item)
         elif isinstance(value, str):
-            new_val = apply_substitutions(value, None, results, eval_type=eval_mode)
+            new_val = apply_substitutions(value, None, results, eval_mode=eval_mode)
             return new_val
 
         return value
@@ -82,7 +98,7 @@ def _execute_toml(
 
         ctx = req.pop("context", "betterlaunch")
         if ctx not in contexts:
-            raise KeyError(f"{key}: context='{ctx}' is not a valid context")
+            raise KeyError(f"{key}: '{ctx}' is not a valid context")
 
         valid_funcs = contexts[ctx]
 
@@ -99,7 +115,17 @@ def _execute_toml(
         if "children" not in func_sig.parameters:
             children = req.pop("children", None)
 
-        res = func(**req)
+        bl.logger.debug(f"Calling {ctx}:{func_name} ({req})")
+        if ctx == "betterlaunch":
+            if inspect.ismethod(func):
+                # classmethod
+                res = func(**req)
+            else:
+                # instance function
+                res = func(bl, **req)
+        else:
+            res = func(**req)
+
         results[key] = res
 
         if children:
@@ -111,7 +137,10 @@ def _execute_toml(
 
             with res:
                 if isinstance(children, list):
-                    children = {f"{key}.children.{idx}": child for idx, child in enumerate(children)}
+                    children = {
+                        f"{key}.children.{idx}": child
+                        for idx, child in enumerate(children)
+                    }
 
                 if not isinstance(children, dict):
                     raise ValueError(
@@ -119,17 +148,11 @@ def _execute_toml(
                     )
 
                 for subkey, child in children.items():
+                    sanitize(child)
                     exec_request(subkey, child)
 
-    # Sanitize the launch file
-    toml.pop("__comment__", None)
-    for key, val in toml.items():
-        if isinstance(val, dict):
-            for key in list(val.keys()):
-                if key.startswith("__comment_"):
-                    del val[key]
-
     # Execute the call tables
+    sanitize(toml)
     for key, val in toml.items():
         if isinstance(val, dict):
             exec_request(key, val)
@@ -178,12 +201,13 @@ def launch_toml(
     # These should largely mirror the launch_this decorator
     ui: bool = None,
     colormode: Colormode = None,
-    print_limit: int = 0,
+    print_limit: int = None,
     screen_log_level: str | int = None,
     screen_log_format: str = None,
     file_log_level: str | int = None,
     file_log_format: str = None,
-    eval_mode: Literal["full", "literal", "none"] = "literal",
+    use_sim_time: bool = None,
+    eval_mode: str | EvalMode = None,
     join: bool = None,
     manage_foreign_nodes: bool = None,
     keep_alive: bool = None,
@@ -204,7 +228,7 @@ def launch_toml(
         executable = "my-node"
         name = "${name}"
 
-    Substitutions are also possible and use a similar syntax as in ROS1 (as shown for the `name` launch argument above). `if` and `unless` conditions can be added as well. 
+    Substitutions are also possible and use a similar syntax as in ROS1 (as shown for the `name` launch argument above). `if` and `unless` conditions can be added as well.
 
     All parameters below can be set through the launch file by declaring them on the global scope with a `bl_` prefix (i.e. `ui` becomes `bl_ui`).
 
@@ -261,7 +285,9 @@ def launch_toml(
 
     if not BetterLaunch.is_included():
         if ui is None and "bl_ui" in toml:
-            ui = bool(toml.get("bl_ui", "false").lower() in ("true", "enable", "1"))
+            ui = toml.get("bl_ui")
+            if isinstance(ui, str):
+                ui = bool(ui.lower() in ("true", "enable", "1"))
 
         if colormode is None and "bl_colormode" in toml:
             colormode = Colormode[toml["bl_colormode"]]
@@ -281,6 +307,9 @@ def launch_toml(
         if file_log_format is None and "bl_file_log_format" in toml:
             file_log_format = toml["bl_file_log_format"]
 
+        if use_sim_time is None and "use_sim_time" in toml:
+            use_sim_time = toml["use_sim_time"]
+
         _update_settings(
             ui=ui,
             colormode=colormode,
@@ -289,6 +318,7 @@ def launch_toml(
             screen_log_format=screen_log_format,
             file_log_level=file_log_level,
             file_log_format=file_log_format,
+            use_sim_time=use_sim_time,
         )
 
     if join is None:
@@ -303,9 +333,13 @@ def launch_toml(
     if allow_kwargs is None:
         allow_kwargs = toml.get("bl_allow_kwargs", False)
 
-    argv = None
+    if eval_mode is None:
+        eval_mode = EvalMode(toml.get("bl_eval_mode", "none"))
+    elif isinstance(eval_mode, str):
+        eval_mode = EvalMode(eval_mode)
+
+    argv = []
     if launch_args:
-        argv = []
         for key, arg in launch_args.items():
             if arg is not None:
                 argv.extend([f"--{key}", str(arg)])

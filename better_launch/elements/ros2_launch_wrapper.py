@@ -5,7 +5,7 @@ import signal
 import logging
 import asyncio  # keep this so we can use await and async def
 import threading
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, get_context
 import subprocess
 import osrf_pycommon.process_utils
 from setproctitle import setproctitle, getproctitle
@@ -257,10 +257,18 @@ class Ros2LaunchWrapper(AbstractNode):
             self.logger.warning(f"LaunchService {self.name} is alrady running")
             return
 
+        # Fix for https://github.com/dfki-ric/better_launch/issues/69
+        # Python 3.14+ is switching to spawn as the default start method which means that our 
+        # is-included guard in launch_this won't work anymore. Even if we used the env to pass
+        # flags across spawn boundaries we still need to maintain the BetterLaunch singleton,
+        # so for now fork is required.
+        # TODO check if we can handle this in @launch_this instead
+        ctx = get_context("fork")
+
         # Note that passing loggers will not work for the TUI, as they would have to communicate
         # across the process boundaries. In general, only basic values and instances from the
         # multiprocessing module should be passed to the process
-        self._process = Process(
+        self._process = ctx.Process(
             target=_launchservice_worker,
             args=(
                 self.name,

@@ -39,7 +39,6 @@ def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option
     return options
 
 
-# TODO docstrings
 def get_click_bl_options(expose: bool = False) -> list[click.Option]:
     """Get the click options specific to better_launch itself.
 
@@ -54,7 +53,9 @@ def get_click_bl_options(expose: bool = False) -> list[click.Option]:
         _description_
     """
     def update_value(ctx: click.Context, param: click.Parameter, value: Any):
-        key = param.name[3:].replace("-", "_")
+        key = param.name
+        if param.name.startswith(("bl_", "bl-")):
+            key = param.name[3:].replace("-", "_")
         _update_settings(**{key: value})
 
     # XXX always keep these synchronized with our Settings class
@@ -124,6 +125,14 @@ def get_click_bl_options(expose: bool = False) -> list[click.Option]:
             expose_value=expose,
             callback=update_value,
         ),
+        click.Option(
+            ["--use-sim-time"],
+            type=bool,
+            default=None,  # NOTE important, see settings._update_settings
+            help="Changes the default use_sim_time setting of the root group",
+            expose_value=expose,
+            callback=update_value,
+        )
     ]
 
     return options

@@ -26,6 +26,11 @@ def first_steps():
             "publisher_local_function",
             "my_talker",
         )
+
+        # Convenience and comfort at your behest :)
+        msg = bl.receive_message("/basic/topic", "std_msgs/msg/String", None, timeout=5.0)
+        print(f"\n### Oh hey, I received a message :D\n{msg}\n")
+
         bl.node(
             "examples_rclpy_minimal_subscriber",
             "subscriber_member_function",

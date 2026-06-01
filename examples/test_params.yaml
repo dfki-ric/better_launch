@@ -1,0 +1,8 @@
+/**:
+  ros__parameters:
+    always_around: True
+
+/test:
+  param_node:
+    ros__parameters:
+      pleasure_to_bug_you: "orz"

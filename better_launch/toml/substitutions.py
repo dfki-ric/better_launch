@@ -1,7 +1,8 @@
-from typing import Any, Literal, Callable
+from typing import Any, Callable
 import os
 from ast import literal_eval
 from functools import partial
+from enum import Enum
 
 from better_launch import BetterLaunch
 
@@ -11,13 +12,23 @@ _sentinel = object()
 
 class SubstitutionError(ValueError):
     """Exception type that will be thrown by substitution handlers."""
+
     pass
+
+
+class EvalMode(Enum):
+    NONE = "none"
+    LITERAL = "literal"
+    FULL = "full"
 
 
 def _parse_substitutions(s: str) -> list[list | str]:
     """Parses a string containing substitution tokens into a list of lists and strings.
 
-    Supports ${key args} syntax.
+    Supports ${key args} syntax, including substitutions nested inside quoted strings,
+    e.g. ${sub "${other arg}"}. A quoted string that contains substitutions is emitted
+    as a list whose first element is "$" (concat marker): the handler should resolve
+    each piece and join the results into a single string.
 
     Parameters
     ----------
@@ -27,8 +38,9 @@ def _parse_substitutions(s: str) -> list[list | str]:
     Returns
     -------
     list[list | str]
-        A list containing unchanged strings and nested lists of strings/lists. These nested lists
-        will consist of the substitution key and its arguments, which again may be lists.
+        A list containing unchanged strings and nested lists of strings/lists. Nested
+        lists starting with "$key" are substitutions; nested lists starting with "$"
+        (just the dollar) are concat groups from quoted strings containing substitutions.
 
     Raises
     ------
@@ -36,98 +48,250 @@ def _parse_substitutions(s: str) -> list[list | str]:
         If the input string contains unbalanced braces or quotes.
     """
 
+    # token sentinels: distinct objects so they can't collide with real string content
+    QUOTE_OPEN = ("QUOTE_OPEN",)
+    QUOTE_CLOSE = ("QUOTE_CLOSE",)
+    SUB_OPEN = ("SUB_OPEN",)
+    SUB_CLOSE = ("SUB_CLOSE",)
+
     def tokenize(s):
         i = 0
         n = len(s)
+        # stack of context frames: ("quote", quote_char) or ("sub",). We are
+        # "in quotes" only when the top of the stack is a quote frame; entering
+        # a ${...} inside a quoted string suspends the quote context until
+        # that inner substitution closes.
+        ctx = []
+        # True when the next non-space char starts a fresh token at a boundary
+        # (whitespace, sub open, sub close, or start of input). Only at such
+        # boundaries does a quote open a quoted region. Mid-token quotes (e.g.
+        # the ' in ['x']) are treated as literal text, matching the original
+        # parser's behavior for non-leading quotes.
+        at_arg_start = True
+
+        def in_quote_top():
+            return ctx and ctx[-1][0] == "quote"
+
+        def in_sub_top():
+            return ctx and ctx[-1][0] == "sub"
+
         while i < n:
-            if s[i].isspace():
-                # Preserve whitespace as a token for spacing in output later
+            c = s[i]
+            in_quotes = in_quote_top()
+
+            if not in_quotes and c.isspace():
                 start = i
                 while i < n and s[i].isspace():
                     i += 1
                 yield s[start:i]
-            elif s[i] == "$":
-                # Check if it's the start of a substitution
-                if i + 1 < n and s[i + 1] == "{":
-                    yield "${"
-                    i += 2
-                else:
-                    # Just a regular dollar sign, not part of a substitution
-                    start = i
+                at_arg_start = True
+
+            elif c == "$" and i + 1 < n and s[i + 1] == "{":
+                ctx.append(("sub",))
+                yield SUB_OPEN
+                i += 2
+                at_arg_start = False  # key comes first, not an arg
+
+            elif c == "}":
+                if in_sub_top():
+                    ctx.pop()
+                    yield SUB_CLOSE
                     i += 1
-                    while i < n and not s[i].isspace() and s[i] not in "${}":
-                        i += 1
-                    yield s[start:i]
-            elif s[i] == "}":
-                # Closing brace: end of a substitution
-                yield "}"
+                    # SUB_CLOSE does NOT reset at_arg_start: a quote right after
+                    # }' continues the surrounding text token (e.g. ['${sub}']
+                    # — the trailing ' closes the Python literal, doesn't open
+                    # a new quoted region).
+                    at_arg_start = False
+                else:
+                    raise ValueError(f"Unexpected '}}' at position {i}")
+
+            elif c in "\"'" and in_quotes and ctx[-1][1] == c:
+                # closing the matching quote
+                ctx.pop()
+                yield QUOTE_CLOSE
                 i += 1
-            elif s[i] in "\"'":
-                # Quoted strings: extract content between quotes (excluding the quotes)
-                quote = s[i]
-                i += 1  # skip opening quote
+                at_arg_start = False
+
+            elif c in "\"'" and not in_quotes and at_arg_start:
+                # opening a quote at a token boundary (top level or inside a sub)
+                ctx.append(("quote", c))
+                yield QUOTE_OPEN
+                i += 1
+                at_arg_start = False
+
+            elif in_quotes:
+                # literal run inside quotes: stops at ${sub}, matching quote, or escape
                 start = i
-                escaped = False
+                buf = []
+                quote = ctx[-1][1]
                 while i < n:
-                    if escaped:
-                        # Previous char was backslash, so this char is escaped
-                        escaped = False
-                        i += 1
+                    ch = s[i]
+                    if ch == "\\" and i + 1 < n:
+                        buf.append(s[i + 1])
+                        i += 2
                         continue
-                    if s[i] == "\\":
-                        # Start escape sequence
-                        escaped = True
-                        i += 1
-                        continue
-                    if s[i] == quote:
-                        # Found matching closing quote
+                    if ch == quote:
                         break
+                    if ch == "$" and i + 1 < n and s[i + 1] == "{":
+                        break
+                    buf.append(ch)
                     i += 1
                 else:
                     raise ValueError(f"Missing closing quote at position {start - 1}")
-                yield s[start:i]
-                i += 1  # skip closing quote
+                if buf:
+                    yield "".join(buf)
+
             else:
-                # Handle regular text: collect characters until we hit a delimiter
-                # Delimiters are: whitespace, $, {, }
+                # Regular text. Inside a sub, support backslash escapes so users
+                # can write \" for a literal quote without opening a quoted region.
+                # Quotes are NOT delimiters here (they only matter at arg boundaries,
+                # handled above), so mid-token quotes flow through as text — this
+                # preserves the original parser's behavior on strings like ['x'].
+                in_sub = in_sub_top()
                 start = i
-                while i < n and not s[i].isspace() and s[i] not in "${}":
-                    i += 1
-                yield s[start:i]
+                if in_sub:
+                    buf = []
+                    while i < n and not s[i].isspace() and s[i] not in "${}":
+                        if s[i] == "\\" and i + 1 < n:
+                            buf.append(s[i + 1])
+                            i += 2
+                            continue
+                        buf.append(s[i])
+                        i += 1
+                    if i == start:
+                        buf.append(s[i])
+                        i += 1
+                    yield "".join(buf)
+                else:
+                    # true top-level text: original behavior, no escape processing,
+                    # and quotes terminate the run only to keep their old semantics
+                    while i < n and not s[i].isspace() and s[i] not in "${}\"'":
+                        i += 1
+                    if i == start:
+                        i += 1
+                    yield s[start:i]
+                at_arg_start = False
+
+        # any unclosed quote frame is an error; unclosed subs caught in parse()
+        for frame in ctx:
+            if frame[0] == "quote":
+                raise ValueError("Missing closing quote")
 
     def parse(tokens):
+        # frame = (current_list, in_substitution, key_pending, current_arg_buf)
+        # current_arg_buf accumulates adjacent (no-whitespace-between) pieces
+        # for the current argument; whitespace flushes it. A flushed arg is a
+        # single string when all pieces are strings, else a ["$", ...] concat
+        # group whose handler should resolve each piece and join them.
         stack = []
         current = []
         is_key = False
         in_substitution = False
-        
-        for tok in tokens:
-            if tok == "${":
-                # Start of a substitution: push current context onto stack and start fresh
-                stack.append((current, in_substitution))
-                current = []
-                is_key = True  # Next token will be the substitution key
-                in_substitution = True
-            elif tok == "}" and stack:
-                # End of a substitution: pop context from stack and add completed substitution
-                completed = current
-                current, in_substitution = stack.pop()
-                # Add the completed substitution as a nested list
-                current.append(completed)
+        in_quote = False
+        quote_pieces = None
+        arg_buf = []  # pieces of the in-progress arg (or text token at top level)
+
+        def flush_arg():
+            nonlocal arg_buf
+            if not arg_buf:
+                return
+            if len(arg_buf) == 1:
+                # single piece: emit as-is (string or nested sub list)
+                current.append(arg_buf[0])
+            elif all(isinstance(p, str) for p in arg_buf):
+                # multiple but all strings: concat now, save a wrap
+                current.append("".join(arg_buf))
             else:
-                # Regular token (text, whitespace, or substitution argument)
-                # Skip whitespace tokens inside substitutions
-                if in_substitution and tok.isspace():
+                current.append(["$"] + arg_buf)
+            arg_buf = []
+
+        def push_piece(p):
+            # add a piece to the current arg; quoted regions accumulate
+            # separately and become a single piece when the quote closes
+            if in_quote:
+                quote_pieces.append(p)
+            else:
+                arg_buf.append(p)
+
+        for tok in tokens:
+            if tok is SUB_OPEN:
+                # do NOT flush arg_buf: text immediately before a ${...} is part
+                # of the same arg as the substitution (e.g. ['${x}'] is one arg
+                # whose pieces are "['", the sub, and "']")
+                stack.append(
+                    (current, in_substitution, is_key, in_quote, quote_pieces, arg_buf)
+                )
+                current = []
+                is_key = True
+                in_substitution = True
+                in_quote = False
+                quote_pieces = None
+                arg_buf = []
+
+            elif tok is SUB_CLOSE:
+                if not stack:
+                    raise ValueError("Unbalanced '}' - no matching '${'")
+                flush_arg()
+                completed = current
+                current, in_substitution, is_key, in_quote, quote_pieces, arg_buf = (
+                    stack.pop()
+                )
+                # the sub result attaches to the current arg, not as its own arg —
+                # so adjacent text like ['${sub}'] groups together
+                push_piece(completed)
+
+            elif tok is QUOTE_OPEN:
+                if in_substitution and not is_key:
+                    in_quote = True
+                    quote_pieces = []
+                # else: drop (top-level quotes also handled implicitly by
+                # the tokenizer when they're not at an arg boundary)
+
+            elif tok is QUOTE_CLOSE:
+                if in_quote:
+                    # attach the quoted content as a single piece to current arg
+                    if not quote_pieces:
+                        arg_buf.append("")
+                    elif len(quote_pieces) == 1:
+                        arg_buf.append(quote_pieces[0])
+                    elif all(isinstance(p, str) for p in quote_pieces):
+                        arg_buf.append("".join(quote_pieces))
+                    else:
+                        arg_buf.append(["$"] + quote_pieces)
+                    in_quote = False
+                    quote_pieces = None
+                # else: stray closing quote — drop
+
+            elif isinstance(tok, str):
+                if tok.isspace():
+                    if in_quote:
+                        # whitespace inside quotes is literal (the tokenizer
+                        # shouldn't yield this, but guard anyway)
+                        quote_pieces.append(tok)
+                    elif in_substitution:
+                        # arg separator: flush current arg buffer
+                        flush_arg()
+                    else:
+                        # top level: whitespace is a token of its own, but
+                        # only flush after the arg before it
+                        flush_arg()
+                        current.append(tok)
                     continue
                 if is_key:
-                    # This is the substitution key - prefix it with $ to mark it
                     tok = "$" + tok
                     is_key = False
-                current.append(tok)
-        
+                    # the key is its own "arg" — flush immediately so following
+                    # whitespace doesn't try to attach to it
+                    current.append(tok)
+                    continue
+                push_piece(tok)
+
+        flush_arg()
+
         if stack:
-            # Unclosed substitution
             raise ValueError("Unbalanced '${' - missing closing '}'")
+        if in_quote:
+            raise ValueError("Missing closing quote")
 
         return current
 
@@ -193,15 +357,16 @@ def sub_env(key: str, default: Any = _sentinel):
 
 
 # ${eval ${arg x} * 5}
-def sub_eval(*args, context: dict, eval_type: Literal["full", "literal", "none"] = "full"):
+def sub_eval(*args, context: dict, eval_mode: EvalMode):
     expr = " ".join(str(arg) for arg in args)
-    if eval_type == "full":
+    # print("###", expr)
+    if eval_mode == EvalMode.FULL:
         return eval(expr, {}, dict(context) if context else {})
-    elif eval_type == "literal":
+    elif eval_mode == EvalMode.LITERAL:
         return literal_eval(expr)
     else:
         # eval was disabled
-        return expr
+        raise RuntimeError(f"eval substitutions have been disabled ({args})")
 
 
 def apply_substitutions(
@@ -209,17 +374,17 @@ def apply_substitutions(
     substitutions: dict[str, Callable] = None,
     context: dict[str, Any] = None,
     *,
-    eval_type: Literal["full", "literal", "none"] = "full",
+    eval_mode: EvalMode = EvalMode.NONE,
 ) -> Any:
     """Applies substitutions to a string.
 
-    Substitution strings are expected to follow the pattern: `${key *args}`, where `key` is a 
+    Substitution strings are expected to follow the pattern: `${key: *args}`, where `key` is a
     substitution type and `*args` are additional arguments to the substitution handler.
 
     If no other substitutions are specified, this function will handle the following ones:
-    - ${param ...}
-    - ${env ...}
-    - ${eval ...}
+    - ${env: <env-var-name> [default]}
+    - ${param: <full-node-name> <param-name>}
+    - ${eval: [python-strings]}
 
     Substitutions other than those above will be looked up in the provided `context` dict.
 
@@ -248,23 +413,23 @@ def apply_substitutions(
     """
     if not isinstance(value, str):
         raise ValueError(f"Value is not a string ({value})")
-    
+
     if not context:
         context = {}
 
     if not substitutions:
-        _eval = partial(sub_eval, context=context, eval_type=eval_type)
+        _eval = partial(sub_eval, context=context, eval_mode=eval_mode)
 
         substitutions = {
-            "param": sub_param,
-            "env": sub_env,
-            "eval": _eval,
+            "param:": sub_param,
+            "env:": sub_env,
+            "eval:": _eval,
         }
 
     # Handle empty strings early
     if not value:
         return value
-    
+
     # This should only raise if the value contains "${" AND has invalid syntax
     parsed = _parse_substitutions(value)
 
@@ -274,7 +439,10 @@ def apply_substitutions(
             # Empty list means empty substitution like ${}
             if not node:
                 raise SubstitutionError("Empty substitution token")
-            
+
+            if node[0] == "$":
+                return "".join(str(delve(p)) for p in node[1:])
+
             # Evaluate nested elements first
             evaluated = [delve(token) for token in node]
             sub_key, *sub_args = evaluated
@@ -291,7 +459,9 @@ def apply_substitutions(
                 if sub_key in context:
                     return context[sub_key]
                 else:
-                    raise SubstitutionError(f"Unknown substitution key: {sub_key} (substitutions: {list(substitutions.keys())}, context: {list(context.keys())})")
+                    raise SubstitutionError(
+                        f"Unknown substitution key: {sub_key} (substitutions: {list(substitutions.keys())}, context: {list(context.keys())})"
+                    )
             else:
                 return " ".join(str(e) for e in evaluated)
         else:
@@ -308,101 +478,5 @@ def apply_substitutions(
             return delve(parsed[0])
         else:
             return "".join(str(delve(item)) for item in parsed)
-    
+
     return delve(parsed)
-
-
-if __name__ == "__main__":
-    # Test cases
-    print("=" * 60)
-    print("Testing Substitution Parser")
-    print("=" * 60)
-    
-    # Mock context and substitutions for testing
-    test_context = {
-        "robot_name": "my_robot",
-        "port": 8080,
-        "x": 10,
-    }
-    
-    test_substitutions = {
-        "env": lambda key, default=_sentinel: os.environ.get(key, default) if default != _sentinel else os.environ.get(key, f"MOCK_{key}"),
-        "eval": partial(sub_eval, context=test_context, eval_type="full"),
-    }
-    
-    test_cases = [
-        # (description, input_string, should_succeed)
-        ("Plain text", "hello world", True),
-        ("Simple substitution", "${robot_name}", True),
-        ("Substitution with text", "Robot: ${robot_name}", True),
-        ("Multiple substitutions", "${robot_name} on port ${port}", True),
-        ("Nested substitution", "${eval ${x} * 2}", True),
-        ("Environment variable", "${env HOME}", True),
-        ("Env with default", "${env NONEXISTENT default_value}", True),
-        ("Quoted argument", "${robot_name}", True),
-        ("Complex eval", "${eval ${x} + ${port}}", True),
-        ("Empty string", "", True),
-        ("Dollar sign alone", "Price: $5", True),
-        
-        # Failure cases
-        ("Unbalanced opening", "${robot_name", False),
-        ("Unbalanced closing", "robot_name}", False),
-        ("Empty substitution", "${}", False),
-        ("Unclosed quote", "${arg 'unclosed}", False),
-        ("Unknown key", "${unknown_key}", False),
-        ("Nested unbalanced", "${eval ${x}", False),
-    ]
-    
-    passed = 0
-    failed = 0
-    
-    for desc, test_str, should_succeed in test_cases:
-        try:
-            result = apply_substitutions(
-                test_str,
-                substitutions=test_substitutions,
-                context=test_context,
-                eval_type="full"
-            )
-            if should_succeed:
-                print(f"✓ {desc:25} | '{test_str}' -> '{result}'")
-                passed += 1
-            else:
-                print(f"✗ {desc:25} | Expected failure but got: '{result}'")
-                failed += 1
-        except (ValueError, SubstitutionError, KeyError) as e:
-            if not should_succeed:
-                print(f"✓ {desc:25} | Correctly failed: {type(e).__name__}: {e}")
-                passed += 1
-            else:
-                print(f"✗ {desc:25} | Unexpected error: {type(e).__name__}: {e}")
-                failed += 1
-        except Exception as e:
-            print(f"✗ {desc:25} | Unexpected exception: {type(e).__name__}: {e}")
-            failed += 1
-    
-    print("=" * 60)
-    print(f"Results: {passed} passed, {failed} failed")
-    print("=" * 60)
-    
-    # Additional edge case tests
-    print("\nEdge Case Tests:")
-    print("-" * 60)
-    
-    edge_cases = [
-        ("Escaped quotes", "${arg \"test\\\"value\"}", True),
-        ("Multiple dollars", "$100", True),
-        ("Whitespace in sub", "${  robot_name  }", True),
-        ("Number in context", "${port}", True),
-    ]
-    
-    for desc, test_str, should_succeed in edge_cases:
-        try:
-            result = apply_substitutions(
-                test_str,
-                substitutions=test_substitutions,
-                context=test_context,
-            )
-            print(f"  {desc:20} | '{test_str}' -> '{result}'")
-        except Exception as e:
-            print(f"  {desc:20} | Error: {type(e).__name__}: {e}")

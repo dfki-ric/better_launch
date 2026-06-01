@@ -9,9 +9,12 @@ __all__ = [
 ]
 
 
-from typing import Sequence, Any
+from typing import Sequence, Any, Literal, Callable
+import os
 import subprocess
 import json
+import yaml
+import tempfile
 
 from better_launch import BetterLaunch
 from better_launch.elements import Node
@@ -108,6 +111,55 @@ def read_robot_description(
         raise ValueError(f"Xacro failed ({e.returncode}): {e.output}") from e
 
 
+# Don't think this is useful enough to be part of the public api
+def _resolve_robot_description(
+    source: str,
+    as_topic: bool,
+    topic: str = "/robot_description",
+    *,
+    xacro_args: list[str] = None,
+) -> str:
+    """Prepares a robot description for passing to another node.
+
+    If `source` points to a file, read it. Then, if `as_topic` is True and `source` looks like xml, create a publisher on `topic` and publish the contents.
+
+    Note that if a topic or anything else that does not match the above criteria is passed in, it will be returned verbatim.
+
+    Parameters
+    ----------
+    source : str
+        A robot description topic, file path, or contents.
+    as_topic : bool
+        If True and either a file path or xml contents were passed, publish the robot description on the specified topic.
+    topic : str, optional
+        Where to publish the robot description contents.
+    xacro_args : list[str], optional
+        Xacro args to be passed to `read_robot_description` if the source is a xacro file.
+
+    Returns
+    -------
+    str
+        The contents of the robot description if a file was loaded, otherwise `source` as is.
+    """
+    from std_msgs.msg import String
+
+    bl = BetterLaunch()
+
+    if os.path.isfile(source):
+        source = read_robot_description(None, source, xacro_args=xacro_args)
+
+    if as_topic and source.lstrip().startswith("<"):
+        source = source.strip()
+        pub = bl.publisher(
+            topic,
+            String,
+            bl.qos_profile(durability="transient_local"),
+        )
+        pub.publish(String(data=source))
+
+    return source
+
+
 def joint_state_publisher(
     use_gui: bool = False, node_name: str = None, **kwargs
 ) -> Node:
@@ -148,28 +200,28 @@ def joint_state_publisher(
 
 
 def robot_state_publisher(
-    package: str,
-    description_file: str,
-    subdir: str = None,
+    robot_description: str = None,
     *,
-    xacro_args: list[str] = None,
     node_name: str = None,
+    pass_by_topic: bool = False,
+    description_topic: str = "/robot_description",
+    xacro_args: list[str] = None,
     **kwargs,
 ) -> Node:
-    """Start a Robot State Publisher node using the given URDF/Xacro file. The file is resolved using [BetterLaunch.find][].
+    """Start a Robot State Publisher node from a robot description. 
 
     Parameters
     ----------
-    package : str
-        The name of the package containing the robot description file. May be `None` to use this launch file's package (see [BetterLaunch.find][]).
-    description_file : str
-        The name of the robot description for the robot. Typically a .sdf, .urdf or .xacro file.
-    subdir : str, optional
-        A path fragment the description file must be located in.
-    xacro_args : list of str, optional
-        Additional arguments to pass to the Xacro processor when processing `.xacro` files.
+    robot_description : str, optional
+        Robot description the state publisher will use. This can be a urdf/xacro file path (e.g. from [BetterLaunch.find][]), a topic, or an xml string as returned by [read_robot_description][]. See also `pass_by_topic`. If not set it will be read from `/robot_description` (subject to remaps).
     node_name : str, optional
         The name of the node. If not provided the name of the executable will be used. Will be anonymized unless `anonymous=False` is passed.
+    xacro_args : list of str, optional
+        Additional arguments to pass to the Xacro processor when a `.xacro` file was passed.
+    pass_by_topic : bool, optional
+        If True and the value provided for `robot_description` is either a file or xml string, the description will be passed to the controller manager via a topic rather than a ROS parameter. On ROS versions before lyrical this feature is disabled.
+    description_topic : str, optional
+        The topic under which the robot description will be published if `pass_by_topic` is True.
     **kwargs : dict, optional
         Additional arguments for the node, such as remappings or parameters.
 
@@ -180,24 +232,69 @@ def robot_state_publisher(
     """
     bl = BetterLaunch.instance()
 
-    robot_description = read_robot_description(
-        package,
-        description_file,
-        subdir,
-        xacro_args=xacro_args,
-    )
+    if bl.ros_distro_key() < "l":
+        pass_by_topic = False
 
     kwargs.setdefault("anonymous", True)
     params = kwargs.pop("params", {})
-    params["robot_description"] = robot_description
+    remaps = kwargs.pop("remaps", {})
 
-    return bl.node(
+    if not robot_description:
+        robot_description = "/robot_description"
+
+    robot_description = _resolve_robot_description(
+        robot_description,
+        pass_by_topic,
+        description_topic,
+        xacro_args=xacro_args,
+    )
+
+    if not robot_description.lstrip().startswith("<"):
+        # Input arg was not a file or xml content string, assume it's a topic
+        if bl.ros_distro_key() < "l":
+            # Before lyrical we need to read the topic and pass it as a parameter
+            rd_msg = bl.receive_message(
+                robot_description, "std_msgs/msg/String", None, timeout=1.0
+            )
+            if not rd_msg:
+                raise ValueError(
+                    f"Failed to read robot description from {robot_description}"
+                )
+
+            robot_description = rd_msg.data
+            params["robot_description"] = robot_description
+        else:
+            # On lyrical and higher we can simply forward the assumed topic string
+            if remaps.get("robot_description") not in (None, description_topic):
+                raise ValueError(
+                    "Cannot remap robot_description to a different topic when pass_by_topic is True, modify description_topic instead"
+                )
+
+            remaps["robot_description"] = robot_description
+            params["use_robot_description_topic"] = True
+    elif pass_by_topic:
+        # We managed to read the description contents and want to pass them by topic
+        if remaps.get("robot_description") not in (None, description_topic):
+            raise ValueError(
+                "Cannot remap robot_description to a different topic when pass_by_topic is True, modify description_topic instead"
+            )
+
+        remaps["robot_description"] = description_topic
+        params["use_robot_description_topic"] = True
+    else:
+        # We received description contents that should be passed by parameter instead of topic
+        params["robot_description"] = robot_description
+
+    node = bl.node(
         "robot_state_publisher",
         "robot_state_publisher",
         node_name,
         params=params,
+        remaps=remaps,
         **kwargs,
     )
+
+    return node
 
 
 def static_transform_publisher(
@@ -265,27 +362,40 @@ def static_transform_publisher(
 
 
 def spawn_controller_manager(
-    params: str | dict[str, Any] = None,
+    param_files: str | list[str] = None,
     robot_description: str = None,
     *,
     remaps: dict[str, str] = None,
+    params: dict[str, Any] = None,
     cmd_args: list[str] = None,
     name: str = "controller_manager",
+    pass_by_topic: bool = True,
+    description_topic: str = "/robot_description",
+    xacro_args: list[str] = None,
 ) -> Node:
     """Spawn a new controller manager.
 
     Parameters
     ----------
+    param_files : str | list[str], optional
+        One or more config files to be read by the controller manager. These will also be passed on to any controllers loaded and are often the only way to provide them with namespaced parameters.
     robot_description : str, optional
-        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by [read_robot_description][], however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
-    params : str | dict[str, Any], optional
-        The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via [BetterLaunch.load_params][].
+        Robot description to pass to the controller. This can be a urdf/xacro file path (e.g. from [BetterLaunch.find][]), a topic, or an xml string as returned by [read_robot_description][]. See also `pass_by_topic`. If not set the manager's default is used (`~/robot_description`, subject to remaps).
     remaps : dict[str, str], optional
         Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.
+    params : str | dict[str, Any], optional
+        The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via [BetterLaunch.load_params][].
     cmd_args: list[str], optional
         Additional CLI arguments to pass to the spawner command (e.g. `--load-only`).
     name : str, optional
-        The name the controller manager node should use. The rename is qualified and so won't affect controllers spawned later (see `this document <https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process>`_ for details). Note however that many nodes and CLI programs (e.g. `ros2 control`) expect the manager to be named `controller_manager` and won't work properly otherwise.
+    pass_by_topic : bool, optional
+        If True and the value provided for `robot_description` is either a file or xml string, the description will be passed to the controller manager via a topic rather than a ROS parameter. Automatically enabled on jazzy and newer, where passing by parameter is no longer supported.
+    description_topic : str, optional
+        Where to publish the robot description if `pass_by_topic` is True.
+    xacro_args : list[str], optional
+        Additional arguments to pass to the Xacro processor when a `.xacro` robot description file was passed.
+
+        The name the controller manager node should use. The rename is qualified and so won't affect controllers spawned later (see [this document](https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process) for details). Note however that many nodes and CLI programs (e.g. `ros2 control`) expect the manager to be named `controller_manager` and won't work properly otherwise.
 
     Returns
     -------
@@ -303,28 +413,37 @@ def spawn_controller_manager(
 
     if params is None:
         params = {}
-    elif isinstance(params, str):
-        # In theory one could pass the config and then change it before a controller is loaded, 
-        # but that seems debatable at best. If you truly want this, either pass the file path as
-        # a cmd arg, or keep the manager and controller configs separate and pass the later to 
-        # spawn_controller below.
-        # process_args.extend(["--param-file", params])
-        params = bl.load_params(None, params, matching_only=False)
 
     if robot_description:
-        if robot_description.startswith("<?xml"):
-            if bl.ros_distro()[0].lower() >= "j":
-                raise ValueError("Passing a robot description by value is deprecated in ROS Jazzy and beyond")
-            params["robot_description"] = robot_description
-        else:
-            # Assume it's a topic
+        # Passing by parameter is not supported in jazzy and onwwards
+        if bl.ros_distro_key() >= "j":
+            pass_by_topic = True
+
+        robot_description = _resolve_robot_description(
+            robot_description,
+            pass_by_topic,
+            description_topic,
+            xacro_args=xacro_args,
+        )
+
+        if pass_by_topic:
             if remaps is None:
                 remaps = {}
-            remaps["robot_description"] = robot_description
+            elif remaps.get("robot_description") not in (None, description_topic):
+                raise ValueError(
+                    "Cannot remap robot_description to a different topic when pass_by_topic is True, modify description_topic instead"
+                )
+
+            remaps["robot_description"] = description_topic
+        else:
+            # Pass it as a parameter
+            params["robot_description"] = robot_description
 
     else:
-        if bl.ros_distro()[0].lower() < "j":
-            bl.logger.warning("Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!")
+        if bl.ros_distro_key() < "j":
+            bl.logger.warning(
+                "Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!"
+            )
 
     return bl.node(
         package="controller_manager",
@@ -332,6 +451,7 @@ def spawn_controller_manager(
         name=name,
         remaps=remaps,
         params=params,
+        param_files=param_files,
         cmd_args=cmd_args,
         # Prevent renaming nodes spawned by the manager
         # See https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process
@@ -356,8 +476,7 @@ def spawn_controller(
     controller : str
         The controller to spwawn.
     params : str | list[str] | dict[str, Any], optional
-        Additional parameters for the controller node. Can be a path to a ROS2 config, a list of paths, or a dict with the actual key-value pairs. Note that passing a dict is only 
-        supported for ROS Jazzy and newer.
+        Additional parameters for the controller node. Can be a path to a ROS2 config, a list of paths, or a dict with the actual key-value pairs. In versions of ROS before Jazzy the params will be serialized into a temporary yaml file.
     remaps : dict[str, str], optional
         Additional remaps specific to the controller. These will be qualified with the controller's name to avoid conflicts.
     cmd_args: list[str], optional
@@ -375,30 +494,39 @@ def spawn_controller(
         params = bl.load_params(None, params)
 
     if params:
+        # Passing controller params directly is only supported in Jazzy and newer, so we
+        # write them to a yaml instead, then pass them as a param-file
+        if isinstance(params, dict) and bl.ros_distro_key() < "j":
+            data = yaml.serialize(params).splitlines()
+
+            tmp = tempfile.NamedTemporaryFile("w+", suffix=".yaml")
+            bl.logger.warning(
+                f"ROS2 {bl.ros_distro()} does not support passing params to controllers directly, serializing to {tmp.name} instead"
+            )
+            tmp.writelines(data)
+            bl.add_shutdown_callback(tmp.close)
+
+            params = tmp.name
+
+        # Decide how to pass the params to the controller
         if isinstance(params, dict):
-            if bl.ros_distro()[0].lower() < "j":
-                raise ValueError(
-                    "Passing controller params directly is only supported in Jazzy and newer"
-                )
-            
             manager_node = bl.query_node(manager, include_foreign=True)
 
             if not manager_node:
                 raise ValueError(f'Could not find controller manager "{manager}"')
 
-            # In theory we could pass --controller-ros-args to the spawner and let the spawner 
-            # handle these, but it unfortunately does some very naive string splitting which 
-            # messes up more complex arguments containing e.g. lists. 
+            # In theory we could pass --controller-ros-args to the spawner and let the spawner
+            # handle these, but it unfortunately does some very naive string splitting which
+            # messes up more complex arguments containing e.g. lists.
             manager_node.set_live_params(
                 {
                     f"{controller}.node_options_args": [
-                        f"{key}:={json.dumps(val)}"
-                        for key, val in params.items()
+                        f"{key}:={json.dumps(val)}" for key, val in params.items()
                     ]
                 }
             )
         elif isinstance(params, str):
-            # Usually we'd load the parameters here and pass them to the controller manager, 
+            # Usually we'd load the parameters here and pass them to the controller manager,
             # but this functionality only exists from jazzy onwards
             process_args.extend(["--param-file", params])
         elif isinstance(params, list):
@@ -408,56 +536,72 @@ def spawn_controller(
             raise ValueError(f"Controller params of type {type(params)} not supported")
 
     if remaps:
-        if bl.ros_distro()[0].lower() < "j":
+        if bl.ros_distro_key() < "j":
             raise ValueError(
                 "Passing controller params directly is only supported in Jazzy and newer"
             )
 
         for key, value in remaps.items():
-            # Qualify remaps to avoid accidental remaps for other controllers 
+            # Qualify remaps to avoid accidental remaps for other controllers
             process_args.extend(
                 ["--controller-ros-args", f"-r {controller}:{key}:={value}"]
             )
 
     # This is NOT a node! Could also use the spawner python implementation directly, but that
     # would just introduce another dependency with little benefit.
-    spawner = bl.find("controller_manager", "controller_manager/spawner")
+    spawner = bl.find("controller_manager", "spawner")
     bl.exec(["python3", spawner] + process_args)
 
 
 def record_topics(
     topics: list[str] = None,
+    predicate: Callable[[str], bool] = None,
     *,
-    bagfile: str = None,
-    camera_topic: str = "image_rect",
-    include_image_topics: bool = True,
-    include_compressed: bool = False,
+    bagdir: str = None,
     max_bag_duration: int = 0,
-    max_bag_size: int = 0,
-    format: str = "mcap",
-):
-    """Record a rosbag. 
-    
-    Will record the specified topics, or automatically select topics based on currently available topics and arguments.
+    max_bag_size: float = 0.0,
+    recordings: int = 1,
+    wait: bool = True,
+    format: Literal["mcap", "sqlite3"] = "mcap",
+    extra_args: list[str] = None,
+) -> None | Node:
+    """Record a rosbag.
+
+    If topics is empty or not specified all currently published topics are used. The list of topics will be filtered by the predicate if provided.
 
     Parameters
     ----------
-    bagfile : str, optional
-        Where to record the bagfile. If not specified it will use the rosbag default.
-    camera_topic : str, optional
-        If specified, only record camera topics if they contain this string. Assumes that the word "camera" appears in the topic path. If specified it is independent from `include_image_topics`. Ignored if topics are specified.
-    include_image_topics : bool, optional
-        Whether to include non-camera image topics. Ignored if topics are specified.
-    include_compressed : bool, optional
-        Whether to include compressed image topics. Ignored if topics are specified.
+    topics : list[str], optional
+        The ROS topics to record. If not specified all currently known topics will be used instead.
+    predicate : Callable[[str], bool], optional
+        A function to decide which topics to record. I suggest to use fnmatch for simple wildcards.
+    bagdir : str, optional
+        Where to record the bagfile. If not specified it will use the rosbag default (a timestamped folder in the currend working directory).
     max_bag_duration : int, optional
         Start recording a new bagfile after recording for X seconds.
-    max_bag_size : int, optional
+    max_bag_size : float, optional
         Start recording a new bagfile after recording X MB.
-    format : str, optional
-        Rosbag format, should be mcap or sqlite3.
+    recordings : int, optional
+        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0. Multiple recordings can only be done when `wait` is True.
+    wait : bool, optional
+        If True, wait for the recording to finish before returning. Otherwise the process will be wrapped in a [elements.Node][] object and returned. Must be True if `recordings` is != 1.
+    format : Literal["mcap", "sqlite3"], optional
+        Rosbag recording format, should be mcap or sqlite3.
+    extra_args : Iterable[str], optional
+        Additional arguments that will be passed to rosbag.
+
+    Returns
+    -------
+    None | Node
+        Nothing if wait is True, otherwise a [elements.Node][] object wrapping the recording process.
     """
+    if recordings != 1 and not wait:
+        raise ValueError("For multiple recordings wait must be True")
+
     bl = BetterLaunch()
+
+    if not topics:
+        topics = [t for t, _ in bl.shared_node.get_topic_names_and_types()]
 
     cmd = [
         "ros2",
@@ -466,88 +610,101 @@ def record_topics(
         "--storage",
         format,
         "--max-bag-duration",
-        max_bag_duration,
+        int(max_bag_duration),
         "--max-bag-size",
-        max_bag_size * 1024 * 1024,
+        int(max_bag_size * 1024 * 1024),
     ]
 
-    if bagfile:
-        cmd.extend(["-o", bagfile])
+    if bagdir:
+        cmd.extend(["-o", bagdir])
 
-    if topics:
-        cmd.extend(topics)
-    else:
-        topics: dict = bl.shared_node.get_topic_names_and_types()
-        for topic, types in topics.items():
-            if "sensor_msgs/msg/Image" in types:
-                if "camera" in topic:
-                    if camera_topic and camera_topic not in topic:
-                        continue
+    if extra_args:
+        cmd.extend(extra_args)
 
-                elif not include_image_topics:
-                    # Not the camera topic we want and we don't want other image topics either
-                    continue
+    if predicate:
+        topics = list(filter(predicate, topics))
 
-                if "/compressed/" in topic and not include_compressed:
-                    continue
+    if not topics:
+        raise ValueError("No topics left to record")
 
-            cmd.append(topic)
+    cmd.extend(topics)
+    cmd = [str(x) for x in cmd]
+    count = 0
 
-    bl.exec(cmd)
+    while True and not bl.is_shutdown:
+        bl.logger.critical(f"\n===== RECORDING {count + 1} =====\n")
+        if wait:
+            bl.exec(cmd)
+            count += 1
+            if recordings > 0 and count >= recordings:
+                break
+        else:
+            return bl.process(cmd)
 
 
 def record_topics_from_file(
     topic_file: str,
+    predicate: Callable[[str], bool] = None,
     *,
-    bagfile: str = None,
+    bagdir: str = None,
     max_bag_duration: int = 0,
-    max_bag_size: int = 0,
-    format: str = "mcap",
-):
-    """Record a rosbag. 
-    
+    max_bag_size: float = 0,
+    recordings: int = 1,
+    wait: bool = True,
+    format: Literal["mcap", "sqlite3"] = "mcap",
+    extra_args: list[str] = None,
+) -> None | Node:
+    """Record a rosbag.
+
     Reads topics to record from a text-file. Empty lines and lines starting with "#" will be ignored.
 
     Parameters
     ----------
-    bagfile : str, optional
-        Where to record the bagfile. If not specified it will use the rosbag default.
+    topic_file : str
+        The file to read the topic list from.
+    predicate : Callable[[str], bool], optional
+        A function to decide which topics to record. I suggest to use fnmatch for simple wildcards.
+    bagdir : str, optional
+        Where to record the bagfile. If not specified it will use the rosbag default (a timestamped folder in the currend working directory).
     topic_file : str, optional
         Text file with topics to record. Lines starting with "#" will be ignored.
     max_bag_duration : int, optional
         Start recording a new bagfile after recording for X seconds.
-    max_bag_size : int, optional
+    max_bag_size : float, optional
         Start recording a new bagfile after recording X MB.
-    format : str, optional
-        Rosbag format, should be mcap or sqlite3.
+    recordings : int, optional
+        Make this many recordings each with the set maximum bag duration/size. Continue until interrupted if <= 0. Multiple recordings can only be done when `wait` is True.
+    wait : bool, optional
+        If True, wait for the recording to finish before returning. Otherwise the process will be wrapped in a [elements.Node][] object and returned. Must be True if `recordings` is != 1.
+    format : Literal["mcap", "sqlite3"], optional
+        Rosbag recording format, should be mcap or sqlite3.
+    extra_args : Iterable[str], optional
+        Additional arguments that will be passed to rosbag.
+
+    Returns
+    -------
+    None | Node
+        Nothing if wait is True, otherwise a [elements.Node][] object wrapping the recording process.
     """
-    bl = BetterLaunch()
-
-    cmd = [
-        "ros2",
-        "bag",
-        "record",
-        "--storage",
-        format,
-        "--max-bag-duration",
-        max_bag_duration,
-        "--max-bag-size",
-        max_bag_size * 1024 * 1024,
-    ]
-
-    if bagfile:
-        cmd.extend(["-o", bagfile])
-
     with open(topic_file) as f:
         lines = f.readlines()
-    
+
     topics = []
     for line in lines:
-        line = line.trim()
+        line = line.strip()
         if not line or line.startswith("#"):
             continue
 
         topics.append(line)
 
-    bl.logger.critical(f"{len(topics)} topics will be recorded")
-    bl.exec(cmd)
+    return record_topics(
+        topics,
+        predicate=predicate,
+        bagdir=bagdir,
+        max_bag_duration=max_bag_duration,
+        max_bag_size=max_bag_size,
+        recordings=recordings,
+        wait=wait,
+        format=format,
+        extra_args=extra_args,
+    )

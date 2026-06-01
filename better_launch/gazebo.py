@@ -25,7 +25,7 @@ from ament_index_python.packages import (
 
 from better_launch import BetterLaunch
 from better_launch.elements import Node
-from .convenience import static_transform_publisher
+from .convenience import static_transform_publisher, read_robot_description
 
 
 _gazebo_exec = None
@@ -67,7 +67,7 @@ def get_gazebo_exec() -> str:
         If the executable cannot be located.
     """
     global _gazebo_exec
-    
+
     if not _gazebo_exec:
         # On some systems ros_gz_sim was installed, but the executable was still ign
         _gazebo_exec = shutil.which("gz")
@@ -280,6 +280,10 @@ def spawn_model(
     model: str,
     model_source: Literal["topic", "file", "string", "param", "auto"] = "auto",
     spawn_args: dict[str, Any] = None,
+    *,
+    pass_by_topic: bool = False,
+    topic_base_name: str = "/gazebo/models/",
+    xacro_args: list[str] = None,
 ) -> Node:
     """
     Spawns a model into Gazebo under the given name from the specified topic or file.
@@ -298,6 +302,12 @@ def spawn_model(
         Where to read the model from. Auto will try to guess the source based on the content of `model`: does it look like XML, is it a file, is it an existing topic? Otherwise assume it's a ROS2 parameter.
     spawn_args : dict[str, Any], optional
         Additional arguments for spawning the model, such as pose and other options. See [get_gazebo_axes_args][] for defining the model's orientation.
+    pass_by_topic : bool, optional
+        If True and the model is a file or string, pass it by topic instead. On ROS versions before lyrical this feature is disabled.
+    topic_base_name : str, optional
+        Use this as the base topic string when `pass_by_topic` is True. The `model_name` will be appended to form the full topic.
+    xacro_args : list[str], optional
+        Arguments to pass to the xacro parser if a xacro file is passed as the model.
 
     Returns
     -------
@@ -305,6 +315,9 @@ def spawn_model(
         The spawned node instance.
     """
     bl = BetterLaunch.instance()
+
+    if bl.ros_distro_key() < "l":
+        pass_by_topic = False
 
     if spawn_args is None:
         spawn_args = {}
@@ -318,6 +331,26 @@ def spawn_model(
             model_source = "topic"
         else:
             model_source = "param"
+
+    if model_source == "file":
+        if model.endswith(".xacro") or pass_by_topic:
+            model = read_robot_description(None, model, xacro_args=xacro_args)
+            model_source = "string"
+
+    # Publish as topic instead
+    # Note that any file models will have already been parsed into string
+    if pass_by_topic and model_source == "string":
+        from std_msgs.msg import String
+
+        topic_base_name = topic_base_name.rstrip("/")
+        model_source = "topic"
+
+        pub = bl.publisher(
+            f"{topic_base_name}/{model_name}",
+            String,
+            bl.qos_profile(durability="transient_local"),
+        )
+        pub.publish(String(data=model))
 
     cmd_args = ["-name", model_name, f"-{model_source}", model]
 
@@ -367,7 +400,7 @@ def spawn_topic_bridge(
     Parameters
     ----------
     bridges : list[str | GazeboBridge]
-        Definitions of topic bridges. This can be either a typical string (`<topic>@<ros2_type><direction><gazebo_type>`) or a [GazeboBridge][] instance. Note that in order to bridge services you will have to specify them as strings for now. 
+        Definitions of topic bridges. This can be either a typical string (`<topic>@<ros2_type><direction><gazebo_type>`) or a [GazeboBridge][] instance. Note that in order to bridge services you will have to specify them as strings for now.
     node_name : str, optional
         The name of the bridge node.
     remaps : dict[str, str], optional
@@ -409,7 +442,7 @@ def spawn_topic_bridge(
         node_name,
         cmd_args=args,
         remaps=all_remaps,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -417,7 +450,7 @@ def spawn_image_bridge(
     *bridges: Union[str, "GazeboBridge"],
     node_name: str = None,
     remaps: dict[str, str] = None,
-    cmd_args: list[str] = None, 
+    cmd_args: list[str] = None,
     qos: str = None,
     **kwargs,
 ) -> Node:
@@ -437,7 +470,7 @@ def spawn_image_bridge(
         The `ROS2 quality of service <https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html>`_ definition to use. Note that this is not supported in all versions of ros-gz-image and may cause the bridge to terminate.
     kwargs : dict[str, Any]
         Additional node arguments.
-    
+
     Returns
     -------
     Node
@@ -457,7 +490,7 @@ def spawn_image_bridge(
                 b = GazeboBridge.from_string(b)
             except ValueError:
                 b = GazeboBridge.from_string(f"{b}@sensor_msgs/msg/Image]gz.msgs.Image")
-            
+
             bridges[i] = b
 
         if not b.is_image_bridge:
@@ -476,10 +509,10 @@ def spawn_image_bridge(
                 all_remaps.setdefault(src.topic + ext, dst + ext)
 
     args = [b.topic for b in bridges]
-    
+
     if cmd_args:
         args.extend(cmd_args)
-    
+
     if qos:
         args.extend(["--ros-args", f"qos:={qos}"])
 
@@ -492,7 +525,7 @@ def spawn_image_bridge(
         node_name,
         remaps=all_remaps,
         cmd_args=args,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -587,7 +620,9 @@ class GazeboBridge:
         if not m:
             raise ValueError(bridge + " is not a valid bridge string")
 
-        return GazeboBridge(m.group(1), m.group(2), m.group(3), m.group(4), remaps=remaps)
+        return GazeboBridge(
+            m.group(1), m.group(2), m.group(3), m.group(4), remaps=remaps
+        )
 
     @classmethod
     def clock_bridge(cls) -> "GazeboBridge":
@@ -625,7 +660,9 @@ class GazeboBridge:
         self,
         topic: str,
         ros2_type: str = None,
-        direction: Literal["ros2gz", "gz2ros", "bidirectional", "[", "]", "@"] = "bidirectional",
+        direction: Literal[
+            "ros2gz", "gz2ros", "bidirectional", "[", "]", "@"
+        ] = "bidirectional",
         gazebo_type: str = None,
         *,
         remaps: dict[str, str] = None,
@@ -660,10 +697,12 @@ class GazeboBridge:
         if not ros2_type:
             bl = BetterLaunch.instance()
             live_topics = bl.shared_node.get_topic_names_and_types()
-            
+
             if topic not in live_topics:
-                raise ValueError(f"Message type not specified and topic {topic} does not exist yet")
-            
+                raise ValueError(
+                    f"Message type not specified and topic {topic} does not exist yet"
+                )
+
             ros2_type = live_topics[topic][0]
 
         if direction not in "[]@":
@@ -681,4 +720,3 @@ class GazeboBridge:
 
     def __str__(self):
         return f"{self.topic}@{self.ros2_type}{self.direction}{self.gazebo_type}"
-

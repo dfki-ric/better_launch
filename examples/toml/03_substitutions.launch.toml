@@ -1,0 +1,74 @@
+# If you've written ROS1 xml launch files in the past you may recall using
+# substitutions for passing values around and doing some more complex things.
+# better_launch's TOML launch files let you do the same and some more.
+# 
+# better_launch supports the following substitutions:
+# - toml (used if no substitution key is provided)
+# - eval
+# - env
+# - param
+
+# ==============================================================================
+
+# One of the substitutions allows you to evaluate python code. Since this is 
+# obviously a security risk the default mode is `none` which will raise an 
+# exception if the substitution is used. The eval modes are:
+# - none: raises an exception if an eval substitution is used
+# - literal: use `ast.literal_eval` to parse plain values
+# - full: use the real `eval` for evaluation
+# 
+# Note that the eval mode is never inherited on includes and only set for the
+# launch file it is defined in.
+bl_eval_mode = "full"
+
+# We need a temporary node for later, don't worry about it
+[tmp_node]
+func = "node"
+package = "examples_rclpy_minimal_subscriber"
+executable = "subscriber_member_function"
+name = "temp_node"
+
+# ==============================================================================
+
+# You already know the most basic type of substitution: TOML substitutions. 
+# These will simply insert the value from a previous block (or variable 
+# defined on the global level) wherever they are encountered.
+[sub_toml]
+func = "log"
+severity = "warning"
+message = "The current eval mode is: ${bl_eval_mode}"
+
+# To use one of the non-TOML substitutions, add the substitution name followed
+# by a colon : in front, followed by a space separated list of the substitution 
+# arguments you wish to pass.
+[sub_eval]
+func = "log"
+severity = "info"
+# Eval will join all arguments using spaces, but you can also use quotes for 
+# more complex strings that contain brackets or might confuse the parser.
+# Note that even full eval does not allow imports and the globals it sees are 
+# all populated by this launch file.
+message = "[SUB] Some python math: ${eval: ['${bl_eval_mode}'] * 4}"
+
+# The `env` is pretty straight forward and will simply return the value of the 
+# environment variable. You may optionally pass a default value.
+[sub_env]
+func = "log"
+severity = "info"
+message = "[SUB] ROS distro: ${env: ROS_DISTRO unknown}"
+
+# There is also a `param` substitution which will retrieve a ROS parameter value
+# from a fully qualified node.
+[sub_param]
+func = "log"
+severity = "info"
+message = "[SUB] use_sim_time: ${param: /temp_node use_sim_time}"
+
+# ==============================================================================
+
+[sleep]
+func = "sleep"
+seconds = 2.0
+
+[shutdown]
+func = "shutdown"

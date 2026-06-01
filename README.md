@@ -41,15 +41,27 @@ $> bl my_package my_launch_file.py --enable_x True
 *Do I have your attention? Read on to learn more!*
 
 
-# 🧞‍♀️ Everything you need to know
+# 🗺️ Everything you need to know
 - [The What and Why](https://dfki-ric.github.io/better_launch/about/why/)
 - [Differences to ROS2](https://dfki-ric.github.io/better_launch/about/differences/)
 - [Installation](https://dfki-ric.github.io/better_launch/installation/)
 - [HowTo](https://dfki-ric.github.io/better_launch/howto/python/)
-- [Examples](examples/)
+- [Examples](examples/python)
 
 
-# ⛲ Highlights
+# 🧞‍♀️ Highlights
+
+## 🪄 Complete replacement
+
+> [!NOTE]
+> [All features](https://dfki-ric.github.io/better_launch/about/features/)
+
+*better_launch* can do everything that ROS2 launchfiles can, but more, with equal or less resources, and better:
+- Solve almost every task with 2-3 imports
+- Actions are executed in sequence, nodes shutdown in reverse
+- Shell autocompletion for launch arguments
+- Use natural types instead of strings of lists of dicts of...
+- Include regular ROS2 launch files and get included by them
 
 ## 📟 The TUI
 
@@ -94,7 +106,7 @@ severity = "info"
 message = "Found cube at ${a_simple_cube}"
 ```
 
-Under the hood, TOML launchfiles result in calls to the `BetterLaunch` singleton, but offer a more focused and constrained feature set. If you are still missing ROS1 XML launchfiles (and substitutions like `${arg my_arg}`!), these are for you!
+Under the hood, TOML launchfiles result in calls to the `BetterLaunch` singleton, but offer a more focused and constrained feature set (limited branching, no loops, etc.). If you are still missing ROS1 XML launchfiles (and substitutions like `${arg my_arg}`), these are for you!
 
 
 # 🌱 Contributions

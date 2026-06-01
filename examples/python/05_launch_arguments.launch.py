@@ -26,7 +26,7 @@ def handle_with_care(enable: bool = False):
 
     if bl.is_included():
         # For example 06
-        bl.log("warning", f"I was included by {bl.launchfile}")
+        bl.log("warning", f"Example 05 was included by {bl.launchfile}")
 
     if enable:
         bl.node(

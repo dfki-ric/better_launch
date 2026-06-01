@@ -3,7 +3,7 @@ from .abstract_node import AbstractNode
 
 
 class Group:
-    def __init__(self, parent: "Group", namespace: str):
+    def __init__(self, parent: "Group", namespace: str, use_sim_time: bool):
         """Groups are used in better_launch to manage node namespaces and common remaps. Beyond that they don't have any meaning for ROS, and there is usually no reason to interact with them directly.
         
         Parameters
@@ -12,9 +12,12 @@ class Group:
             This group's parent group.
         namespace : str
             The namespace fragment this group represents.
+        use_sim_time : bool
+            Whether nodes inside this group should use simulated time.
         """
         self.parent = parent
         self.namespace = namespace
+        self.use_sim_time = use_sim_time
         self.children: dict[str, Group] = {}
         self.nodes: list[AbstractNode] = []
 

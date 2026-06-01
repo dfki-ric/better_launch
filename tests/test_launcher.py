@@ -19,14 +19,16 @@ from rclpy.qos import qos_profile_parameters
 def some_function_name():
     # Do any setup stuff before the tests start
     yield
-    
+
     # Once we're done make sure to tear down everything
     bl = BetterLaunch.instance()
     if bl:
         bl.shutdown()
         nodes = bl.get_nodes(include_components=True)
         still_alive = [not n.is_running for n in nodes]
-        assert all(still_alive), f"The following nodes refused to shutdown: {still_alive}"
+        assert all(still_alive), (
+            f"The following nodes refused to shutdown: {still_alive}"
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -44,23 +46,23 @@ def _assert_talker_listener_running(talker: Node, listener: Node, topic: str) ->
 
     # Verify talker and listener are alive
     alive_nodes = bl.shared_node.get_node_names()
-    assert (
-        talker.name in alive_nodes
-    ), f"Talker {talker.name} not listed, alive nodes: {alive_nodes}"
-    assert (
-        listener.name in alive_nodes
-    ), f"Listener {listener.name} not listed, alive nodes: {alive_nodes}"
+    assert talker.name in alive_nodes, (
+        f"Talker {talker.name} not listed, alive nodes: {alive_nodes}"
+    )
+    assert listener.name in alive_nodes, (
+        f"Listener {listener.name} not listed, alive nodes: {alive_nodes}"
+    )
 
     assert talker.is_running, f"Talker {talker.name} not running"
     assert listener.is_running, f"Listener {listener.name} not running"
 
     # Check correct topic is published/subscribed
-    assert (
-        topic in talker.get_published_topics()
-    ), "Talker is not publishing on expected topic"
-    assert (
-        topic in listener.get_subscribed_topics()
-    ), "Listener is not subscribed on expected topic"
+    assert topic in talker.get_published_topics(), (
+        "Talker is not publishing on expected topic"
+    )
+    assert topic in listener.get_subscribed_topics(), (
+        "Listener is not subscribed on expected topic"
+    )
 
     # Shutdown talker and listener
     talker.shutdown("Test successful", timeout=10.0)
@@ -70,12 +72,8 @@ def _assert_talker_listener_running(talker: Node, listener: Node, topic: str) ->
     assert not listener.is_running, "Listener failed to shutdown"
 
     alive_nodes = bl.shared_node.get_node_names()
-    assert (
-        talker.name not in alive_nodes
-    ), f"Talker {talker.name} is still alive"
-    assert (
-        listener.name not in alive_nodes
-    ), f"Listener {listener.name} is still alive"
+    assert talker.name not in alive_nodes, f"Talker {talker.name} is still alive"
+    assert listener.name not in alive_nodes, f"Listener {listener.name} is still alive"
 
 
 def test_bl_init():
@@ -214,19 +212,56 @@ def test_ros2_actions():
     publishers = bl.shared_node.get_publishers_info_by_topic(
         "/test/better_launch/chatter_ros2"
     )
-    assert "my_talker_ros2" in [
-        p.node_name for p in publishers
-    ], "Talker is not publishing on expected topic"
+    assert "my_talker_ros2" in [p.node_name for p in publishers], (
+        "Talker is not publishing on expected topic"
+    )
 
     subscribers = bl.shared_node.get_subscriptions_info_by_topic(
         "/test/better_launch/chatter_ros2"
     )
-    assert "my_listener_ros2" in [
-        s.node_name for s in subscribers
-    ], "Listener is not listening on expected topic"
+    assert "my_listener_ros2" in [s.node_name for s in subscribers], (
+        "Listener is not listening on expected topic"
+    )
 
     ros2.shutdown("Test successful", timeout=10.0)
     assert not ros2.is_running, "ROS2LaunchWrapper failed to shutdown"
+
+
+def test_process_method_signature():
+    """Verify process() method has correct signature."""
+    import inspect
+    from better_launch import BetterLaunch
+
+    sig = inspect.signature(BetterLaunch.process)
+    params = list(sig.parameters.keys())
+
+    # Must have cmd and name
+    assert "cmd" in params, "Missing 'cmd' parameter"
+    assert "name" in params, "Missing 'name' parameter"
+
+    # Must NOT have ROS-specific params
+    assert "remaps" not in params, "Should not expose 'remaps'"
+    assert "params" not in params, "Should not expose 'params'"
+    assert "raw" not in params, "Should not expose 'raw'"
+    assert "package" not in params, "Should not expose 'package'"
+    assert "log_level" not in params, "Should not expose 'log_level'"
+
+    # Must have process-relevant params
+    assert "env" in params, "Missing 'env' parameter"
+    assert "output" in params, "Missing 'output' parameter"
+    assert "on_exit" in params, "Missing 'on_exit' parameter"
+    assert "max_respawns" in params, "Missing 'max_respawns' parameter"
+
+
+def test_process_docstring():
+    """Verify process() has proper docstring."""
+    from better_launch import BetterLaunch
+
+    doc = BetterLaunch.process.__doc__
+    assert doc is not None, "Missing docstring"
+    assert "Parameters" in doc, "Missing Parameters section"
+    assert "Returns" in doc, "Missing Returns section"
+    assert "cmd" in doc, "Missing cmd parameter docs"
 
 
 if __name__ == "__main__":
