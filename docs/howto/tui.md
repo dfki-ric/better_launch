@@ -2,26 +2,38 @@
 
 *better_launch* comes with a sneaky, unobstrusive TUI (terminal user interface) based on [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit), which will hover below the log output. You can start it by either passing `ui=True` to the `launch_this` wrapper, or by adding `--bl_ui=enable` on the command line. Use *\<tab>* to switch between menu items.
 
-![TUI](../assets/images/tui_small_x4.png)
+![TUI](../assets/images/tui_large.png)
 
 See the single line of shortcuts at the bottom of each example? That's the TUI, and it will never take up more than 3 lines! Despite its simplicity, the TUI allows you a comfortable degree of control over all nodes managed by the *better_launch* process it is running in:
 
-- listing a node's services and topics
-- starting and stopping nodes
-- triggering lifecycle transitions
-- changing the log level
-- etc.
+!!! quote "list nodes and their status"
+
+    ![TUI](../assets/images/tui_search.png)
+
+!!! quote "control nodes (start, stop, lifecycle, ...)"
+
+    ![TUI](../assets/images/tui_node_ctrl.png)
+
+!!! quote "change a node's log level"
+
+    ![TUI](../assets/images/tui_loglevel.png)
+
+!!! quote "see a node's services and topics"
+
+    ![TUI](../assets/images/tui_large.png)
 
 ???+ tip
 
-    It is also possible to change the key bindings. The [settings page](settings.md#tui-shortcuts) contains further details.
+    It is possible to change the key bindings. The [settings page](settings.md#tui-shortcuts) contains further details.
 
 ```bash
 # Run this line to see it in action!
 bl better_launch 02_ui.launch.py
 ```
 
-The TUI is also able to manage nodes started from different shells and processes, even if they have been started by ROS2 or other means. To do so, pass the `manage_foreign_nodes` flag to the wrapper or command line. Be aware though that this will not capture their output - to get their output you will have to use the *takeover* action from the TUI, which will restart the node process with the original arguments.
+## Foreign nodes
+
+The TUI is also able to manage nodes started from different shells and processes, even if they have been started by ROS2 or other means. To do so, pass the `manage_foreign_nodes` flag to the wrapper or command line. Be aware though that this will not capture their output - to get their output you will have to use the *takeover* action from the TUI, which will *terminate and restart* the node process with the original arguments.
 
 ???+ note
 

@@ -49,7 +49,7 @@ message = "A simple cube can be found at ${a_simple_cube}"
     `eval` poses a security risk and is therefore disabled by default. This can be changed by creating a global launch argument `bl_eval_mode` and setting it to either `full` (regular `eval`) or `literal_eval` (only parses literal values).
 
 ## Conditions
-Call tables can be made conditional by adding an `if` or `unless` parameter. The table will only run if this value evaluates to true (or false for `unless`) according to python truthiness. Be aware that non-empty strings are also considered true. If a call table doesn't run, `None` will be stored under its name.
+Call tables can be made conditional by adding an `if` or `unless` parameter. The table will only run if this value evaluates to true (or false for `unless`) according to python truthiness. Be aware that non-empty strings are also considered true. If a call table doesn't run or has no return, `None` will be stored under its name.
 
 ## Launch Arguments
 Launch arguments can be defined as global parameters before the first table. Their values can be used in substitutions just like any call table result. In addition, you may set the `bl_allow_kwargs` so arbitrary launch arguments can be passed to the launchfile (i.e. for nodes that consume the additional inputs).

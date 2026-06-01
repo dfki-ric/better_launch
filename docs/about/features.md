@@ -1,5 +1,5 @@
 # :puzzle_piece: Okay, what can I do with it?
-Everything! *better_launch*  can do everything ROS2 launch can and some more. It's also faster, more reliabel, and comes with complete [API documentation](../reference/better_launch/index.md) and many [examples](https://github.com/dfki-ric/better_launch/tree/main/examples).
+Everything! *better_launch*  can do everything ROS2 launch can do and some more. It's also faster, more reliabel, and comes with complete [API documentation](../reference/better_launch/index.md) and many [examples](https://github.com/dfki-ric/better_launch/tree/main/examples).
 
 - create *nodes*, *composers*, *components*, *namespaces*, etc.
 - create *subscribers*, *publishers*, *services*, etc. on the fly
@@ -12,6 +12,8 @@ Everything! *better_launch*  can do everything ROS2 launch can and some more. It
 - easily *locate files* and load configs
 - manage *nodes from other launch files*
 - manage your node using a nice [terminal UI](../howto/tui.md) reminiscent of [rosmon](https://github.com/xqms/rosmon)
+- write [TOML launchfiles](../howto/toml.md) with *ROS1-style substitutions*
+- all of this and more with as few as *only 2 imports*
 
 ![TUI](../assets/images/tui_small1.png)
 
