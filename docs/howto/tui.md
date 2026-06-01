@@ -1,10 +1,19 @@
 # :pager: The TUI
 
-*better_launch* comes with a sneaky, unobstrusive TUI (terminal user interface) based on [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit), which will hover below the log output. You can start it by either passing `ui=True` to the `launch_this` wrapper, or by adding `--bl_ui=enable` on the command line. Use *\<tab>* to switch between menu items.
+???+ tip
+
+    It is possible to change the key bindings. The [settings page](settings.md#tui-shortcuts) contains further details.
+
+*better_launch* comes with a sneaky, unobstrusive TUI (terminal user interface) based on [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit), which will hover below the log output. You can start it by either passing `ui=True` to the `launch_this` wrapper, or by adding `--bl-ui true` on the command line. Use *\<tab>* to switch between menu items.
+
+```bash
+# Run this line to see it in action!
+bl better_launch 02_ui.launch.py
+```
 
 ![TUI](../assets/images/tui_large.png)
 
-See the single line of shortcuts at the bottom of each example? That's the TUI, and it will never take up more than 3 lines! Despite its simplicity, the TUI allows you a comfortable degree of control over all nodes managed by the *better_launch* process it is running in:
+See the single line at the bottom of the terminal? That's the TUI, and it will never take up more than 3 lines! Despite its simplicity, the TUI allows you a comfortable degree of control over all nodes managed by the *better_launch* process it is running in:
 
 !!! quote "list nodes and their status"
 
@@ -20,16 +29,7 @@ See the single line of shortcuts at the bottom of each example? That's the TUI, 
 
 !!! quote "see a node's services and topics"
 
-    ![TUI](../assets/images/tui_large.png)
-
-???+ tip
-
-    It is possible to change the key bindings. The [settings page](settings.md#tui-shortcuts) contains further details.
-
-```bash
-# Run this line to see it in action!
-bl better_launch 02_ui.launch.py
-```
+    ![TUI](../assets/images/tui_node_info.png)
 
 ## Foreign nodes
 
