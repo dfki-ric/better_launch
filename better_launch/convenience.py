@@ -6,6 +6,10 @@ __all__ = [
     "joint_state_publisher",
     "robot_state_publisher",
     "static_transform_publisher",
+    "spawn_controller_manager",
+    "spawn_controller",
+    "record_topics",
+    "record_topics_from_file",
 ]
 
 
