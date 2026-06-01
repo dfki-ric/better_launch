@@ -36,7 +36,7 @@
 }
 
 .mdx-hero .md-button--primary {
-  color: #65a1e6;
+  color: darkblue;
   background-color: var(--md-primary-bg-color);
   border-color: var(--md-primary-bg-color); 
 }
