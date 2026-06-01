@@ -805,7 +805,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         Raises
         ------
         ValueError
-            If the path cannot be resolved, if `qualifier` is supplied and no matching section could be found, or if a substitution failed.
+            If the path cannot be resolved, of if `qualifier` is supplied and no matching section could be found.
         IOError
             If the config file could not be read.
         """
