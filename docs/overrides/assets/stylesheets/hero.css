@@ -30,13 +30,13 @@
 }
 
 .mdx-hero .md-button:is(:focus, :hover) {
-  color: var(--md-accent-bg-color);
-  background-color: var(--md-accent-fg-color);
-  border-color: var(--md-accent-fg-color); 
+  color: var(--md-primary-bg-color);
+  background-color: darkslateblue;
+  border-color: darkslateblue; 
 }
 
 .mdx-hero .md-button--primary {
-  color: darkblue;
+  color: darkslateblue;
   background-color: var(--md-primary-bg-color);
   border-color: var(--md-primary-bg-color); 
 }
