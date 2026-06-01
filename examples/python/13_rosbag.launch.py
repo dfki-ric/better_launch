@@ -12,14 +12,13 @@ def kneel_and_bag(pattern: str = "*topic*"):
 
     def should_record(topic: str) -> bool:
         if not fnmatch(topic, pattern):
-            print("### nope", topic, pattern, pattern[0], type(pattern), type(topic))
+            print("(in a growly voice) REJECTED!", topic, pattern)
             return False
 
         # Just some example code to select topics of type std_msgs/String
         topics_and_types = dict(bl.shared_node.get_topic_names_and_types())
-        types = topics_and_types.get(topic, [])
-        print("###", topic, types, topics_and_types)
-        for tp in types:
+
+        for tp in topics_and_types.get(topic, []):
             if tp == "std_msgs/msg/String":
                 return True
         
