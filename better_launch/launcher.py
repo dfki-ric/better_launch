@@ -294,7 +294,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
         while True:
             if self.short_unique_names:
-                u = secrets.token_hex(4)
+                u = secrets.token_hex(2)
             else:
                 u = get_unique_word()
 
