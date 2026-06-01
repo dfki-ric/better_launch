@@ -257,8 +257,11 @@ class Ros2LaunchWrapper(AbstractNode):
             self.logger.warning(f"LaunchService {self.name} is alrady running")
             return
 
-        # Potential fix for https://github.com/dfki-ric/better_launch/issues/69
-        # Python is switching to spawn as the default start method
+        # Fix for https://github.com/dfki-ric/better_launch/issues/69
+        # Python 3.14+ is switching to spawn as the default start method which means that our 
+        # is-included guard in launch_this won't work anymore. Even if we used the env to pass
+        # flags across spawn boundaries we still need to maintain the BetterLaunch singleton,
+        # so for now fork is required.
         # TODO check if we can handle this in @launch_this instead
         ctx = get_context("fork")
 

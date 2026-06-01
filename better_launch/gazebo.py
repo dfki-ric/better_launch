@@ -281,7 +281,7 @@ def spawn_model(
     model_source: Literal["topic", "file", "string", "param", "auto"] = "auto",
     spawn_args: dict[str, Any] = None,
     *,
-    pass_by_topic: bool = True,
+    pass_by_topic: bool = False,
     topic_base_name: str = "/gazebo/models/",
     xacro_args: list[str] = None,
 ) -> Node:

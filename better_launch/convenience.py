@@ -203,7 +203,7 @@ def robot_state_publisher(
     robot_description: str = None,
     *,
     node_name: str = None,
-    pass_by_topic: bool = True,
+    pass_by_topic: bool = False,
     description_topic: str = "/robot_description",
     xacro_args: list[str] = None,
     **kwargs,
