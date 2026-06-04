@@ -41,7 +41,7 @@ $> bl my_package my_launch_file.py --enable_x True
 *Do I have your attention? Read on to learn more!*
 - [The What and Why](https://dfki-ric.github.io/better_launch/about/why/)
 - [Differences to ROS2](https://dfki-ric.github.io/better_launch/about/differences/)
-- [Installation](https://dfki-ric.github.io/better_launch/installation/)
+- [Installation](https://dfki-ric.github.io/better_launch/installation/installation/)
 - [HowTo](https://dfki-ric.github.io/better_launch/howto/python/)
 - [Examples](examples/python)
 
