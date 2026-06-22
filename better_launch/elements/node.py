@@ -310,8 +310,9 @@ class Node(AbstractNode, LiveParamsMixin):
                     if not line:  # EOF
                         break
                     q.put(line.rstrip("\n\r"))
-            except Exception:
-                # Signal error/EOF
+            finally:
+                # Signal EOF for both a clean stream close and an exception, so
+                # the watch loop can detect process exit and run on_exit.
                 q.put(None)
 
         def collect_bundle(q):
