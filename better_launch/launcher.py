@@ -477,6 +477,29 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             if node.name == pattern or fnmatch(node.fullname, pattern):
                 yield node
 
+    def does_node_exist(self, name: str, namespace: str = "**") -> bool:
+        """Checks whether the specified node is known to ROS2.
+
+        Parameters
+        ----------
+        name : str
+            The name of the node.
+        namespace : str
+            A pattern to match against the node's namespace. Supports path-like patterns, e.g. `*` denotes a wildcard (see `fnmatch`).
+
+        Returns
+        -------
+        bool
+            True if ROS2 knows the node, False otherwise. Note that there are rare circumstances where a crashed (terminated) node is still reported by ROS. To get an actual handle use [query_node][] instead.
+        """
+        nodes = self.shared_node.get_node_names_and_namespaces()
+
+        for n, ns in nodes:
+            if n == name and fnmatch(ns, namespace):
+                return True
+
+        return False
+
     @staticmethod
     def ros_distro() -> str:
         """Returns the name of the currently sourced ros distro (i.e. *$ROS_DISTRO*)."""
