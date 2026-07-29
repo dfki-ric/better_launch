@@ -477,7 +477,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
             if node.name == pattern or fnmatch(node.fullname, pattern):
                 yield node
 
-    def does_node_exist(self, name: str, namespace: str = "**") -> bool:
+    def does_node_exist(self, name: str, namespace: str = None) -> bool:
         """Checks whether the specified node is known to ROS2.
 
         Parameters
@@ -485,7 +485,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         name : str
             The name of the node.
         namespace : str
-            A pattern to match against the node's namespace. Supports path-like patterns, e.g. `*` denotes a wildcard (see `fnmatch`).
+            If given, a pattern to match against the node's namespace. Supports path-like patterns, e.g. `*` denotes a wildcard (see `fnmatch`).
 
         Returns
         -------
@@ -495,7 +495,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         nodes = self.shared_node.get_node_names_and_namespaces()
 
         for n, ns in nodes:
-            if n == name and fnmatch(ns, namespace):
+            if n == name and (not namespace or fnmatch(ns, namespace)):
                 return True
 
         return False
