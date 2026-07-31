@@ -1,0 +1,26 @@
+/* Customizations for the entire website */
+.md-header {
+      background: hsl(245, 41%, 17%);;
+}
+.md-tabs {
+    background: hsl(245, 41%, 17%);;
+}
+
+.md-footer {
+    position: relative;
+}
+
+.footer-logo-container {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, 0%);
+    z-index: 10;
+    margin-top: .4rem;
+}
+
+#footer-logo {
+    height: 50px;
+    width: auto;
+    display: block;
+    padding: 0 1rem;
+}

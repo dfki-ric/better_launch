@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+<!-- Custom front matter -->
+{% block extrahead %}
+  <!-- Extra style sheets (can't be set in mkdocs.yml due to content hash) -->
+  <link rel="stylesheet" href="{{ 'assets/stylesheets/custom.css' | url }}"/>
+  <link rel="stylesheet" href="{{ 'assets/stylesheets/hero.css' | url }}"/>
+  <link rel="stylesheet" href="{{ 'assets/stylesheets/apidoc.css' | url }}"/>
+{% endblock %}
+
+<!-- Announcement bar -->
+{% block announce %}
+  <a href="https://github.com/dfki-ric/better_launch/releases/tag/v1.6.0">1.6.0 is out</a> and brings a flurry of nice features!
+{% endblock %}

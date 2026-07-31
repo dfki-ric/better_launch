@@ -1,0 +1,44 @@
+/* Hero landing page */
+
+.mdx-hero {
+  margin: 0;
+  color: var(--md-primary-bg-color); 
+}
+
+.mdx-hero h1 {
+  font-weight: 700;
+  color: currentcolor; 
+  margin-bottom: 1rem;
+}
+
+.mdx-hero__content {
+    position: absolute;
+    left: 4rem;
+    top: 64vh;
+    line-height: 1.2;
+}
+
+.mdx-hero__image img {
+  object-fit: cover;
+  width: 100%;
+}
+
+.mdx-hero .md-button {
+  margin-top: 1rem;
+  margin-right: 10px;
+  color: var(--md-primary-bg-color); 
+}
+
+.mdx-hero .md-button:is(:focus, :hover) {
+  color: var(--md-primary-bg-color);
+  background-color: darkslateblue;
+  border-color: darkslateblue; 
+}
+
+.mdx-hero .md-button--primary {
+  color: darkslateblue;
+  background-color: var(--md-primary-bg-color);
+  border-color: var(--md-primary-bg-color); 
+}
+
+/*# sourceMappingURL=hero.css.map */
