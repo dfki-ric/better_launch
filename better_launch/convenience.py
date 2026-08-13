@@ -149,11 +149,16 @@ def _resolve_robot_description(
 
     bl = BetterLaunch()
 
-    if os.path.isfile(source):
+    if os.path.isabs(source) and (os.path.isfile(source) or os.path.islink(source)):
         source = read_robot_description(None, source, xacro_args=xacro_args)
 
-    if as_topic and source.lstrip().startswith("<"):
-        source = source.strip()
+    source = source.strip()
+    if not source.startswith("<"):
+        raise ValueError(
+            f"Robot description does not seem to be xml ({source[:20]}...)"
+        )
+
+    if as_topic:
         pub = bl.publisher(
             topic,
             String,
@@ -213,12 +218,12 @@ def robot_state_publisher(
     xacro_args: list[str] = None,
     **kwargs,
 ) -> Node:
-    """Start a Robot State Publisher node from a robot description. 
+    """Start a Robot State Publisher node from a robot description.
 
     Parameters
     ----------
     robot_description : str, optional
-        Robot description the state publisher will use. This can be a urdf/xacro file path (e.g. from [BetterLaunch.find][]), a topic, or an xml string as returned by [read_robot_description][]. See also `pass_by_topic`. If not set it will be read from `/robot_description` (subject to remaps).
+        Robot description the state publisher will use. This can be an absolute urdf/xacro file path (e.g. from [BetterLaunch.find][]), a topic, or an xml string as returned by [read_robot_description][]. See also `pass_by_topic`. If not set it will be read from `/robot_description` (subject to remaps).
     node_name : str, optional
         The name of the node. If not provided the name will be based on the executable and anonymized; see [BetterLaunch.node][] for the exact mechanism.
     anonymous : bool, optional
@@ -387,7 +392,7 @@ def spawn_controller_manager(
     param_files : str | list[str], optional
         One or more config files to be read by the controller manager. These will also be passed on to any controllers loaded and are often the only way to provide them with namespaced parameters.
     robot_description : str, optional
-        Robot description to pass to the controller. This can be a urdf/xacro file path (e.g. from [BetterLaunch.find][]), a topic, or an xml string as returned by [read_robot_description][]. See also `pass_by_topic`. If not set the manager's default is used (`~/robot_description`, subject to remaps).
+        Robot description to pass to the controller. This can be an absolute urdf/xacro file path (e.g. from [BetterLaunch.find][]), a topic, or an xml string as returned by [read_robot_description][]. See also `pass_by_topic`. If not set the manager's default is used (`~/robot_description`, subject to remaps).
     remaps : dict[str, str], optional
         Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.
     params : str | dict[str, Any], optional
