@@ -207,6 +207,7 @@ def robot_state_publisher(
     robot_description: str = None,
     *,
     node_name: str = None,
+    anonymous: bool = True,
     pass_by_topic: bool = False,
     description_topic: str = "/robot_description",
     xacro_args: list[str] = None,
@@ -219,7 +220,9 @@ def robot_state_publisher(
     robot_description : str, optional
         Robot description the state publisher will use. This can be a urdf/xacro file path (e.g. from [BetterLaunch.find][]), a topic, or an xml string as returned by [read_robot_description][]. See also `pass_by_topic`. If not set it will be read from `/robot_description` (subject to remaps).
     node_name : str, optional
-        The name of the node. If not provided the name of the executable will be used. Will be anonymized unless `anonymous=False` is passed.
+        The name of the node. If not provided the name will be based on the executable and anonymized; see [BetterLaunch.node][] for the exact mechanism.
+    anonymous : bool, optional
+        Whether to add a random suffix to the node name. Will be enforced if `node_name` is None.
     xacro_args : list of str, optional
         Additional arguments to pass to the Xacro processor when a `.xacro` file was passed.
     pass_by_topic : bool, optional
@@ -239,7 +242,6 @@ def robot_state_publisher(
     if bl.ros_distro_key() < "l":
         pass_by_topic = False
 
-    kwargs.setdefault("anonymous", True)
     params = kwargs.pop("params", {})
     remaps = kwargs.pop("remaps", {})
 
@@ -293,6 +295,7 @@ def robot_state_publisher(
         "robot_state_publisher",
         "robot_state_publisher",
         node_name,
+        anonymous=anonymous,
         params=params,
         remaps=remaps,
         **kwargs,
