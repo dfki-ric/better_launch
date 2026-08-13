@@ -1,3 +1,7 @@
+**IMPORTANT:** carefully take note of the guidelines on [AI-assisted contributions](CONTRIBUTING.AI.md)!
+
+---
+
 # Contributing to better_launch
 Please inform me as early as possible about your planned developments. You may have noticed that *better_launch* is somewhat opinionated and I will be picky about what to include :) An easy way is to open an issue in which you explain what you are trying to do.
 
