@@ -7,6 +7,7 @@ import asyncio  # keep this so we can use await and async def
 import threading
 from multiprocessing import Process, Queue, get_context
 import subprocess
+import psutil
 import osrf_pycommon.process_utils
 from setproctitle import setproctitle, getproctitle
 
@@ -19,6 +20,7 @@ from better_launch.utils.better_logging import (
     StubbornHandler,
 )
 from better_launch.utils import settings
+from better_launch.utils.processes import send_signal_to_ptree, FORCE_KILL
 from better_launch.utils.colors import get_contrast_color
 from .abstract_node import AbstractNode
 
@@ -184,7 +186,7 @@ class Ros2LaunchWrapper(AbstractNode):
 
         self._launchservice_args = launchservice_args
 
-        self._process: Process = None
+        self._mproc: Process = None
         self._launch_action_queue = Queue()
         self._process_log_queue = Queue()
         self._loaded_launch_descriptions = []
@@ -194,8 +196,8 @@ class Ros2LaunchWrapper(AbstractNode):
     @property
     def pid(self) -> int:
         """The process ID of the node process. Will be -1 if the process is not running."""
-        if self._process:
-            return self._process.pid
+        if self._mproc:
+            return self._mproc.pid
         return -1
 
     @property
@@ -206,7 +208,7 @@ class Ros2LaunchWrapper(AbstractNode):
     @property
     def is_running(self) -> bool:
         try:
-            return self._process and self._process.is_alive()
+            return self._mproc and self._mproc.is_alive()
         except ValueError:
             # For some reason we can't call is_alive when the process was closed
             return False
@@ -245,7 +247,7 @@ class Ros2LaunchWrapper(AbstractNode):
         TimeoutError
             If a timeout was specified and the process is still running by the time the timeout expires.
         """
-        proc = self._process
+        proc = self._mproc
         if proc:
             try:
                 proc.join(timeout)
@@ -258,7 +260,7 @@ class Ros2LaunchWrapper(AbstractNode):
             return
 
         # Fix for https://github.com/dfki-ric/better_launch/issues/69
-        # Python 3.14+ is switching to spawn as the default start method which means that our 
+        # Python 3.14+ is switching to spawn as the default start method which means that our
         # is-included guard in launch_this won't work anymore. Even if we used the env to pass
         # flags across spawn boundaries we still need to maintain the BetterLaunch singleton,
         # so for now fork is required.
@@ -268,7 +270,7 @@ class Ros2LaunchWrapper(AbstractNode):
         # Note that passing loggers will not work for the TUI, as they would have to communicate
         # across the process boundaries. In general, only basic values and instances from the
         # multiprocessing module should be passed to the process
-        self._process = ctx.Process(
+        self._mproc = ctx.Process(
             target=_launchservice_worker,
             args=(
                 self.name,
@@ -280,7 +282,7 @@ class Ros2LaunchWrapper(AbstractNode):
             name=self.name,
             daemon=True,
         )
-        self._process.start()
+        self._mproc.start()
 
         threading.Thread(target=self._process_watcher, daemon=True).start()
 
@@ -298,67 +300,54 @@ class Ros2LaunchWrapper(AbstractNode):
             except Exception as e:
                 self.logger.error(f"Receiving log record failed: {e}")
 
-        self._process.close()
+        self._mproc.close()
 
     def shutdown(
         self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0
-    ) -> None:
+    ) -> int:
+        if not self._mproc:
+            return 0
+
         if self._terminate_requested and self.is_running:
-            # Give the process a little bit of time to terminate
             try:
-                self._process.join(0.5)
+                self._mproc.join(0.5)  # give it a little time to finish exiting
             except Exception:
-                # Might fail during shutdown
                 pass
 
         if not self.is_running:
-            return
+            return self._mproc.exitcode or 0
 
-        try:
-            if self._terminate_requested or signum == signal.SIGKILL:
-                self.logger.warning(
-                    f"{reason} - {self.name} was asked to terminate with SIGKILL. Killing the ROS2 launch service may leave stale processes behind!"
-                )
-                # Set the child process and all its children on fire
-                self.send_signal(signal.SIGKILL)
-            elif self._shutdown_requested:
-                self._terminate_requested = True
-                self.logger.info(
-                    f"{self.name} is still runing, escalating to SIGTERM ({reason})"
-                )
-                # Rudely ask the child process and all its children to exit immediately
-                self.send_signal(signal.SIGTERM)
-            else:
-                self._shutdown_requested = True
-                self.logger.info(
-                    f"Asking {self.name} to shutdown gracefully via SIGINT ({reason})"
-                )
-                # Gently suggest to the child process and all its children that they could exit now
-                self.send_signal(signal.SIGINT)
-        except Exception:
-            pass
+        if self._terminate_requested or signum == FORCE_KILL:
+            self.logger.warning(
+                f"{reason} - {self.name} was asked to terminate with SIGKILL. "
+                "Killing the ROS2 launch service may leave stale processes behind!"
+            )
+            signum = FORCE_KILL
+        elif self._shutdown_requested:
+            self._terminate_requested = True
+            self.logger.info(
+                f"{self.name} is still running, escalating to SIGTERM ({reason})"
+            )
+            signum = signal.SIGTERM
+        else:
+            self._shutdown_requested = True
+            self.logger.info(
+                f"Asking {self.name} to shutdown gracefully via SIGINT ({reason})"
+            )
+            signum = signal.SIGINT
+
+        # This is a multiprocessing.Process, so we can't use shutdown_process here
+        send_signal_to_ptree(self.pid, signum)
 
         if timeout == 0.0:
-            return
+            return 0  # fire and forget, caller will re-invoke to escalate
 
-        try:
-            self._process.join(timeout)
-        except subprocess.TimeoutExpired:
+        self._mproc.join(timeout)
+        if self._mproc.is_alive():
             raise TimeoutError(
                 "ROS2 launch service did not shutdown within the specified timeout"
             )
-
-    def send_signal(self, signum: int) -> None:
-        if not self.is_running:
-            return
-
-        if platform.system() == "Windows":
-            if signum == signal.SIGINT or signum == signal.SIGTERM:
-                subprocess.call(["taskkill", "/PID", str(self.pid), "/T"])
-            elif signum == signal.SIGKILL:
-                subprocess.call(["taskkill", "/F", "/T", "/PID", str(self.pid)])
-        else:
-            os.killpg(os.getpgid(self.pid), signum)
+        return self._mproc.exitcode or 0
 
     def _get_info_section_general(self) -> str:
         return (

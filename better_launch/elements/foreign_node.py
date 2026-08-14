@@ -5,7 +5,6 @@ import psutil
 import signal
 import logging
 from fnmatch import fnmatch
-import re
 import json
 from pathlib import Path
 import threading
@@ -14,92 +13,19 @@ from xml.etree import ElementTree
 from ament_index_python.packages import get_packages_with_prefixes
 
 from better_launch.utils.better_logging import LogSink
+from better_launch.utils.processes import (
+    spawn_node_process,
+    shutdown_process,
+    find_ros2_node_processes,
+    FORCE_KILL,
+)
 from .abstract_node import AbstractNode
 from .node import Node
 from .live_params_mixin import LiveParamsMixin
 from .lifecycle_manager import LifecycleStage
 
 
-def find_ros2_node_processes() -> list[psutil.Process]:
-    """Finds processes that seem to be ROS2 nodes.
-
-    Unfortunately, ROS2 doesn't provide any means of discovering node internals other than by looking at the process command line. Lucky for us, there are a couple of distinct command line arguments that are somewhat unique to ROS. These are:
-    - --ros-args for passing arguments
-    - __ns:=<namespace>
-    - __node:=<name>
-    - __name:=<name>
-
-    If any of these are present, the process will be added to the returned list.
-
-    Returns
-    -------
-    list[psutil.Process]
-        The processes that appear to be ROS2 nodes.
-    """
-    # NOTE we won't be able to discover nodes started by ros2 run this way, but there's really
-    # nothing distinctive about those, e.g.:
-    #
-    # /usr/bin/python3 /opt/ros/humble/bin/ros2 run examples_rclpy_minimal_publisher publisher_local_function
-    # /usr/bin/python3 /opt/ros/humble/lib/examples_rclpy_minimal_publisher/publisher_local_function
-    ret = []
-
-    for p in psutil.process_iter():
-        try:
-            cmd = p.cmdline()
-            if p.is_running() and (
-                "--ros-args" in cmd
-                or "__ns:=" in cmd
-                or "__node:=" in cmd
-                or "__name:=" in cmd
-            ):
-                ret.append(p)
-        except psutil.ZombieProcess:
-            pass
-
-    return ret
-
-
-def find_process_for_node(namespace: str, name: str) -> list[psutil.Process]:
-    """Find processes that look like ROS2 nodes which have been passed the specified namespace and name.
-
-    Parameters
-    ----------
-    namespace : str
-        The namespace to look for.
-    name : str
-        The node name to look for.
-
-    Returns
-    -------
-    list[psutil.Process]
-        A list processes that match the above criteria.
-    """
-    r_pkg = re.compile(rf"__ns:={namespace}")
-    r_name = re.compile(rf"__(?:node|name):={name}")
-
-    candidates = []
-
-    for p in psutil.process_iter():
-        pkg_match = False
-        name_match = False
-
-        try:
-            cmd = p.cmdline()
-            for arg in cmd:
-                if r_pkg.match(arg):
-                    pkg_match = True
-                elif r_name.match(arg):
-                    name_match = True
-
-                if pkg_match and name_match:
-                    candidates.append(p)
-                    break
-        except psutil.ZombieProcess:
-            pass
-
-    return candidates
-
-
+# TODO move to some ros2 helper module
 def get_package_for_path(path: str) -> tuple[str, str]:
     """Find the ROS2 package associated with the specified path.
 
@@ -127,7 +53,7 @@ def get_package_for_path(path: str) -> tuple[str, str]:
         # is somewhat expensive, but we expect it to be rare since usually packages should already
         # be sourced 99.9% of the time
         while True:
-            # Launch files are usually inside a subfolder of share/<package>/launch/, and the 
+            # Launch files are usually inside a subfolder of share/<package>/launch/, and the
             # package.xml should be in share/<package>
             package_xml = (path / "package.xml").resolve()
 
@@ -209,7 +135,9 @@ def parse_process_args(
                     qualifier, key = key.split(":", maxsplit=1)
                     # TODO if we have the node we don't need the node name...?
                     if node:
-                        if qualifier != node.name and not fnmatch(node.fullname, qualifier):
+                        if qualifier != node.name and not fnmatch(
+                            node.fullname, qualifier
+                        ):
                             continue
 
                     # NOTE: an especially unhinged developer could write a node process creating
@@ -218,8 +146,8 @@ def parse_process_args(
                     #   -r __name:=X -r node1:__name:=Y -r node2:__name:=Z ...
                     #
                     # In this case we will get multiple matches here unless we have a node name to
-                    # look for. Even if there is an unqualified __ns or __name we cannot tell if 
-                    # it is overridden by a more specific remap rule unless we know the original 
+                    # look for. Even if there is an unqualified __ns or __name we cannot tell if
+                    # it is overridden by a more specific remap rule unless we know the original
                     # node name.
                     if key == "__ns":
                         if namespace and not node:
@@ -235,7 +163,7 @@ def parse_process_args(
                         node_name = val
                     else:
                         remaps[key] = val
-            
+
             elif arg in ["-p", "--param"]:
                 skip = 1
                 key, val = cmd_args[i + 1].split(":=")
@@ -274,7 +202,7 @@ def find_foreign_nodes() -> list[AbstractNode]:
             include_components=True, include_launch_service=False, include_foreign=False
         )
     }
-    
+
     foreign = []
     for p in find_ros2_node_processes():
         try:
@@ -306,7 +234,9 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
 
         bl = BetterLaunch.instance()
 
-        namespace, name, params, param_files, remaps, additional_args = parse_process_args(process)
+        namespace, name, params, param_files, remaps, additional_args = (
+            parse_process_args(process)
+        )
         exec_dir = os.path.dirname(process.cmdline()[0])
         package, _ = get_package_for_path(exec_dir)
 
@@ -426,9 +356,9 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
             except psutil.TimeoutExpired as e:
                 raise TimeoutError from e
 
-    def start(self) -> None:
+    def start(self, niceness: int = 0) -> None:
         """Usually a foreign node will already be running upon construction. However, this method can be used when restarting the process after it has terminated.
-        
+
         See also [takeover][].
         """
         from better_launch import BetterLaunch
@@ -468,12 +398,12 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
         # NOTE it is very difficult if not impossible to capture a process' output if we did not
         # set it up ourselves. The clean way is to terminate the process and restart it from this
         # process. See the takeover function below which does precisely that.
-        self._process = psutil.Popen(
+        self._process = spawn_node_process(
             final_cmd,
+            niceness,
             cwd=None,
             shell=False,
             text=True,
-            preexec_fn=os.setpgrp,  # start in separate process group
         )
 
         # Watch the process and notify user when it terminates
@@ -502,32 +432,31 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
 
     def shutdown(
         self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0
-    ) -> None:
-        if not self.is_running:
-            return
+    ) -> int:
+        if not self._process:
+            return 0
+
+        if self._process.poll() is not None:
+            return self._process.returncode
 
         signame = signal.Signals(signum).name
 
-        if signum == signal.SIGTERM and self._lifecycle_manager:
+        if signum in {signal.SIGINT, signal.SIGTERM} and self._lifecycle_manager:
             try:
                 self._lifecycle_manager.transition(LifecycleStage.FINALIZED)
             except Exception as e:
                 self.logger.warning(f"Lifecycle transition to FINALIZED failed: {e}")
 
-        self.logger.warning(
+        self.logger.info(
             f"Forwarding shutdown signal to foreign process: {reason} ({signame})"
         )
-        self._process.send_signal(signum)
-
-        if timeout == 0.0:
-            return
 
         try:
-            self._process.wait(timeout)
+            return shutdown_process(self._process, signum, timeout)
         except psutil.TimeoutExpired:
             raise TimeoutError("Node did not shutdown within the specified timeout")
 
-    def takeover(self, kill_after: float = 0, **node_args) -> Node:
+    def takeover(self, kill_after: float = 0, niceness: int = 0, **node_args) -> Node:
         """Replaces a foreign node with a node belonging to this better_launch process. This allows
         to e.g. capture the node's output and control a few additional runtime parameters. Any
         interactions with this foreign node instance after this function returns are undefined

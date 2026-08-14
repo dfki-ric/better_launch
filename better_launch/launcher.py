@@ -54,7 +54,6 @@ from better_launch.elements import (
     Ros2LaunchWrapper,
     ForeignNode,
     get_package_for_path,
-    find_process_for_node,
     find_foreign_nodes,
 )
 from better_launch.utils.introspection import (
@@ -65,7 +64,8 @@ from better_launch.utils.introspection import (
 from better_launch.utils.settings import Settings, severity_to_loglevel
 from better_launch.utils.better_logging import LogSink
 from better_launch.utils.random_names import get_unique_word
-from better_launch.utils.glob_dict import glob_dict, merge_and_explode
+from better_launch.utils.glob_dict import glob_dict
+from better_launch.utils.processes import find_process_for_node
 from better_launch.ros.ros_adapter import ROSAdapter
 from better_launch.ros import logging as roslog
 
