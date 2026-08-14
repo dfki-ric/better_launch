@@ -43,6 +43,7 @@ default_screen_format = "[{levelcolor_start}{levelname}{levelcolor_end}] [{sourc
 default_file_format = "[{levelname}] [{asctime}] {message}"
 
 
+# TODO use click's envvar mechanism
 @dataclass(frozen=True)
 class _Settings:
     ui: bool = False

@@ -309,7 +309,7 @@ def configure_logger(
         if isinstance(output, Iterable) and not isinstance(output, str):
             output = [output]
 
-        for idx, sink in output:
+        for idx, sink in enumerate(output):
             if isinstance(sink, str):
                 output[idx] = LogSink[output.upper()]
 

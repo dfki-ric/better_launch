@@ -357,6 +357,55 @@ def _exec_launch_func(
             raise
 
 
+def _convert_launch_arg(value: str, ptype: type) -> object:
+    """Convert a launch argument provided by ROS2 to a python value, using the declared type of the parameter it will be passed to. Bools accept `true`/`false`, `1`/`0`, `yes`/`no` and `on`/`off` case-insensitively. Any other type is parsed with `literal_eval`, keeping the original string if that fails.
+
+    Parameters
+    ----------
+    value : str
+        The raw argument value as provided by ROS2.
+    ptype : type
+        The declared type of the parameter this value will be passed to, or None if it is unknown.
+
+    Returns
+    -------
+    object
+        The converted value, or the unmodified string if it could not be parsed.
+
+    Raises
+    ------
+    ValueError
+        If `ptype` is bool and `value` is not a recognized bool spelling.
+    """
+    if ptype is bool:
+        if isinstance(value, bool):
+            return value
+
+        bool_strings = {
+            "true": True,
+            "1": True,
+            "yes": True,
+            "on": True,
+            "false": False,
+            "0": False,
+            "no": False,
+            "off": False,
+        }
+
+        try:
+            return bool_strings[str(value).strip().lower()]
+        except KeyError:
+            raise ValueError(f"Cannot interpret '{value}' as a bool") from None
+
+    try:
+        return literal_eval(value)
+    except (ValueError, SyntaxError):
+        # Probably a string
+        # issue #11: SyntaxError happens when a path is passed without quotes
+        # NOTE this should also make passing args to ROS2 much easier
+        return value
+
+
 def _expose_ros2_launch_function(
     launch_func: Callable, declared_args: list[DeclaredArg]
 ):
@@ -385,19 +434,28 @@ def _expose_ros2_launch_function(
 
             ld.add_action(DeclareLaunchArgument(arg.name, default_value=default))
 
+        # Argument types as declared by the launch function's signature. Args
+        # that ROS2 passes but the function never declared are not in here and
+        # will be converted without type information.
+        arg_types = {arg.name: arg.ptype for arg in declared_args}
+
         async def ros2_wrapper(context: LaunchContext):
             launch_args = {}
             for k, v in context.launch_configurations.items():
                 try:
-                    launch_args[k] = literal_eval(v)
-                except (ValueError, SyntaxError):
-                    # Probably a string
-                    # issue #11: SyntaxError happens when a path is passed without quotes
-                    # NOTE this should also make passing args to ROS2 much easier
-                    launch_args[k] = v
+                    launch_args[k] = _convert_launch_arg(v, arg_types.get(k))
+                except ValueError as e:
+                    # ROS2 runs us inside an OpaqueCoroutine, which swallows the
+                    # exception message and leaves the user with a launch that
+                    # silently does nothing. Print it before going down.
+                    print(f"[ERROR] Invalid value for launch argument '{k}': {e}")
+                    raise
 
-            # Call the launch function
-            launch_func(**launch_args)
+            try:
+                launch_func(**launch_args)
+            except Exception as e:
+                print(f"[ERROR] {type(e).__name__} in launch function: {e}")
+                raise
 
             # We must stay alive until the last node has exited
             bl = BetterLaunch.instance()

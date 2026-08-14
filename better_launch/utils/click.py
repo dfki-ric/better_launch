@@ -1,4 +1,4 @@
-from typing import Any, Type, Iterable, Callable
+from typing import Any, Type, Iterable, Callable, Literal, get_origin, get_args
 from dataclasses import dataclass
 import click
 
@@ -25,10 +25,14 @@ def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option
             default = None
             required = True
 
+        ptype = arg.ptype
+        if get_origin(ptype) is Literal:
+            ptype = click.Choice(get_args(ptype))
+
         options.append(
             click.Option(
                 [f"--{arg.name}"],
-                type=arg.ptype,
+                type=ptype,
                 default=default,
                 required=required,
                 show_default=True,
@@ -39,6 +43,7 @@ def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option
     return options
 
 
+# TODO use click's envvar mechanism
 def get_click_bl_options(expose: bool = False) -> list[click.Option]:
     """Get the click options specific to better_launch itself.
 
