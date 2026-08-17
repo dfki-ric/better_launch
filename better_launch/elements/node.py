@@ -1,4 +1,5 @@
 from typing import Any, Callable, Iterable
+import sys
 import os
 import platform
 import signal
@@ -8,12 +9,14 @@ import re
 import logging
 import threading
 import subprocess
+import psutil
 import queue
 from pprint import pformat
 import json
 import shlex
 
 from better_launch.utils.better_logging import LogSink, ROSLOG_PATTERN_BL
+from better_launch.utils.processes import spawn_node_process, shutdown_process, FORCE_KILL
 from .abstract_node import AbstractNode
 from .live_params_mixin import LiveParamsMixin
 from .lifecycle_manager import LifecycleStage
@@ -34,6 +37,7 @@ class Node(AbstractNode, LiveParamsMixin):
         drop_param_qualifiers: bool = False,
         cmd_args: str | list[str] = None,
         prefix_args: str | list[str] = None,
+        niceness: int = 0,
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
@@ -70,6 +74,8 @@ class Node(AbstractNode, LiveParamsMixin):
             Additional command line arguments to pass to the node. If a string is passed it will be split using shlex.
         prefix_args : str | list[str], optional
             Arguments to prepend to the resolved run command, e.g. for executing the node through gdb. If a string is passed it will be split using shlex.
+        niceness : int, optional
+            Sets the niceness of the node process. A process with a higher value is "nicer" in that it is more ready to yield CPU time, whereas an "unfriendly" process will be less ready to yield. Values must be within [-19, 20]. These will be mapped to os-specific values, e.g. priority classes on Windows. **Note** that on Linux, negative values require elevated permissions. A good way to provide these is by adding an entry in `/etc/security/limits.conf` for your ROS2 user.
         env : dict[str, str], optional
             Additional environment variables to set for the node's process. The node process will merge these with the environment variables of the better_launch host process unless `isolate_env` is True.
         isolate_env : bool, optional
@@ -110,9 +116,21 @@ class Node(AbstractNode, LiveParamsMixin):
         if isinstance(prefix_args, str):
             prefix_args = shlex.split(prefix_args)
 
+        # Windows is a more permissive here and uses priority classes instead. It also doesn't
+        # have the resource module.
+        if sys.platform != "win32":
+            import resource
+
+            # Kernel niceness goes from 1 to 40
+            rlim_cur, _ = resource.getrlimit(resource.RLIMIT_NICE)
+            soft_limit = 20 - rlim_cur
+            if niceness >= soft_limit:
+                raise PermissionError(f"Requested niceness {niceness} is below the allowed limit ({soft_limit})")
+
         self.use_sim_time = use_sim_time
         self.drop_param_qualifiers = drop_param_qualifiers
         self.prefix_args = prefix_args or []
+        self.niceness = niceness
         self.cmd_args = cmd_args or []
         self.env = env or {}
         self.isolate_env = isolate_env
@@ -267,16 +285,15 @@ class Node(AbstractNode, LiveParamsMixin):
             self.logger.info(f"Starting process '{' '.join(print_cmd)}', env={env_str}")
 
             # Start the node process
-            self._process = subprocess.Popen(
-                final_cmd,
+            self._process = spawn_node_process(
+                final_cmd, 
+                self.niceness, 
                 cwd=None,
                 env=final_env,
                 shell=self.use_shell,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                # start in separate process group so it doesn't react to our sigint immediately
-                preexec_fn=os.setpgrp,
             )
 
             # Watch the process for output and react when it terminates
@@ -447,83 +464,41 @@ class Node(AbstractNode, LiveParamsMixin):
                 # another watcher thread before this one here exits. Should be fine, just not
                 # elegant.
                 self.start()
-            else:
-                self._on_shutdown()
 
     def shutdown(
-        self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0
-    ) -> None:
-        if not self.is_running:
-            return
+        self, reason: str, timeout: float = 0.0, signum: int = signal.SIGTERM
+    ) -> int:
+        signame = signal.Signals(signum).name
+        self.logger.warning(f"Shutting down node: {reason} ({signame})")
+
+        try:
+            return self._on_signal(signum, timeout)
+        except subprocess.TimeoutExpired:
+            raise TimeoutError("Node did not shutdown within the specified timeout")
+
+    def _on_signal(self, signum: int, timeout: float = None) -> int:
+        if not self._process:
+            return 0
+
+        if self._process.poll() is not None:
+            return self._process.returncode
 
         signame = signal.Signals(signum).name
-        self.logger.warning(f"Received shutdown request: {reason} ({signame})")
+        self.logger.info(f"Sending signal {signame} to {repr(self)}")
 
-        if signum == signal.SIGTERM and self._lifecycle_manager:
+        if signum in {signal.SIGINT, signal.SIGTERM} and self._lifecycle_manager:
             try:
                 self._lifecycle_manager.transition(LifecycleStage.FINALIZED)
             except Exception as e:
                 self.logger.warning(f"Lifecycle transition to FINALIZED failed: {e}")
 
-        self._on_signal(signum)
-
-        if timeout == 0.0:
-            return
-
         try:
-            # Since introducing setpgrp above _process.wait hangs indefinitely
-            # self._process.wait(timeout)
-            os.waitpid(self.pid, 0)
-        except subprocess.TimeoutExpired:
-            raise TimeoutError("Node did not shutdown within the specified timeout")
-
-    def _on_signal(self, signum) -> None:
-        if not self._process or self._process.poll() is not None:
-            return
-
-        signame = signal.Signals(signum).name
-
-        if not self.is_running:
-            # the process is done or is cleaning up, no need to signal
-            self.logger.info(
-                f"{signame} not sent to {repr(self)} because it is already closing"
-            )
-            return
-
-        if platform.system() == "Windows" and signum == signal.SIGINT:
-            # Windows doesn't handle sigterm correctly
-            self.logger.warning(
-                "SIGINT not supported on Windows, escalating to 'SIGTERM'"
-            )
-
-            signum = signal.SIGTERM
-            signame = signal.SIGTERM.name
-
-        self.logger.info(f"Sending signal {signame} to {repr(self)}")
-
-        try:
-            # os.killpg(self.pid, signum)
-            self._process.send_signal(signum)
+            return shutdown_process(self._process, signum, timeout)
         except ProcessLookupError:
             self.logger.info(
                 f"{signame} not sent to {repr(self)} because it has closed already"
             )
-
-    def _on_shutdown(self) -> None:
-        if not self.is_running:
-            return
-
-        # Send SIGTERM and SIGKILL if not shutting down fast enough
-        def escalate():
-            try:
-                time.sleep(3.0)
-                self._on_signal(signal.SIGTERM)
-                time.sleep(3.0)
-                self._on_signal(signal.SIGKILL)
-            except Exception:
-                pass
-
-        threading.Thread(target=escalate, daemon=True).start()
+            return 0
 
     def _get_info_section_general(self):
         info = super()._get_info_section_general()

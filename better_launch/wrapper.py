@@ -1,5 +1,6 @@
 from typing import Callable
 import os
+import sys
 import builtins
 import platform
 from ast import literal_eval
@@ -130,19 +131,34 @@ def _init_signal_handlers() -> None:
         sigint_count += 1
 
         # Some terminals will send SIGINT multiple times on ctrl-c, so we ignore the second one
-        if sigint_count == 2:
-            return
-
-        BetterLaunch()._on_sigint(sig, frame)
+        if sigint_count <= 1:
+            # Call on a separate thread to prevent reentrang deadlocks
+            threading.Thread(
+                target=BetterLaunch()._on_sigint, args=(sig, frame), daemon=True
+            ).start()
+        elif sigint_count == 2:
+            print("Shutdown is in process, ctrl-c again to escalate")
+        elif sigint_count == 3:
+            threading.Thread(
+                target=BetterLaunch()._on_sigterm, args=(sig, frame), daemon=True
+            ).start()
+        else:
+            # The 9th gate opens
+            print("Forced exit")
+            sys.exit(-1)
+            #os._exit(-1)  # if we want to be *really* mean to our process
 
     def sigterm_handler(sig, frame):
-        BetterLaunch()._on_sigterm(sig, frame)
+        threading.Thread(
+            target=BetterLaunch()._on_sigterm, args=(sig, frame), daemon=True
+        ).start()
 
     signal.signal(signal.SIGINT, sigint_handler)
-    signal.signal(signal.SIGTERM, sigterm_handler)
 
-    if platform.system() != "Windows":
+    if platform.system() == "Windows":
         signal.signal(signal.SIGQUIT, sigterm_handler)
+    else:
+        signal.signal(signal.SIGTERM, sigterm_handler)
 
 
 def _get_declared_args(

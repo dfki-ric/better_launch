@@ -123,18 +123,22 @@ class Component(AbstractNode, LiveParamsMixin):
         )
         self._terminated_event.clear()
 
-    def shutdown(self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0) -> None:
+    def shutdown(self, reason: str, timeout: float = 0.0, signum: int = signal.SIGTERM) -> None:
         """Unload this component if it was loaded.
 
         Parameters
         ----------
         reason : str
             A human-readable string describing why the component is being unloaded.
+        timeout : float, optional
+            Ignored for components.
         signum : int, optional
             Ignored for components.
         """
         if not self.is_loaded:
             return
+
+        self.logger.info(f"Shutting down component {self.plugin}")
 
         if signum == signal.SIGTERM and self._lifecycle_manager:
             try:
@@ -316,17 +320,17 @@ class Composer(AbstractNode):
                 srv = bl.service_client(topic, srv_type, timeout=service_timeout)
                 srv.destroy()
 
-    def shutdown(self, reason: str, signum: int = signal.SIGTERM, timeout: float = None) -> None:
+    def shutdown(self, reason: str, timeout: float = None, signum: int = signal.SIGTERM) -> None:
         """This will shutdown the composer node. Unloading any loaded components is left to the actual composer implementation.
 
         Parameters
         ----------
         reason : str
             A human-readable string describing why the composer and its components are being shutdown.
-        signum : int, optional
-            The signal that should be send to the composer.
         timeout : float, optional
             How long to wait for each component and the composer to shutdown before returning. Don't wait if timeout is 0.0. Wait forever if timeout is None. 
+        signum : int, optional
+            The signal that should be send to the composer.
 
         Raises
         ------
@@ -340,14 +344,19 @@ class Composer(AbstractNode):
             self.managed_components.clear()
             return
 
+        signame = signal.Signals(signum).name
+        self.logger.info(
+            f"Shutting down composer ({len(self._managed_components)} components): {reason} ({signame})"
+        )
+
         for comp in reversed(self.managed_components):
             try:
-                comp.shutdown(reason, signum, timeout)
+                comp.shutdown(reason, timeout, signum)
             except Exception as e:
                 self.logger.warning(f"Failed to unload component {comp}: {e}")
 
         try:
-            self._wrapped_node.shutdown(reason, signum, timeout)
+            self._wrapped_node.shutdown(reason, timeout, signum)
         except NotImplementedError:
             pass
         

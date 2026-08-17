@@ -233,7 +233,7 @@ class AbstractNode:
         raise NotImplementedError()
 
     def shutdown(
-        self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0
+        self, reason: str, timeout: float = 0.0, signum: int = signal.SIGTERM
     ) -> None:
         """Shutdown this node. Once this succeeds, [is_running][] will return False.
 
@@ -241,10 +241,10 @@ class AbstractNode:
         ----------
         reason : str
             A human-readable string describing why this node is being shutdown.
-        signum : int, optional
-            The signal that should be send to the node (if supported).
         timeout : float, optional
             How long to wait for the node to shutdown before returning. Don't wait if timeout is 0.0. Wait forever if timeout is None.
+        signum : int, optional
+            The signal that should be send to the node (if supported).
 
         Raises
         ------

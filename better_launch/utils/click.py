@@ -74,6 +74,14 @@ def get_click_bl_options(expose: bool = False) -> list[click.Option]:
             callback=update_value,
         ),
         click.Option(
+            ["--bl-force-kill-delay"],
+            type=float,
+            default=None,
+            help="Time each node process has to terminate before being killed",
+            expose_value=expose,
+            callback=update_value,
+        ),
+        click.Option(
             ["--bl-colormode"],
             type=click.types.Choice([c.name for c in Colormode], case_sensitive=False),
             show_choices=True,

@@ -5,8 +5,6 @@ from .lifecycle_manager import LifecycleStage, LifecycleManager
 from .node import Node
 from .foreign_node import (
     ForeignNode,
-    find_process_for_node,
-    find_ros2_node_processes,
     find_foreign_nodes,
     get_package_for_path,
 )
