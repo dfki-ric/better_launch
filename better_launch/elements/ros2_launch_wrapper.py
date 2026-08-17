@@ -190,8 +190,6 @@ class Ros2LaunchWrapper(AbstractNode):
         self._launch_action_queue = Queue()
         self._process_log_queue = Queue()
         self._loaded_launch_descriptions = []
-        self._shutdown_requested = False
-        self._terminate_requested = False
 
     @property
     def pid(self) -> int:
@@ -303,51 +301,29 @@ class Ros2LaunchWrapper(AbstractNode):
         self._mproc.close()
 
     def shutdown(
-        self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0
+        self, reason: str, timeout: float = 0.0, signum: int = signal.SIGTERM
     ) -> int:
-        if not self._mproc:
+        mproc = self._mproc
+        if not mproc:
             return 0
 
-        if self._terminate_requested and self.is_running:
-            try:
-                self._mproc.join(0.5)  # give it a little time to finish exiting
-            except Exception:
-                pass
-
         if not self.is_running:
-            return self._mproc.exitcode or 0
+            return mproc.exitcode or 0
 
-        if self._terminate_requested or signum == FORCE_KILL:
-            self.logger.warning(
-                f"{reason} - {self.name} was asked to terminate with SIGKILL. "
-                "Killing the ROS2 launch service may leave stale processes behind!"
-            )
-            signum = FORCE_KILL
-        elif self._shutdown_requested:
-            self._terminate_requested = True
-            self.logger.info(
-                f"{self.name} is still running, escalating to SIGTERM ({reason})"
-            )
-            signum = signal.SIGTERM
-        else:
-            self._shutdown_requested = True
-            self.logger.info(
-                f"Asking {self.name} to shutdown gracefully via SIGINT ({reason})"
-            )
-            signum = signal.SIGINT
+        signame = signal.Signals(signum).name
+        self.logger.info(f"Sending signal {signame} to {repr(self)}")
 
         # This is a multiprocessing.Process, so we can't use shutdown_process here
         send_signal_to_ptree(self.pid, signum)
+        mproc.join(timeout)
 
-        if timeout == 0.0:
-            return 0  # fire and forget, caller will re-invoke to escalate
-
-        self._mproc.join(timeout)
-        if self._mproc.is_alive():
-            raise TimeoutError(
-                "ROS2 launch service did not shutdown within the specified timeout"
-            )
-        return self._mproc.exitcode or 0
+        if mproc.is_alive():
+            print(f"ROS2 launcher {mproc.pid} failed to shutdown in time, force killing")
+            send_signal_to_ptree(mproc.pid, FORCE_KILL)
+            while mproc.is_alive():
+                mproc.join(0.5)
+        
+        return self._mproc.exitcode or 0    
 
     def _get_info_section_general(self) -> str:
         return (

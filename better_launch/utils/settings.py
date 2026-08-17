@@ -47,6 +47,7 @@ default_file_format = "[{levelname}] [{asctime}] {message}"
 @dataclass(frozen=True)
 class _Settings:
     ui: bool = False
+    force_kill_delay: float = 3.0
     colormode: Colormode = Colormode.DEFAULT
     print_limit: int = 0
     screen_log_level: int = logging.INFO

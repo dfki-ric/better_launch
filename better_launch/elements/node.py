@@ -464,35 +464,17 @@ class Node(AbstractNode, LiveParamsMixin):
                 # another watcher thread before this one here exits. Should be fine, just not
                 # elegant.
                 self.start()
-            else:
-                self._on_shutdown()
 
     def shutdown(
-        self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0
+        self, reason: str, timeout: float = 0.0, signum: int = signal.SIGTERM
     ) -> int:
         signame = signal.Signals(signum).name
-        self.logger.warning(f"Received shutdown request: {reason} ({signame})")
+        self.logger.warning(f"Shutting down node: {reason} ({signame})")
 
         try:
             return self._on_signal(signum, timeout)
         except subprocess.TimeoutExpired:
             raise TimeoutError("Node did not shutdown within the specified timeout")
-
-    def _on_shutdown(self) -> None:
-        if not self.is_running:
-            return
-
-        # Send SIGTERM and SIGKILL if not shutting down fast enough
-        def escalate():
-            try:
-                time.sleep(3.0)
-                self._on_signal(signal.SIGTERM, 0)
-                time.sleep(3.0)
-                self._on_signal(FORCE_KILL, 0)
-            except Exception:
-                pass
-
-        threading.Thread(target=escalate, daemon=True).start()
 
     def _on_signal(self, signum: int, timeout: float = None) -> int:
         if not self._process:

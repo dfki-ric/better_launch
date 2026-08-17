@@ -431,7 +431,7 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
         threading.Thread(target=wait, daemon=True).start()
 
     def shutdown(
-        self, reason: str, signum: int = signal.SIGTERM, timeout: float = 0.0
+        self, reason: str, timeout: float = 0.0, signum: int = signal.SIGTERM
     ) -> int:
         if not self._process:
             return 0
@@ -440,16 +440,13 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
             return self._process.returncode
 
         signame = signal.Signals(signum).name
+        self.logger.info(f"Shutting down foreign process: {reason} ({signame})")
 
         if signum in {signal.SIGINT, signal.SIGTERM} and self._lifecycle_manager:
             try:
                 self._lifecycle_manager.transition(LifecycleStage.FINALIZED)
             except Exception as e:
                 self.logger.warning(f"Lifecycle transition to FINALIZED failed: {e}")
-
-        self.logger.info(
-            f"Forwarding shutdown signal to foreign process: {reason} ({signame})"
-        )
 
         try:
             return shutdown_process(self._process, signum, timeout)

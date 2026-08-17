@@ -97,6 +97,8 @@ def _spawn_node_process_windows(
     )
     kernel32.AssignProcessToJobObject(job, proc._handle)
 
+    return proc
+
 
 def spawn_node_process(cmd: list[str], niceness: int = 0, **kwargs) -> subprocess.Popen:
     if sys.platform == "win32":
@@ -116,7 +118,7 @@ def send_signal_to_ptree(pid: int, signum: int) -> None:
             # launch process itself
             subprocess.call(["taskkill", "/F", "/T", "/PID", str(pid)])
     else:
-        os.killpg(pid, signum)
+        os.killpg(os.getpgid(pid), signum)
 
 
 def shutdown_process(
@@ -131,10 +133,16 @@ def shutdown_process(
     send_signal_to_ptree(proc.pid, signum)
 
     try:
-        return proc.wait(timeout)
+        ret = proc.wait(timeout)
+        return ret
     except subprocess.TimeoutExpired:
-        proc.kill()
-        return proc.wait()
+        print(f"Process {proc.pid} failed to shutdown in time, force killing")
+        send_signal_to_ptree(proc.pid, FORCE_KILL)
+        while True:
+            try:
+                return proc.wait(0.5)
+            except subprocess.TimeoutExpired:
+                pass
 
 
 def find_ros2_node_processes() -> list[psutil.Process]:

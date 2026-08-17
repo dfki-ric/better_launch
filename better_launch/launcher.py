@@ -187,6 +187,7 @@ class BetterLaunch(metaclass=BetterLaunchMeta):
 
         self._sigint_received = False
         self._sigterm_received = False
+        self._shutdown_lock = threading.Lock()
         self._shutdown_future = Future()
         self._shutdown_callbacks = []
 
@@ -259,9 +260,13 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                     self.shutdown("all nodes have stopped")
                     break
 
-                # Sleep until every node has terminated, then check again
+                # Try to join every node, then check again. Avoid indefinite waits here to
+                # prevent deadlocking ourselves
                 for n in nodes:
-                    n.join()
+                    try:
+                        n.join(timeout=0.3)
+                    except TimeoutError:
+                        pass
         else:
             try:
                 self._shutdown_future.result()
@@ -580,7 +585,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         if not self._sigint_received:
             self.logger.warning("Received (SIGINT), forwarding to child processes...")
             self._sigint_received = True
-            self.shutdown("user interrupt", signal.SIGINT)
+            self.shutdown("user interrupt", Settings().force_kill_delay, signal.SIGINT)
         else:
             self.logger.warning("Received (SIGINT) again, escalating to sigterm")
             self._on_sigterm(sig, frame)
@@ -596,7 +601,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         self.logger.error("Using (SIGTERM) can result in orphaned processes!")
 
         # Final chance for the processes to shut down, but we will no longer wait
-        self.shutdown("received (SIGTERM)", signal.SIGTERM)
+        self.shutdown("received (SIGTERM)", 0.0, signal.SIGTERM)
 
         if not self.is_shutdown:
             self._shutdown_future.cancel()
@@ -616,73 +621,88 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         """
         self._shutdown_callbacks.append(callback)
 
-    def shutdown(self, reason: str = None, signum: int = signal.SIGTERM) -> None:
+    def shutdown(
+        self, reason: str = None, timeout: float = 3.0, signum: int = signal.SIGTERM
+    ) -> None:
         """Ask all nodes to shutdown and terminate the internal ROS2 thread. Any subsequent calls to BetterLaunch member functions, including this one, may fail. This will typically be called when you want to terminate your launch file.
 
         Parameters
         ----------
         reason : str, optional
             A human-readable string explaining the reason for the shutdown. If not given this will be requitted with a warning.
+        timeout : float, optional
+            How long to wait before force killing any of the nodes.
         signum : int, optional
             The signal to send to child processes.
         """
-        if reason is None:
+        # Check if there's already a shutdown in progress
+        if not self._shutdown_lock.acquire(blocking=False):
+            return
+
+        try:
+            if self._shutdown_future.done():
+                return
+
+            if reason is None:
+                try:
+                    frame = find_function_frame(self.shutdown)
+                    self.logger.warning(
+                        f"Shutdown was called from {frame.function}, but no reason was given"
+                    )
+                except Exception:
+                    self.logger.warning(
+                        "Shutdown was called without providing a reason and the calling frame could not be determined"
+                    )
+            else:
+                self.logger.info(f"Shutdown requested: {reason}")
+
+            # Tell all nodes to shut down in opposite order
+            all_nodes = self.get_nodes(
+                include_components=False, include_launch_service=True, include_foreign=False
+            )
+            for n in reversed(all_nodes):
+                try:
+                    n.shutdown(reason, timeout, signum)
+                except NotImplementedError:
+                    pass
+                except Exception as e:
+                    self.logger.error(
+                        f"Node {n.name} raised an exception during shutdown: {e}"
+                    )
+
             try:
-                frame = find_function_frame(self.shutdown)
-                self.logger.warning(
-                    f"Shutdown was called from {frame.function}, but no reason was given"
-                )
+                if self._ros_adapter:
+                    self._ros_adapter.shutdown()
+                    self._ros_adapter = None
+            except Exception as e:
+                self.logger.error(f"RosAdapter raised an exception during shutdown: {e}")
+
+            # If we launched extra ROS2 actions tell the launch service to shut down, too
+            if self._ros2_launcher is not None:
+                try:
+                    # Give the ROS2 launcher a little extra, it's notorious for zombie processes
+                    self._ros2_launcher.shutdown(reason, timeout + 2, signum)
+                except Exception as e:
+                    self.logger.error(
+                        f"ROS2 launch service raised an exception during shutdown: {e}"
+                    )
+
+            try:
+                self._shutdown_future.set_result(None)
             except Exception:
-                self.logger.warning(
-                    "Shutdown was called without providing a reason and the calling frame could not be determined"
-                )
-        else:
-            self.logger.info(f"Shutdown: {reason}")
-
-        # Tell all nodes to shut down in opposite order
-        all_nodes = self.get_nodes(
-            include_components=False, include_launch_service=True, include_foreign=False
-        )
-        for n in reversed(all_nodes):
-            try:
-                n.shutdown(reason, signum)
-            except NotImplementedError:
                 pass
-            except Exception as e:
-                self.logger.error(
-                    f"Node {n.name} raised an exception during shutdown: {e}"
-                )
 
-        try:
-            if self._ros_adapter:
-                self._ros_adapter.shutdown()
-                self._ros_adapter = None
-        except Exception as e:
-            self.logger.error(f"RosAdapter raised an exception during shutdown: {e}")
+            # Call any callbacks, but only once
+            callbacks = self._shutdown_callbacks
+            self._shutdown_callbacks = []
 
-        # If we launched extra ROS2 actions tell the launch service to shut down, too
-        if self._ros2_launcher is not None:
-            try:
-                self._ros2_launcher.shutdown(reason, signum)
-            except Exception as e:
-                self.logger.error(
-                    f"ROS2 launch service raised an exception during shutdown: {e}"
-                )
-
-        try:
-            self._shutdown_future.set_result(None)
-        except Exception:
-            pass
-
-        # Call any callbacks, but only once
-        callbacks = self._shutdown_callbacks
-        self._shutdown_callbacks = []
-
-        for cb in callbacks:
-            try:
-                cb()
-            except Exception as e:
-                self.logger.warning(f"Shutdown callback failed: {e}")
+            for cb in callbacks:
+                try:
+                    cb()
+                except Exception as e:
+                    self.logger.warning(f"Shutdown callback failed: {e}")
+        finally:
+            self._shutdown_lock.release()
 
     def find(
         self,
