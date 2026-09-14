@@ -169,7 +169,7 @@ class AbstractNode:
                         # See the following links for more details:
                         # https://github.com/ros2/launch_ros/blob/jazzy/launch_ros/launch_ros/utilities/normalize_parameters.py#L98
                         # https://answers.ros.org/question/322445/
-                        raise ValueError("ROS2 does not support lists of dicts :(")
+                        raise ValueError("ROS2 does not support lists of dicts :( try passing the config file path instead")
 
             if isinstance(data, dict):
                 for key, val in data.items():
