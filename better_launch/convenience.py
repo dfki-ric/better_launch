@@ -149,8 +149,17 @@ def _resolve_robot_description(
 
     bl = BetterLaunch()
 
-    if os.path.isabs(source) and (os.path.isfile(source) or os.path.islink(source)):
-        source = read_robot_description(None, source, xacro_args=xacro_args)
+    if not source.startswith("<"):
+        # Not xml, try to read it from a file or topic
+        if os.path.isabs(source) and (os.path.isfile(source) or os.path.islink(source)):
+            source = read_robot_description(None, source, xacro_args=xacro_args)
+        else:
+            try:
+                bl.receive_message(source, "std/msg/String", timeout=2)
+            except Exception:
+                raise ValueError(
+                    "source is not a file and no message was received from this topic"
+                )
 
     source = source.strip()
     if not source.startswith("<"):
@@ -231,7 +240,7 @@ def robot_state_publisher(
     xacro_args : list of str, optional
         Additional arguments to pass to the Xacro processor when a `.xacro` file was passed.
     pass_by_topic : bool, optional
-        If True and the value provided for `robot_description` is either a file or xml string, the description will be passed to the controller manager via a topic rather than a ROS parameter. On ROS versions before lyrical this feature is disabled.
+        If True, the description will be passed to the controller manager via a topic rather than a ROS parameter. On ROS versions before lyrical this feature is disabled.
     description_topic : str, optional
         The topic under which the robot description will be published if `pass_by_topic` is True.
     **kwargs : dict, optional
@@ -244,7 +253,7 @@ def robot_state_publisher(
     """
     bl = BetterLaunch.instance()
 
-    if bl.ros_distro_key() < "l":
+    if bl.is_ros_distro_before("lyrical"):
         pass_by_topic = False
 
     params = kwargs.pop("params", {})
@@ -262,7 +271,7 @@ def robot_state_publisher(
 
     if not robot_description.lstrip().startswith("<"):
         # Input arg was not a file or xml content string, assume it's a topic
-        if bl.ros_distro_key() < "l":
+        if bl.is_ros_distro_before("lyrical"):
             # Before lyrical we need to read the topic and pass it as a parameter
             rd_msg = bl.receive_message(
                 robot_description, "std_msgs/msg/String", None, timeout=1.0
@@ -401,7 +410,7 @@ def spawn_controller_manager(
         Additional CLI arguments to pass to the spawner command (e.g. `--load-only`).
     name : str, optional
     pass_by_topic : bool, optional
-        If True and the value provided for `robot_description` is either a file or xml string, the description will be passed to the controller manager via a topic rather than a ROS parameter. Automatically enabled on jazzy and newer, where passing by parameter is no longer supported.
+        If True , the description will be passed to the controller manager via a topic rather than a ROS parameter. Automatically enabled on jazzy and newer, where passing by parameter is no longer supported.
     description_topic : str, optional
         Where to publish the robot description if `pass_by_topic` is True.
     xacro_args : list[str], optional
@@ -428,7 +437,7 @@ def spawn_controller_manager(
 
     if robot_description:
         # Passing by parameter is not supported in jazzy and onwwards
-        if bl.ros_distro_key() >= "j":
+        if not bl.is_ros_distro_before("jazzy"):
             pass_by_topic = True
 
         robot_description = _resolve_robot_description(
@@ -452,7 +461,7 @@ def spawn_controller_manager(
             params["robot_description"] = robot_description
 
     else:
-        if bl.ros_distro_key() < "j":
+        if bl.is_ros_distro_before("jazzy"):
             bl.logger.warning(
                 "Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!"
             )
@@ -508,7 +517,7 @@ def spawn_controller(
     if params:
         # Passing controller params directly is only supported in Jazzy and newer, so we
         # write them to a yaml instead, then pass them as a param-file
-        if isinstance(params, dict) and bl.ros_distro_key() < "j":
+        if isinstance(params, dict) and bl.is_ros_distro_before("jazzy"):
             data = yaml.serialize(params).splitlines()
 
             tmp = tempfile.NamedTemporaryFile("w+", suffix=".yaml")
@@ -548,7 +557,7 @@ def spawn_controller(
             raise ValueError(f"Controller params of type {type(params)} not supported")
 
     if remaps:
-        if bl.ros_distro_key() < "j":
+        if bl.is_ros_distro_before("jazzy"):
             raise ValueError(
                 "Passing controller params directly is only supported in Jazzy and newer"
             )

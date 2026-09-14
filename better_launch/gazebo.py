@@ -316,7 +316,7 @@ def spawn_model(
     """
     bl = BetterLaunch.instance()
 
-    if bl.ros_distro_key() < "l":
+    if bl.is_ros_distro_before("lyrical"):
         pass_by_topic = False
 
     if spawn_args is None:

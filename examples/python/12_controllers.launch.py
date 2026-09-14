@@ -28,12 +28,12 @@ def parambolage():
             filename="minimal_robot.urdf",
         ),
         node_name="robot_state_publisher",
-        anonymous=False
+        anonymous=False,
     )
 
     remaps = {}
-    if bl.ros_distro_key() < "j":
-        # In versions before Jazzy the controller_manager was subscribing to something weird like 
+    if bl.is_ros_distro_before("jazzy"):
+        # In versions before Jazzy the controller_manager was subscribing to something weird like
         # /controller_manager/robot_description
         remaps["~/robot_description"] = "/robot_description"
 
@@ -60,10 +60,10 @@ def parambolage():
     print("Running ROS2 nodes:")
     pprint(bl.all_ros2_node_names())
 
-    # TODO since the controller is spawned inside the controller manager's process, it is 
+    # TODO since the controller is spawned inside the controller manager's process, it is
     # currently not possible to interact with it from better_launch. I will find a way...
-    #controller = bl.query_node("/joint_state_broadcaster")
-    #print(controller.get_live_params())
+    # controller = bl.query_node("/joint_state_broadcaster")
+    # print(controller.get_live_params())
 
     ret = bl.call_service(
         "/joint_state_broadcaster/get_parameters",

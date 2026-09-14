@@ -514,6 +514,10 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
     def ros_distro_key() -> str:
         return BetterLaunch.ros_distro()[0].lower()
 
+    @staticmethod
+    def is_ros_distro_before(distro: str) -> bool:
+        return BetterLaunch.ros_distro()[0].lower() < distro[0].lower()
+
     @property
     def launchfile(self) -> str:
         """The path of the (main) *better_launch* launchfile being executed."""
