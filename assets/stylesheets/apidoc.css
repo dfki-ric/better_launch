@@ -1,0 +1,46 @@
+/* Function blocks */
+.doc-function {
+  border-left: 4px solid var(--md-accent-fg-color);
+  padding: 0.8em 1em;
+  margin: 1.2em 0;
+  background: var(--md-code-bg-color);
+  border-radius: 6px;
+}
+
+/* Function signature */
+.doc-function > .doc-heading {
+  font-weight: 600;
+  font-size: 0.95em;
+  margin-bottom: 0.6em;
+}
+
+/* Parameters section */
+.doc-param {
+  margin: 0.4em 0;
+  padding-left: 0.6em;
+  border-left: 2px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Parameter name */
+.doc-param-name {
+  font-weight: 600;
+  color: var(--md-accent-fg-color);
+}
+
+/* Parameter type */
+.doc-param-type {
+  font-family: var(--md-code-font-family);
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+/* Parameter description */
+.doc-param-doc {
+  margin-top: 0.2em;
+  margin-left: 0.2em;
+}
+
+/* Improve spacing between parameters */
+.doc-params {
+  margin-top: 0.6em;
+}
