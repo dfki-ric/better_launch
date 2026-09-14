@@ -155,7 +155,7 @@ def _resolve_robot_description(
             source = read_robot_description(None, source, xacro_args=xacro_args)
         else:
             try:
-                bl.receive_message(source, "std/msg/String", timeout=2)
+                bl.receive_message(source, String, timeout=2)
             except Exception:
                 raise ValueError(
                     "source is not a file and no message was received from this topic"
