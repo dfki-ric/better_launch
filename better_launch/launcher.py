@@ -1198,13 +1198,13 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         sub = self.subscriber(topic, message_type, cb, qos_profile)
 
         try:
-            evt.wait(timeout)
-            return res
-        except TimeoutError:
-            if default is not _unset:
-                return default
+            if evt.wait(timeout):
+                return res
+            else:
+                if default is not _unset:
+                    return default
 
-            raise
+                raise TimeoutError(f"Did not receive a message on {topic} in time")
         finally:
             sub.destroy()
 
