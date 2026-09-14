@@ -172,7 +172,7 @@ def _resolve_robot_description(
         pub = bl.publisher(
             topic,
             String,
-            bl.qos_profile(durability="transient_local"),
+            bl.qos_profile(queue_size=1, durability="transient_local"),
         )
         pub.publish(String(data=source))
 

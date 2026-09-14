@@ -993,6 +993,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
 
     def qos_profile(
         self,
+        *,
         history: Literal["keep_last", "keep_all", "default"]
         | HistoryPolicy = "keep_all",
         queue_size: int = 10,
@@ -1092,7 +1093,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         callback : Callable[[Any], Any]
             A function that will be called whenever a message is received.
         qos_profile : QoSProfile | int, optional
-            A quality of service profile that changes how the publisher handles connections and retains data.
+            A quality of service profile that changes how the publisher handles connections and retains data. See also [[qos_profile]].
 
         Returns
         -------
@@ -1121,7 +1122,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         message_type : str | type
             The message type that will be published. Strings must follow the pattern `<package>/msg/<message>`.
         qos_profile : QoSProfile | int, optional
-            A quality of service profile that changes how the publisher handles connections and retains data.
+            A quality of service profile that changes how the publisher handles connections and retains data. See also [[qos_profile]].
 
         Returns
         -------
@@ -1180,12 +1181,42 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         topic: str,
         message_type: str | type,
         default: Any = _unset,
-        qos_profile: QoSProfile | int = 10,
+        qos_profile: QoSProfile | int = None,
         *,
         timeout: float = None,
     ) -> Any:
+        """_summary_
+
+        Parameters
+        ----------
+        topic : str
+            The topic to publish messages on.
+        message_type : str | type
+            The message type that will be published. Strings must follow the pattern `<package>/msg/<message>`.
+        default : Any, optional
+            Value to return if a timeout was specified, yet no message was received after the timeout passing.
+        qos_profile : QoSProfile | int, optional
+            A quality of service profile that changes how the publisher handles connections and retains data. Will use `queue_size=1` and `durability=transient_local` if not specified.
+        timeout : float, optional
+            How long to wait for a message to arrive. If the timeout passes without a message arriving and no default was set, a TimeoutError will be raised.
+
+        Returns
+        -------
+        Any
+            The received message, or the default if the timeout has passed without receiving a message.
+
+        Raises
+        ------
+        TimeoutError
+            If no default was specified and the timeout has passed.
+        """
         if isinstance(message_type, str):
             message_type = self.get_ros_message_type(message_type)
+
+        if qos_profile is None:
+            # Important to receive messages on late subscriptions to topics with low frequency
+            # (the publishers must still use the same durability)
+            qos_profile = self.qos_profile(queue_size=1, durability="transient_local")
 
         evt = threading.Event()
         res = None
