@@ -1184,20 +1184,22 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
         *,
         timeout: float = None,
     ) -> Any:
-        from concurrent.futures import Future
-
         if isinstance(message_type, str):
             message_type = self.get_ros_message_type(message_type)
 
-        ret = Future()
+        evt = threading.Event()
+        res = None
 
         def cb(msg: Any) -> None:
-            ret.set_result(msg)
+            nonlocal res
+            res = msg
+            evt.set()
 
         sub = self.subscriber(topic, message_type, cb, qos_profile)
 
         try:
-            return ret.result(timeout)
+            evt.wait(timeout)
+            return res
         except TimeoutError:
             if default is not _unset:
                 return default
