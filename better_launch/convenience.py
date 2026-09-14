@@ -156,7 +156,7 @@ def _resolve_robot_description(
         else:
             try:
                 bl.logger.info(f"Waiting for robot description on {source}")
-                source = bl.receive_message(source, String, timeout=2)
+                source = bl.receive_message(source, String, timeout=2).data
             except Exception:
                 raise ValueError(
                     "source is not a file and no message was received from this topic"
