@@ -578,7 +578,7 @@ Please fasten your seatbelts and secure all baggage underneath your chair.
                 if not create:
                     return None
 
-                child = Group(g, part)
+                child = Group(g, part, g.use_sim_time)
                 g.add_child(child)
 
             g = child
