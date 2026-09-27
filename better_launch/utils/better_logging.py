@@ -306,12 +306,12 @@ def configure_logger(
     """
     # TODO proper docstring
     if output:
-        if isinstance(output, Iterable) and not isinstance(output, str):
+        if isinstance(output, (str, LogSink)):
             output = [output]
 
         for idx, sink in enumerate(output):
             if isinstance(sink, str):
-                output[idx] = LogSink[output.upper()]
+                output[idx] = LogSink[sink.upper()]
 
         output = set(output)
     else:
